@@ -1,0 +1,16 @@
+/* src/index.css */
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* body{
+  background-image: url("https://images.stockcake.com/public/5/4/d/54d4cb54-76ef-4e12-b33c-b87d89adf444/medical-symbol-glistens-stockcake.jpg");
+} */
+/* optional: add your own layers below
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+}
+*/
