@@ -12,7 +12,7 @@ import { htmlToText } from 'html-to-text';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import Auth from './Auth'; // Your Auth component
+import Auth from './auth.jsx'; // Your Auth component
 
 // NOTE: findings.js is assumed to be in the same directory.
 import { localFindings } from './findings.js';
