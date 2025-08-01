@@ -1,8 +1,160 @@
-/* Production-ready consolidated ultrasound findings list */
-// Auto-generated on 2025-06-25
 
 export const localFindings = [
 
+  {
+    "id": "normal-abdomen-pelvis-1",
+    "findingName": "Normal Abdomen and Pelvis",
+    "organ": "Complete Report",
+    "isFullReport": true,
+    "findings": `
+      <p><strong>LIVER:</strong> The liver is normal in size _cm, shape & echotexture. Hepatic veins and intrahepatic portal vein radicles are normal in size and distribution. No focal solid or cystic mass lesion is noted.</p>
+      <p><strong>GALL BLADDER:</strong> Gall bladder appeared normal. No mural mass or calculus is noted.</p>
+      <p><strong>CBD:</strong> Common bile duct appeared normal. No calculi seen in the common bile duct.</p>
+      <p><strong>PANCREAS:</strong> Is normal in shape size and echotexture. No focal lesion seen.</p>
+      <p><strong>SPLEEN:</strong> Spleen is normal in size _cm, shape and echotexture. No focal lesion is seen.</p>
+      <p><strong>KIDNEYS:</strong> Right kidney measures _ x _ x _cm with parenchymal thickness _cm and Left kidney measures _ x _ x _cm with parenchymal thickness _cm. Both kidneys are normal in size, shape, position, echogenicity and echotexture. Normal corticomedullary differentiation is noted. Pelvicalyceal systems on both sides are normal.</p>
+      <p><strong>URETERS:</strong> Visualized portions of both ureters are not dilated. No calculus is seen in the portions of ureters which can be seen by sonography.</p>
+      <p><strong>URINARY BLADDER:</strong> The urinary bladder shows physiological distention. No calculus or mass lesion is seen.</p>
+      <p><strong>PROSTATE:</strong> The prostate is normal in shape, position, echogenicity and echotexture. There is no focal solid or cystic mass lesion in it.</p>
+      <p><strong>OTHER:</strong> Visualized portions of IVC and Aorta are grossly normal. There is no free or loculated fluid collection in abdomen or pelvis. No significant lymphadenopathy is noted.</p>
+      <br>
+      <p><strong>IMPRESSION:</strong></p>
+      <p>• No significant abnormality is seen.</p>
+    `,
+    "impression": "."
+  },
+  {
+    "findingName": "FATTY LIVER",
+    "organ": "LIVER",
+    "findings": "with mild/moderate/heavy diffuse increase in echotexture with fat fraction %.",
+    "impression": "Grade I/II/III fatty liver."
+  },      
+  {
+    "findingName": "Mesenteric lymphadenitis",
+    "organ": "OTHERS",
+    "findings": "Few subcentimetric mesenteric lymphnodes noted in RIF largest measuring 7mm with mild surrounding inflammatory changes.",
+    "impression": "Mesenteric lymphadenitis"
+  },
+  {
+    "findingName": "Mesenteric lymphadenopathy",
+    "organ": "LIVER",
+    "findings": "Few subcentimetric mesenteric lymphnodes noted in RIF largest measuring 7mm in short axis diameter with maintained fatty hilum.",
+    "impression": "Mesenteric lymphadenopathy."
+  },   
+  {
+    "findingName": "Mild Hepatomegaly",
+    "organ": "LIVER",
+    "findings": "Liver is Enlarged.",
+    "impression": "Mild Hepatomegaly."
+  },   
+  {
+    "findingName": "Right renal calculus",
+    "organ": "KIDNEY",
+    "findings": "Right renal calculus: A calculus measuring is noted in the upper/ mid / lower pole calyx.",
+    "impression": "Right renal calculus."
+  },   
+  {
+    "findingName": "Left renal cortical cyst",
+    "organ": "KIDNEY",
+    "findings": "A cystic lesion measuring is noted in the upper/ mid / lower pole cortex.",
+    "impression": "Left renal cortical cyst."
+  },   
+  {
+    "findingName": "right simple ovarian cyst",
+    "organ": "OVARY",
+    "findings": "A cystic lesion measuring x cm is noted in the right/left ovary.",
+    "impression": "right simple ovarian cyst."
+  },
+  {
+    "findingName": "left simple ovarian cyst",
+    "organ": "OVARY",
+    "findings": "A cystic lesion measuring x cm is noted in the right/left ovary.",
+    "impression": "left simple ovarian cyst."
+  },   
+  {
+    "findingName": "Bilateral simple ovarian cysts",
+    "organ": "OVARY",
+    "findings": "A cystic lesions measuring x cm , x cm is noted in the right and left ovaries respectively.",
+    "impression": "Bilateral simple ovarian cysts."
+  },   
+  {
+    "findingName": "Bilateral polycystic ovarian morphology",
+    "organ": "OVARY",
+    "findings": "Both the ovaries are well visualized and show multiple follicles arranged in the periphery with central echogenic stroma.",
+    "impression": "Bilateral polycystic ovarian morphology."
+  },        
+  {
+    "findingName": "Mild GB sludge",
+    "organ": "GALL BLADDER",
+    "findings": "GB appears CONTRACTED.",
+    "impression": "Mild GB sludge."
+  },   
+  {
+    "findingName": "Cholelithiasis",
+    "organ": "GALL BLADDER",
+    "findings": "A calculus /Few calculi noted in fundus & body largest measuring 1.6 x 0.5cm in the body.",
+    "impression": "Cholelithiasis."
+  },   
+  {
+    "findingName": "Minimal/moderate ascites",
+    "organ": "GALL BLADDER",
+    "findings": "Minimal/moderate amount of free fluid noted in abdomen.",
+    "impression": "Minimal/moderate ascites."
+  },  
+  {
+    "findingName": "Grade I Prostatomegaly",
+    "organ": "PROSTATE",
+    "findings": "The prostate is enlarged Borderline Prostatomegaly.",
+    "impression": "Grade I Prostatomegaly."
+  },  
+  {
+    "findingName": "Normal APPENDIX",
+    "organ": "OTHERS",
+    "findings": "Visualized appendix measuring 5.1mm with no evidence of inflammatory changes .",
+    "impression": "."
+  },  
+  {
+    "findingName": "Mild Hepatomegaly",
+    "organ": "OTHERS",
+    "findings": "Liver is Enlarged.",
+    "impression": "Mild Hepatomegaly."
+  },  
+  {
+    "findingName": "Acute Appendicitis",
+    "organ": "OTHERS",
+    "findings": "A blind ending aperistaltic non compressible loop of bowel measuring 7mm is noted in RIF..",
+    "impression": "Acute Appendicitis."
+  },
+  {
+    "findingName": "Umbilical hernia 1",
+    "organ": "OTHERS",
+    "findings": "A defect measuring 6.2mm noted in the umbilical region with pro peritoneal fat as its content. .",
+    "impression": "Umbilical hernia."
+  }, 
+  {
+    "findingName": "Umbilical hernia 2",
+    "organ": "OTHERS",
+    "findings": "A defect measuring 6mm noted in the anterior abdominal wall in umbilical region with herniating omentum as its contents.",
+    "impression": "Umbilical hernia."
+  }, 
+  {
+    "findingName": "Direct Inguinal Hernia",
+    "organ": "OTHERS",
+    "findings": ": A defect measuring 1.3cm is noted in the right inguinal region through which herniating omentum is seen. inferior and medial to inferior epigastric vessels.",
+    "impression": "Direct Inguinal Hernia."
+  }, 
+  {
+    "findingName": "Indirect Inguinal Hernia",
+    "organ": "OTHERS",
+    "findings": "A defect measuring 1.5cm is noted in the right inguinal region through which herniating omentum is seen superior and lateral to inferior epigastric vessels.",
+    "impression": "Indirect Inguinal Hernia."
+  }, 
+  // {
+  //   "findingName": "Mild Hepatomegaly",
+  //   "organ": "OTHERS",
+  //   "findings": "Liver is Enlarged.",
+  //   "impression": "Mild Hepatomegaly."
+  // }, 
   {
     "findingName": "Hepatomegaly",
     "organ": "LIVER",
