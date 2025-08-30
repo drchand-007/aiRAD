@@ -1,45 +1,57 @@
 // IMPORTANT: This file contains JSX syntax. Please ensure it has a .jsx or .tsx extension (e.g., App.jsx) to avoid build errors.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, FileText, Clipboard, Settings, Download, BrainCircuit, User, Calendar, Stethoscope, XCircle, FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, ChevronDown } from 'lucide-react';
-import Placeholder from '@tiptap/extension-placeholder';
+import { Upload, FileText, Clipboard, Settings, BrainCircuit, User, Calendar, Stethoscope, XCircle, FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, ChevronDown, History  } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
 import jsPDF from 'jspdf';
 import { htmlToText } from 'html-to-text';
 
-// Firebase Imports (assuming firebase.js is set up)
-import { auth, db } from './firebase';
+// Firebase Imports
+import { auth, db } from './firebase'; // Assuming firebase.js is set up
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, limit } from "firebase/firestore";
 import Auth from './auth.jsx'; // Your Auth component
 
 // NOTE: findings.js is assumed to be in the same directory.
 import { localFindings } from './findings.js';
-// const localFindings = []; // Using an empty array as a fallback.
 
 
-// Pre-defined templates for different modalities
+// --- Diamond Standard Templates ---
 const templates = {
   "Ultrasound": {
-    "Abdomen": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of significant abnormality in the upper abdomen.</p><h3>FINDINGS:</h3><p><strong>LIVER:</strong> Normal in size (spans __ cm), shape, and echotexture. No focal mass, cyst, or intrahepatic biliary dilatation. Hepatic veins and portal vein are patent with normal flow.</p><p><strong>GALLBLADDER:</strong> Normal size and wall thickness (__ mm). No gallstones, sludge, or polyps. No pericholecystic fluid.</p><p><strong>COMMON BILE DUCT:</strong> Not dilated, measuring __ mm at the porta hepatis.</p><p><strong>PANCREAS:</strong> Head, body, and tail are visualized and are unremarkable. No mass or ductal dilatation.</p><p><strong>SPLEEN:</strong> Normal in size (measures __ x __ cm) and echotexture. No focal lesions.</p><p><strong>KIDNEYS:</strong></p><p>Right Kidney: Measures __ x __ cm with parenchyma of __ cm. Normal morphology and echotexture. No hydronephrosis, calculus, or mass.</p><p>Left Kidney: Measures __ x __ cm with parenchyma of __ cm. Normal morphology and echotexture. No hydronephrosis, calculus, or mass.</p><p><strong>AORTA & IVC:</strong> Visualized portions are of normal caliber. No evidence of aneurysm or thrombosis.</p><p><strong>ABDOMINAL LYMPHATICS:</strong> No significant lymphadenopathy noted.</p><p><strong>ASCITES:</strong> None.</p>",
-    "Pelvis": "<h3>IMPRESSION:</h3><p>1. Unremarkable ultrasound of the pelvis.</p><h3>FINDINGS:</h3><p><strong>URINARY BLADDER:</strong> Adequately distended, with a normal wall thickness. The lumen is anechoic. No calculi, masses, or diverticula identified. Post-void residual is __ ml.</p><p><em>(For Male)</em></p><p><strong>PROSTATE:</strong> Normal in size, measuring __ x __ x __ cm (Volume: __ cc). The echotexture is homogeneous. No suspicious nodules.</p><p><strong>SEMINAL VESICLES:</strong> Unremarkable.</p><p><em>(For Female)</em></p><p><strong>UTERUS:</strong> Anteverted and normal in size, measuring __ x __ x __ cm. The myometrium shows homogeneous echotexture. No fibroids identified.</p><p><strong>ENDOMETRIUM:</strong> Normal thickness (__ mm) and appearance for the phase of the menstrual cycle.</p><p><strong>OVARIES:</strong></p><p>Right Ovary: Measures __ x __ x __ cm. Normal follicular activity. No cysts or masses.</p><p>Left Ovary: Measures __ x __ x __ cm. Normal follicular activity. No cysts or masses.</p><p><strong>ADNEXA:</strong> No adnexal masses or fluid collections.</p><p><strong>CUL-DE-SAC:</strong> No free fluid.</p>",
-    "Scrotum": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of testicular torsion, mass, or significant hydrocele.</p><h3>FINDINGS:</h3><p><strong>RIGHT TESTICLE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No focal mass or calcification. Normal arterial and venous flow on color Doppler.</p><p><strong>RIGHT EPIDIDYMIS:</strong> Normal in size and echotexture. No cysts or inflammation. Normal vascularity.</p><p><strong>LEFT TESTICLE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No focal mass or calcification. Normal arterial and venous flow on color Doppler.</p><p><strong>LEFT EPIDIDYMIS:</strong> Normal in size and echotexture. No cysts or inflammation. Normal vascularity.</p><p><strong>ADDITIONAL FINDINGS:</strong> No significant hydrocele. No varicocele. The scrotal skin thickness is normal.</p>",
-    "Thyroid": "<h3>IMPRESSION:</h3><p>1. Normal ultrasound of the thyroid gland and neck.</p><h3>FINDINGS:</h3><p><strong>RIGHT LOBE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No nodules, cysts, or calcifications. Normal vascularity on color Doppler.</p><p><strong>LEFT LOBE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No nodules, cysts, or calcifications. Normal vascularity on color Doppler.</p><p><strong>ISTHMUS:</strong> Measures __ mm in thickness. Unremarkable.</p><p><strong>NECK:</strong> No significant cervical lymphadenopathy or other masses identified.</p>",
-    "Renal / KUB": "<h3>IMPRESSION:</h3><p>1. No evidence of hydronephrosis, renal calculi, or focal renal masses.</p><h3>FINDINGS:</h3><p><strong>RIGHT KIDNEY:</strong> Measures __ x __ cm with a cortical thickness of __ cm. Normal size, shape, and echotexture. No hydronephrosis, calculus, or mass. Corticomedullary differentiation is well-maintained.</p><p><strong>LEFT KIDNEY:</strong> Measures __ x __ cm with a cortical thickness of __ cm. Normal size, shape, and echotexture. No hydronephrosis, calculus, or mass. Corticomedullary differentiation is well-maintained.</p><p><strong>URETERS:</strong> The visualized portions of the ureters are not dilated. No ureteric jets seen.</p><p><strong>URINARY BLADDER:</strong> Adequately distended. Normal wall thickness. The lumen is anechoic. No calculi or masses. Post-void residual volume is __ mL.</p>",
-    "Carotid Doppler": "<h3>IMPRESSION:</h3><p>1. No evidence of hemodynamically significant stenosis or plaque in the bilateral carotid systems.</p><h3>FINDINGS:</h3><p><strong>RIGHT CAROTID SYSTEM:</strong></p><p>CCA: PSV __ cm/s, EDV __ cm/s. No plaque.</p><p>ICA: PSV __ cm/s, EDV __ cm/s. No plaque. ICA/CCA ratio is normal.</p><p>ECA: Normal flow pattern. No plaque.</p><p>Vertebral Artery: Antegrade flow.</p><p><strong>LEFT CAROTID SYSTEM:</strong></p><p>CCA: PSV __ cm/s, EDV __ cm/s. No plaque.</p><p>ICA: PSV __ cm/s, EDV __ cm/s. No plaque. ICA/CCA ratio is normal.</p><p>ECA: Normal flow pattern. No plaque.</p><p>Vertebral Artery: Antegrade flow.</p>",
-    "Lower Limb Venous Doppler": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of deep vein thrombosis (DVT) in the [right/left] lower extremity.</p><h3>FINDINGS:</h3><p>A complete duplex ultrasound of the [right/left] lower extremity deep venous system was performed.</p><p><strong>COMMON FEMORAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>FEMORAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>POPLITEAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>POSTERIOR TIBIAL VEINS:</strong> Patent and compressible.</p><p><strong>PERONEAL VEINS:</strong> Patent and compressible.</p>",
-    "Lower Limb Arterial Doppler": "<h3>IMPRESSION:</h3><p>1. Normal triphasic waveforms throughout the [right/left] lower extremity arterial system. No evidence of significant stenosis or occlusion.</p><h3>FINDINGS:</h3><p>Ankle-Brachial Index (ABI): [Right/Left] __</p><p><strong>COMMON FEMORAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>SUPERFICIAL FEMORAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>POPLITEAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>POSTERIOR TIBIAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>DORSALIS PEDIS ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p>",
-    "Upper Limb Venous Doppler": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of deep vein thrombosis (DVT) in the [right/left] upper extremity.</p><h3>FINDINGS:</h3><p>A complete duplex ultrasound of the [right/left] upper extremity deep venous system was performed.</p><p><strong>INTERNAL JUGULAR VEIN:</strong> Patent, compressible, with normal phasic flow.</p><p><strong>SUBCLAVIAN VEIN:</strong> Patent, compressible, with normal phasic flow.</p><p><strong>AXILLARY VEIN:</strong> Patent, compressible, with normal phasic flow.</p><p><strong>BRACHIAL VEIN:</strong> Patent and compressible.</p><p><strong>BASILIC & CEPHALIC VEINS:</strong> Patent and compressible.</p>",
+    "Abdomen": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of significant abnormality in the upper abdomen.</p><h3>FINDINGS:</h3><p><strong>LIVER:</strong> Normal in size (spans __ cm), contour, and echotexture. No focal mass, cyst, or intrahepatic biliary dilatation. Hepatic veins are patent. The main portal vein shows normal hepatopetal flow.</p><p><strong>GALLBLADDER:</strong> Normal size and wall thickness (__ mm). No gallstones, sludge, or polyps. No pericholecystic fluid. Sonographic Murphy's sign is negative.</p><p><strong>COMMON BILE DUCT:</strong> Not dilated, measuring __ mm at the porta hepatis.</p><p><strong>PANCREAS:</strong> The visualized portions of the head, body, and tail are unremarkable. No mass or ductal dilatation.</p><p><strong>SPLEEN:</strong> Normal in size (measures __ x __ cm) and echotexture. No focal lesions.</p><p><strong>KIDNEYS:</strong></p><p>Right Kidney: Measures __ x __ cm with normal cortical thickness. Normal morphology and echotexture. No hydronephrosis, calculus, or mass.</p><p>Left Kidney: Measures __ x __ cm with normal cortical thickness. Normal morphology and echotexture. No hydronephrosis, calculus, or mass.</p><p><strong>ADRENAL GLANDS:</strong> The adrenal areas are unremarkable.</p><p><strong>AORTA & IVC:</strong> Visualized portions are of normal caliber. No evidence of aneurysm or thrombosis.</p><p><strong>ABDOMINAL LYMPHATICS:</strong> No significant retroperitoneal or mesenteric lymphadenopathy.</p><p><strong>ASCITES:</strong> None.</p>",
+    "Pelvis": "<h3>IMPRESSION:</h3><p>1. Unremarkable ultrasound of the pelvis.</p><h3>FINDINGS:</h3><p><strong>URINARY BLADDER:</strong> Adequately distended, with a normal wall thickness. The lumen is anechoic. No calculi, masses, or diverticula identified. Ureteric jets are visualized bilaterally. Post-void residual is __ ml.</p><p><em>(For Male)</em></p><p><strong>PROSTATE:</strong> Normal in size, measuring __ x __ x __ cm (Volume: __ cc). The echotexture is homogeneous. No suspicious nodules. The seminal vesicles are unremarkable.</p><p><em>(For Female)</em></p><p><strong>UTERUS:</strong> [Anteverted/Retroverted] and normal in size, measuring __ x __ x __ cm. The myometrium shows homogeneous echotexture. No fibroids identified.</p><p><strong>ENDOMETRIUM:</strong> Homogeneous and measures __ mm in thickness, which is appropriate for the patient's menstrual/hormonal status.</p><p><strong>OVARIES:</strong></p><p>Right Ovary: Measures __ x __ x __ cm. Normal follicular activity. No cysts or masses.</p><p>Left Ovary: Measures __ x __ x __ cm. Normal follicular activity. No cysts or masses.</p><p><strong>ADNEXA:</strong> No adnexal masses or fluid collections.</p><p><strong>CUL-DE-SAC:</strong> No free fluid.</p>",
+    "Scrotum": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of testicular torsion, mass, or significant hydrocele.</p><h3>FINDINGS:</h3><p><strong>RIGHT TESTICLE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No focal mass or calcification. Normal arterial and venous flow on color Doppler imaging.</p><p><strong>RIGHT EPIDIDYMIS:</strong> The head, body, and tail are normal in size and echotexture. No cysts or inflammation. Normal vascularity.</p><p><strong>LEFT TESTICLE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No focal mass or calcification. Normal arterial and venous flow on color Doppler imaging.</p><p><strong>LEFT EPIDIDYMIS:</strong> The head, body, and tail are normal in size and echotexture. No cysts or inflammation. Normal vascularity.</p><p><strong>ADDITIONAL FINDINGS:</strong> No significant hydrocele. No varicocele. The scrotal skin thickness is normal. No inguinal hernia identified.</p>",
+    "Thyroid": "<h3>IMPRESSION:</h3><p>1. Normal ultrasound of the thyroid gland and neck.</p><h3>FINDINGS:</h3><p><strong>RIGHT LOBE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No nodules, cysts, or calcifications. Normal vascularity on color Doppler.</p><p><strong>LEFT LOBE:</strong> Measures __ x __ x __ cm. Homogeneous echotexture. No nodules, cysts, or calcifications. Normal vascularity on color Doppler.</p><p><strong>ISTHMUS:</strong> Measures __ mm in thickness. Unremarkable.</p><p><strong>NECK:</strong> The visualized major cervical vessels are patent. The parotid and submandibular glands are unremarkable. No significant cervical lymphadenopathy or other masses identified.</p>",
+    "Renal / KUB": "<h3>IMPRESSION:</h3><p>1. No evidence of hydronephrosis, renal calculi, or focal renal masses.</p><h3>FINDINGS:</h3><p><strong>RIGHT KIDNEY:</strong> Measures __ x __ cm with a cortical thickness of __ cm. Normal size, shape, and echotexture. No hydronephrosis, calculus, or mass. Corticomedullary differentiation is well-maintained.</p><p><strong>LEFT KIDNEY:</strong> Measures __ x __ cm with a cortical thickness of __ cm. Normal size, shape, and echotexture. No hydronephrosis, calculus, or mass. Corticomedullary differentiation is well-maintained.</p><p><strong>URETERS:</strong> The visualized portions of the ureters are not dilated. Ureteric jets are visualized bilaterally from the trigone.</p><p><strong>URINARY BLADDER:</strong> Adequately distended. Normal wall thickness. The lumen is anechoic. No calculi or masses. Post-void residual volume is __ mL.</p>",
+    "Carotid Doppler": "<h3>IMPRESSION:</h3><p>1. No evidence of hemodynamically significant stenosis or plaque in the bilateral carotid systems.</p><h3>FINDINGS:</h3><p>B-mode, color Doppler, and spectral Doppler interrogation of the common, internal, and external carotid arteries were performed bilaterally.</p><p><strong>RIGHT CAROTID SYSTEM:</strong></p><p>CCA: PSV __ cm/s, EDV __ cm/s. No significant plaque. Intima-media thickness is normal.</p><p>ICA: PSV __ cm/s, EDV __ cm/s. No significant plaque. ICA/CCA ratio is normal.</p><p>ECA: Normal flow pattern. No significant plaque.</p><p>Vertebral Artery: Antegrade flow with normal waveform.</p><p><strong>LEFT CAROTID SYSTEM:</strong></p><p>CCA: PSV __ cm/s, EDV __ cm/s. No significant plaque. Intima-media thickness is normal.</p><p>ICA: PSV __ cm/s, EDV __ cm/s. No significant plaque. ICA/CCA ratio is normal.</p><p>ECA: Normal flow pattern. No significant plaque.</p><p>Vertebral Artery: Antegrade flow with normal waveform.</p>",
+    "Lower Limb Venous Doppler": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of deep vein thrombosis (DVT) in the [right/left] lower extremity from the common femoral to the calf veins.</p><h3>FINDINGS:</h3><p>A complete duplex ultrasound of the [right/left] lower extremity deep venous system was performed with compression and spectral Doppler analysis.</p><p><strong>COMMON FEMORAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>FEMORAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>POPLITEAL VEIN:</strong> Patent, compressible, with normal phasic flow and augmentation.</p><p><strong>POSTERIOR TIBIAL VEINS:</strong> Patent and compressible.</p><p><strong>PERONEAL VEINS:</strong> Patent and compressible.</p><p><strong>GREAT SAPHENOUS VEIN:</strong> The visualized portions are patent and compressible.</p>",
+    "Lower Limb Arterial Doppler": "<h3>IMPRESSION:</h3><p>1. Normal triphasic waveforms throughout the [right/left] lower extremity arterial system. No evidence of significant stenosis or occlusion.</p><h3>FINDINGS:</h3><p>Ankle-Brachial Index (ABI): [Right/Left] __</p><p><strong>COMMON FEMORAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>SUPERFICIAL FEMORAL ARTERY:</strong> Triphasic waveform throughout its visualized length. PSV __ cm/s.</p><p><strong>POPLITEAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>POSTERIOR TIBIAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>DORSALIS PEDIS ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p>",
+    "Upper Limb Venous Doppler": "<h3>IMPRESSION:</h3><p>1. No sonographic evidence of deep vein thrombosis (DVT) in the [right/left] upper extremity.</p><h3>FINDINGS:</h3><p>A complete duplex ultrasound of the [right/left] upper extremity deep venous system was performed.</p><p><strong>INTERNAL JUGULAR VEIN:</strong> Patent, fully compressible, with normal phasic flow.</p><p><strong>SUBCLAVIAN VEIN:</strong> Patent, fully compressible, with normal phasic flow.</p><p><strong>AXILLARY VEIN:</strong> Patent, fully compressible, with normal phasic flow.</p><p><strong>BRACHIAL VEIN:</strong> Patent and fully compressible.</p><p><strong>BASILIC & CEPHALIC VEINS:</strong> Patent and fully compressible.</p>",
     "Upper Limb Arterial Doppler": "<h3>IMPRESSION:</h3><p>1. Normal triphasic waveforms throughout the [right/left] upper extremity arterial system. No evidence of significant stenosis or occlusion.</p><h3>FINDINGS:</h3><p><strong>SUBCLAVIAN ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>AXILLARY ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>BRACHIAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>RADIAL ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p><p><strong>ULNAR ARTERY:</strong> Triphasic waveform. PSV __ cm/s.</p>",
-    "Soft Tissue": "<h3>IMPRESSION:</h3><p>1. Unremarkable ultrasound of the soft tissues of the [location]. No discrete fluid collection, mass, or evidence of inflammation.</p><h3>FINDINGS:</h3><p>Ultrasound of the [location] demonstrates normal skin, subcutaneous fat, and underlying muscle planes. There is no evidence of a focal mass, cyst, or abscess. No abnormal vascularity is seen on color Doppler imaging.</p>",
-    "Obstetrics (1st Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy at an estimated __ weeks __ days gestation.</p><h3>FINDINGS:</h3><p><strong>UTERUS:</strong> The uterus is gravid and appears normal.</p><p><strong>GESTATIONAL SAC:</strong> A single gestational sac is seen within the uterine cavity. Mean sac diameter is __ mm.</p><p><strong>YOLK SAC:</strong> Present and normal in appearance.</p><p><strong>EMBRYO:</strong> A single embryo is identified.</p><p><strong>CROWN-RUMP LENGTH (CRL):</strong> __ mm, corresponding to a gestational age of __ weeks __ days.</p><p><strong>FETAL HEART RATE:</strong> __ bpm.</p><p><strong>ADNEXA:</strong> The ovaries are normal in appearance. No adnexal masses.</p><p><strong>CERVIX:</strong> Appears long and closed.</p>",
-    "Obstetrics (2nd Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy at an estimated __ weeks __ days gestation. No gross fetal anomalies identified.</p><h3>FINDINGS:</h3><p><strong>FETAL BIOMETRY:</strong></p><p>Biparietal Diameter (BPD): __ mm (__ w __ d)</p><p>Head Circumference (HC): __ mm (__ w __ d)</p><p>Abdominal Circumference (AC): __ mm (__ w __ d)</p><p>Femur Length (FL): __ mm (__ w __ d)</p><p><strong>ESTIMATED FETAL WEIGHT:</strong> __ grams (__th percentile).</p><p><strong>FETAL ANATOMY SURVEY:</strong> Head, face, neck, spine, heart, abdomen, and limbs appear sonographically unremarkable.</p><p><strong>PLACENTA:</strong> [Anterior/Posterior], Grade __. No previa.</p><p><strong>AMNIOTIC FLUID:</strong> Normal. Amniotic Fluid Index (AFI) is __ cm.</p><p><strong>FETAL HEART RATE:</strong> __ bpm.</p>",
-    "Obstetrics (3rd Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy in cephalic presentation, at an estimated __ weeks __ days gestation. Fetal growth appears appropriate.</p><h3>FINDINGS:</h3><p><strong>FETAL BIOMETRY:</strong></p><p>Biparietal Diameter (BPD): __ mm (__ w __ d)</p><p>Head Circumference (HC): __ mm (__ w __ d)</p><p>Abdominal Circumference (AC): __ mm (__ w __ d)</p><p>Femur Length (FL): __ mm (__ w __ d)</p><p><strong>ESTIMATED FETAL WEIGHT:</strong> __ grams (__th percentile).</p><p><strong>PLACENTA:</strong> [Anterior/Posterior], Grade __. No previa.</p><p><strong>AMNIOTIC FLUID:</strong> Normal. Amniotic Fluid Index (AFI) is __ cm.</p><p><strong>FETAL PRESENTATION:</strong> Cephalic.</p><p><strong>FETAL HEART RATE:</strong> __ bpm.</p>"
+    "Soft Tissue": "<h3>IMPRESSION:</h3><p>1. Unremarkable ultrasound of the soft tissues of the [location]. No discrete fluid collection, mass, or evidence of inflammation.</p><h3>FINDINGS:</h3><p>Ultrasound of the [location] demonstrates normal skin, subcutaneous fat, and underlying muscle planes. There is no evidence of a focal mass, cyst, or abscess. No abnormal vascularity is seen on color Doppler imaging. No significant surrounding edema.</p>",
+    "Obstetrics (1st Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy at an estimated __ weeks __ days gestation.</p><h3>FINDINGS:</h3><p><strong>UTERUS:</strong> The uterus is gravid and appears normal in contour and echotexture.</p><p><strong>GESTATIONAL SAC:</strong> A single gestational sac is seen within the uterine cavity. Mean sac diameter is __ mm.</p><p><strong>YOLK SAC:</strong> Present and normal in appearance.</p><p><strong>EMBRYO:</strong> A single embryo is identified.</p><p><strong>CROWN-RUMP LENGTH (CRL):</strong> __ mm, corresponding to a gestational age of __ weeks __ days.</p><p><strong>FETAL HEART RATE:</strong> __ bpm.</p><p><strong>ADNEXA:</strong> The ovaries are normal in appearance. No adnexal masses or free fluid.</p><p><strong>CERVIX:</strong> Appears long and closed. Cervical length is __ cm.</p>",
+    "Obstetrics (2nd Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy at an estimated __ weeks __ days gestation. No gross fetal anomalies identified.</p><h3>FINDINGS:</h3><p><strong>FETAL BIOMETRY:</strong></p><p>Biparietal Diameter (BPD): __ mm (__ w __ d)</p><p>Head Circumference (HC): __ mm (__ w __ d)</p><p>Abdominal Circumference (AC): __ mm (__ w __ d)</p><p>Femur Length (FL): __ mm (__ w __ d)</p><p><strong>ESTIMATED FETAL WEIGHT:</strong> __ grams (__th percentile).</p><p><strong>FETAL ANATOMY SURVEY:</strong> Head, face, neck, spine, heart (4-chamber view and outflow tracts), abdomen (stomach, kidneys, bladder), and limbs appear sonographically unremarkable.</p><p><strong>PLACENTA:</strong> [Anterior/Posterior], Grade __. No previa. Appears normal in thickness and texture.</p><p><strong>AMNIOTIC FLUID:</strong> Normal. Amniotic Fluid Index (AFI) is __ cm.</p><p><strong>FETAL HEART RATE:</strong> __ bpm.</p>",
+    "Obstetrics (3rd Trimester)": "<h3>IMPRESSION:</h3><p>1. Single live intrauterine pregnancy in cephalic presentation, at an estimated __ weeks __ days gestation. Fetal growth appears appropriate.</p><h3>FINDINGS:</h3><p><strong>FETAL BIOMETRY:</strong></p><p>Biparietal Diameter (BPD): __ mm (__ w __ d)</p><p>Head Circumference (HC): __ mm (__ w __ d)</p><p>Abdominal Circumference (AC): __ mm (__ w __ d)</p><p>Femur Length (FL): __ mm (__ w __ d)</p><p><strong>ESTIMATED FETAL WEIGHT:</strong> __ grams (__th percentile).</p><p><strong>PLACENTA:</strong> [Anterior/Posterior/Fundal], Grade __. No previa.</p><p><strong>AMNIOTIC FLUID:</strong> Normal. Amniotic Fluid Index (AFI) is __ cm.</p><p><strong>FETAL PRESENTATION:</strong> Cephalic.</p><p><strong>FETAL HEART RATE:</strong> __ bpm, with normal rhythm.</p>"
   },
   "X-Ray": {
-    "Chest": "<h3>IMPRESSION:</h3><p>1. No acute cardiopulmonary process.</p><h3>FINDINGS:</h3><p><strong>LUNGS AND PLEURA:</strong> The lungs are clear. No focal consolidation, pneumothorax, or pleural effusion.</p><p><strong>HEART AND MEDIASTINUM:</strong> The cardiomediastinal silhouette is within normal limits for size and contour. </p><p><strong>AORTA:</strong> The thoracic aorta is normal in appearance.</p><p><strong>BONES:</strong> The visualized osseous structures are unremarkable.</p><p><strong>SOFT TISSUES:</strong> The soft tissues of the chest wall are unremarkable.</p>",
-    "Knee": "<h3>IMPRESSION:</h3><p>1. No acute fracture or dislocation.</p><p>2. Mild degenerative changes.</p><h3>FINDINGS:</h3><p><strong>VIEWS:</strong> AP, Lateral, and Sunrise views of the [right/left] knee.</p><p><strong>ALIGNMENT:</strong> Normal alignment.</p><p><strong>JOINT SPACES:</strong> Mild narrowing of the medial femorotibial compartment. The lateral and patellofemoral compartments are preserved.</p><p><strong>BONES:</strong> No acute fracture or dislocation. Small marginal osteophytes are noted. Bone density is appropriate for age.</p><p><strong>SOFT TISSUES:</strong> No significant joint effusion or soft tissue swelling.</p>",
+    "Chest": "<h3>IMPRESSION:</h3><p>1. No acute cardiopulmonary process.</p><h3>FINDINGS:</h3><p><strong>LUNGS AND PLEURA:</strong> The lungs are well-expanded and clear. No focal consolidation, pneumothorax, or pleural effusion. The pulmonary vasculature is normal.</p><p><strong>HEART AND MEDIASTINUM:</strong> The cardiomediastinal silhouette is within normal limits for size and contour. The hila are normal.</p><p><strong>AIRWAYS:</strong> The trachea is midline. The major airways are patent.</p><p><strong>BONES:</strong> The visualized osseous structures, including the ribs, clavicles, and thoracic spine, are unremarkable.</p><p><strong>SOFT TISSUES:</strong> The soft tissues of the chest wall are unremarkable.</p>",
+    "Abdomen (KUB)": "<h3>IMPRESSION:</h3><p>1. Unremarkable abdominal radiograph.</p><h3>FINDINGS:</h3><p><strong>BOWEL GAS PATTERN:</strong> Nonspecific bowel gas pattern. No evidence of bowel obstruction or ileus. No pneumoperitoneum.</p><p><strong>CALCIFICATIONS:</strong> No abnormal calcifications are seen in the expected locations of the kidneys, ureters, or bladder.</p><p><strong>OSSEOUS STRUCTURES:</strong> The visualized portions of the lower ribs, lumbar spine, and pelvis are unremarkable for acute fracture or dislocation.</p><p><strong>SOFT TISSUES:</strong> The psoas margins are symmetric. The flank stripes are maintained.</p>",
+    "Cervical Spine": "<h3>IMPRESSION:</h3><p>1. No acute fracture or malalignment.</p><p>2. Mild degenerative changes.</p><h3>FINDINGS:</h3><p><strong>VIEWS:</strong> AP, lateral, and odontoid views of the cervical spine.</p><p><strong>ALIGNMENT:</strong> Normal cervical lordosis. No evidence of anterolisthesis or retrolisthesis.</p><p><strong>VERTEBRAL BODIES:</strong> Vertebral body heights are maintained. No acute fracture is identified.</p><p><strong>DISC SPACES:</strong> Mild narrowing at [C5-C6]. Otherwise, disc spaces are preserved.</p><p><strong>POSTERIOR ELEMENTS:</strong> The facet joints and posterior elements are unremarkable.</p><p><strong>SOFT TISSUES:</strong> The prevertebral soft tissues are of normal thickness.</p>",
+    "Lumbar Spine": "<h3>IMPRESSION:</h3><p>1. No acute fracture or malalignment.</p><p>2. Mild degenerative changes.</p><h3>FINDINGS:</h3><p><strong>VIEWS:</strong> AP and lateral views of the lumbar spine.</p><p><strong>ALIGNMENT:</strong> Normal lumbar lordosis. No evidence of listhesis.</p><p><strong>VERTEBRAL BODIES:</strong> Vertebral body heights are maintained. No acute compression fracture.</p><p><strong>DISC SPACES:</strong> Mild narrowing at [L4-L5] and [L5-S1].</p><p><strong>POSTERIOR ELEMENTS:</strong> The pedicles, facet joints, and posterior elements are intact.</p><p><strong>SACROILIAC JOINTS:</strong> The visualized sacroiliac joints are unremarkable.</p>",
+    "Shoulder": "<h3>IMPRESSION:</h3><p>1. No acute fracture or dislocation.</p><h3>FINDINGS:</h3><p><strong>VIEWS:</strong> AP and axillary lateral views of the [right/left] shoulder.</p><p><strong>GLENOHUMERAL JOINT:</strong> The glenohumeral joint is congruous. No evidence of dislocation or subluxation. The joint space is preserved.</p><p><strong>ACROMIOCLAVICULAR JOINT:</strong> The AC joint is unremarkable.</p><p><strong>BONES:</strong> The humeral head, glenoid, acromion, and clavicle are intact. No acute fracture identified.</p><p><strong>SOFT TISSUES:</strong> No significant soft tissue swelling or abnormal calcifications.</p>",
+  },
+  "CT": {
+    "Head (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute intracranial hemorrhage, territorial infarct, or mass effect.</p><h3>FINDINGS:</h3><p><strong>BRAIN PARENCHYMA:</strong> No evidence of acute intracranial hemorrhage. Normal gray-white matter differentiation. No evidence of acute territorial ischemia or mass lesion.</p><p><strong>VENTRICLES AND CISTERNS:</strong> The ventricular system is normal in size and configuration. The basal cisterns are patent.</p><p><strong>EXTRACRANIAL STRUCTURES:</strong> The visualized paranasal sinuses and mastoid air cells are clear. The orbits are unremarkable.</p><p><strong>SKULL AND CALVARIUM:</strong> No acute fracture identified.</p>",
+    "Chest (with Contrast)": "<h3>IMPRESSION:</h3><p>1. No acute intrathoracic process. No evidence of pulmonary embolism.</p><h3>FINDINGS:</h3><p><strong>LUNGS AND PLEURA:</strong> The lungs are well-aerated. No focal consolidation, nodules, or masses. No pneumothorax or pleural effusion.</p><p><strong>MEDIASTINUM AND HILA:</strong> The cardiomediastinal silhouette is normal. No mediastinal or hilar lymphadenopathy. The trachea and main bronchi are patent.</p><p><strong>HEART AND GREAT VESSELS:</strong> The heart is not enlarged. The thoracic aorta and main pulmonary arteries are of normal caliber and show normal opacification. No central pulmonary embolism. No pericardial effusion.</p><p><strong>CHEST WALL AND BONES:</strong> The visualized osseous structures and soft tissues of the chest wall are unremarkable. No acute fractures.</p><p><strong>UPPER ABDOMEN:</strong> The visualized portions of the liver, spleen, and adrenal glands are unremarkable.</p>",
+    "Abdomen/Pelvis (with Contrast)": "<h3>IMPRESSION:</h3><p>1. No acute intra-abdominal or pelvic process.</p><h3>FINDINGS:</h3><p><strong>LIVER:</strong> Normal in size, contour, and enhances homogeneously. No focal hepatic lesions.</p><p><strong>GALLBLADDER AND BILIARY SYSTEM:</strong> The gallbladder is unremarkable. No intrahepatic or extrahepatic biliary dilatation.</p><p><strong>PANCREAS:</strong> Unremarkable in appearance. No inflammation or mass.</p><p><strong>SPLEEN:</strong> Normal in size and enhances homogeneously.</p><p><strong>ADRENAL GLANDS:</strong> Unremarkable.</p><p><strong>KIDNEYS AND URETERS:</strong> The kidneys are normal in size, position, and enhance symmetrically. No hydronephrosis or renal masses. The ureters are not dilated.</p><p><strong>BOWEL AND MESENTERY:</strong> The visualized portions of the small and large bowel are unremarkable. No bowel wall thickening or obstruction. The appendix is visualized and normal. The mesentery is clear.</p><p><strong>PELVIC ORGANS:</strong> The urinary bladder is unremarkable. The uterus and ovaries (female) or prostate and seminal vesicles (male) are unremarkable.</p><p><strong>VASCULATURE:</strong> The abdominal aorta and IVC are of normal caliber. No evidence of aneurysm or thrombosis.</p><p><strong>BONES AND SOFT TISSUES:</strong> The visualized osseous structures and soft tissues are unremarkable.</p>",
+  },
+  "MRI": {
+    "Brain (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute infarct, intracranial hemorrhage, or mass lesion.</p><h3>FINDINGS:</h3><p><strong>PARENCHYMA:</strong> No evidence of acute restricted diffusion to suggest ischemia. No abnormal susceptibility artifact to suggest hemorrhage. Normal gray-white matter differentiation. No space-occupying lesion or significant white matter disease.</p><p><strong>VENTRICLES AND CISTERNS:</strong> The ventricular system and sulci are normal for the patient's age. The basal cisterns are patent.</p><p><strong>VASCULAR STRUCTURES:</strong> Major intracranial vascular flow voids are present and patent.</p><p><strong>EXTRACRANIAL STRUCTURES:</strong> The visualized orbits, paranasal sinuses, and mastoid air cells are unremarkable.</p>",
+    "Knee (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No acute meniscal or ligamentous tear.</p><h3>FINDINGS:</h3><p><strong>MENISCI:</strong></p><p>Medial Meniscus: Intact. No tear.</p><p>Lateral Meniscus: Intact. No tear.</p><p><strong>LIGAMENTS:</strong></p><p>Anterior Cruciate Ligament (ACL): Intact.</p><p>Posterior Cruciate Ligament (PCL): Intact.</p><p>Medial Collateral Ligament (MCL): Intact.</p><p>Lateral Collateral Ligament (LCL) Complex: Intact.</p><p><strong>CARTILAGE:</strong> The articular cartilage is preserved in the patellofemoral and tibiofemoral compartments.</p><p><strong>BONE MARROW:</strong> No evidence of fracture, contusion, or aggressive bone lesion.</p><p><strong>EXTENSOR MECHANISM:</strong> The quadriceps and patellar tendons are intact.</p><p><strong>JOINT FLUID:</strong> Physiologic amount of joint fluid.</p>",
+    "Lumbar Spine (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute disc herniation, spinal stenosis, or nerve root compression.</p><p>2. Mild degenerative disc disease.</p><h3>FINDINGS:</h3><p><strong>ALIGNMENT:</strong> Normal lumbar lordosis. No subluxation.</p><p><strong>VERTEBRAL BODIES:</strong> Vertebral body heights and marrow signal are maintained. No acute fracture.</p><p><strong>DISCS:</strong></p><p>[L1-L2 through L3-L4]: No significant disc bulge or herniation.</p><p>[L4-L5]: Mild disc bulge without significant canal or foraminal stenosis.</p><p>[L5-S1]: Mild disc desiccation and height loss without significant herniation.</p><p><strong>SPINAL CANAL AND FORAMINA:</strong> The central canal and neural foramina are patent at all levels.</p><p><strong>CONUS MEDULLARIS:</strong> The conus medullaris terminates at [L1] and is normal in signal.</p><p><strong>PARASPINAL SOFT TISSUES:</strong> Unremarkable.</p>",
   }
 };
 
@@ -123,37 +135,116 @@ const MenuBar = ({ editor }) => {
   );
 };
 
-// --- NEW COMPONENT: CriticalFindingPanel ---
-const CriticalFindingPanel = ({ findingData, onAcknowledge, onInsertMacro, onPrepareNotification }) => {
-  if (!findingData) return null;
+
+// --- UNIFIED COMPONENT: AlertPanel (UPDATED) ---
+const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed }) => {
+  if (!alertData) return null;
+
+  const isCritical = alertData.type === 'critical';
+  const isFixable = alertData.type === 'inconsistency';
+  const isMissingInfo = alertData.type === 'missing_info';
+
+  const config = {
+    critical: {
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-500',
+      textColor: 'text-red-800',
+      iconColor: 'text-red-500',
+      Icon: AlertTriangle,
+      message: 'Please review and take appropriate action immediately.',
+    },
+    inconsistency: {
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-500',
+      textColor: 'text-yellow-800',
+      iconColor: 'text-yellow-500',
+      Icon: AlertTriangle,
+      title: 'Inconsistency Detected',
+      message: alertData.message,
+    },
+    missing_info: {
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-500',
+     textColor: 'text-orange-800',
+     iconColor: 'text-orange-500',
+     Icon: AlertTriangle,
+   title: 'Incomplete Report',
+ message: alertData.message,
+ },
+  };
+
+  const currentConfig = config[alertData.type];
+  if (!currentConfig) return null;
+
+  const title = isCritical
+    ? `Critical Finding Detected: ${alertData.data?.findingName}`
+    : currentConfig.title;
 
   return (
-    <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded-lg shadow-md mb-4" role="alert">
+    <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.borderColor} ${currentConfig.textColor} p-4 rounded-lg shadow-md mb-4`} role="alert">
       <div className="flex items-start">
         <div className="py-1">
-          <AlertTriangle className="h-6 w-6 text-red-500 mr-4" />
+          <currentConfig.Icon className={`h-6 w-6 ${currentConfig.iconColor} mr-4`} />
         </div>
         <div className="flex-grow">
-          <p className="font-bold">Critical Finding Detected: {findingData.findingName}</p>
-          <p className="text-sm">Please review and take appropriate action immediately.</p>
+          <p className="font-bold">{title}</p>
+          <p className="text-sm">{currentConfig.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={onInsertMacro}
-              className="bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition text-sm flex items-center"
-            >
-              <PlusCircle size={16} className="mr-1.5" /> Add to Report
+            {isCritical && (
+              <>
+                <button
+                  onClick={onInsertMacro}
+                  className="bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition text-sm flex items-center"
+                >
+                  <PlusCircle size={16} className="mr-1.5" /> Add to Report
+                </button>
+                <button
+                  onClick={onPrepareNotification}
+                  className="bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition text-sm flex items-center"
+                >
+                  <Copy size={16} className="mr-1.5" /> Prepare Notification
+                </button>
+              </>
+            )}
+            {isFixable && (
+              <>
+                <button
+                  onClick={onFix}
+                  className="bg-green-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-700 transition text-sm flex items-center"
+                >
+                  <CheckCircle size={16} className="mr-1.5" /> Fix Issue
+                </button>
+                 <button
+                  onClick={onAcknowledge}
+                  className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center"
+                >
+                  <XCircle size={16} className="mr-1.5" /> Ignore
+ </button>
+  </>
+ )}
+ {isMissingInfo && (
+  <>
+  <button
+  onClick={onProceed}
+  className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center"
+  >
+  <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
+  </button>
+  <button
+  onClick={onAcknowledge}
+  	className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center"
+  >
+  <ChevronLeft size={16} className="mr-1.5" /> Go Back
+  </button>
+  </>
+ )}
+</div>
+ </div>
+ 	{ (isCritical || isMissingInfo) && (
+            <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
+                <XCircle size={22} />
             </button>
-            <button
-              onClick={onPrepareNotification}
-              className="bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition text-sm flex items-center"
-            >
-              <Copy size={16} className="mr-1.5" /> Prepare Notification
-            </button>
-          </div>
-        </div>
-        <button onClick={onAcknowledge} className="ml-4 text-red-500 hover:text-red-800">
-          <XCircle size={22} />
-        </button>
+        )}
       </div>
     </div>
   );
@@ -193,6 +284,59 @@ const AiSuggestedMeasurementsPanel = ({ measurements, onInsert, onClear }) => {
                 ))}
             </div>
         </div>
+    );
+};
+
+// --- NEW COMPONENT: RecentReportsPanel ---
+const RecentReportsPanel = ({ onSelectReport, user }) => {
+    const [recentReports, setRecentReports] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user) return;
+        const q = query(
+            collection(db, "users", user.uid, "reports"),
+            orderBy("createdAt", "desc"),
+            limit(5)
+        );
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const reports = [];
+            querySnapshot.forEach((doc) => {
+                reports.push({ id: doc.id, ...doc.data() });
+            });
+            setRecentReports(reports);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching recent reports: ", error);
+            toast.error("Could not fetch recent reports.");
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
+    return (
+        <CollapsibleSection title="Recent Reports" icon={History}>
+            {isLoading ? (
+                <p>Loading recent reports...</p>
+            ) : recentReports.length > 0 ? (
+                <div className="space-y-2">
+                    {recentReports.map(report => (
+                        <button
+                            key={report.id}
+                            onClick={() => onSelectReport(report)}
+                            className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"
+                        >
+                            <p className="font-semibold">{report.patientName}</p>
+                            <p className="text-sm text-gray-500">
+                                {report.examDate} - {new Date(report.createdAt?.seconds * 1000).toLocaleDateString()}
+                            </p>
+                        </button>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-gray-500">No recent reports found.</p>
+            )}
+        </CollapsibleSection>
     );
 };
 
@@ -289,7 +433,7 @@ const KnowledgeLookupPanel = ({ result, onClose, onInsert }) => {
                 )}
             </div>
             <div className="mt-4 pt-4 border-t">
-                 <button
+               <button
                     onClick={() => {
                         const contentToInsert = `
                             <h3>${result.conditionName}</h3>
@@ -309,6 +453,10 @@ const KnowledgeLookupPanel = ({ result, onClose, onInsert }) => {
     );
 };
 
+// --- HELPER FUNCTION to escape characters for regex
+const escapeRegex = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 // Skeleton Loader Components
 const SearchResultSkeleton = () => (
@@ -343,8 +491,11 @@ const ReportSkeleton = () => (
 
 const App = () => {
   // --- AUTHENTICATION STATE ---
-  const [user, setUser] = useState(null); // Mock user
-  const [isAuthLoading, setIsAuthLoading] = useState(true); // Mock loading
+  const [user, setUser] = useState(null); 
+  const [userRole, setUserRole] = useState('basic'); // Add userRole state
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isRestricted, setIsRestricted] = useState(false); // Freemium restriction state
+
 
   // --- ALL OTHER APP STATE ---
   const [patientName, setPatientName] = useState('John Doe');
@@ -380,29 +531,7 @@ const App = () => {
   const [voiceStatus, setVoiceStatus] = useState('idle');
   const [isDictationSupported, setIsDictationSupported] = useState(true);
   const [interimTranscript, setInterimTranscript] = useState('');
-  const [macros, setMacros] = useState([
-      { 
-        command: 'normal abdomen and pelvis', 
-        text: `
-            <p><strong>IMPRESSION:</strong></p>
-            <p>1. No significant abnormality is seen in the abdomen and pelvis.</p>
-            <br>
-            <p><strong>FINDINGS:</strong></p>
-            <p><strong>LIVER:</strong> The liver is normal in size, shape & echotexture. Hepatic veins and intrahepatic portal vein radicles are normal in size and distribution. No focal solid or cystic mass lesion is noted.</p>
-            <p><strong>GALL BLADDER:</strong> Gall bladder appeared normal. No mural mass or calculus is noted.</p>
-            <p><strong>CBD:</strong> Common bile duct appeared normal. No calculi seen in the common bile duct.</p>
-            <p><strong>PANCREAS:</strong> The visualized portions are normal in shape, size and echotexture. No focal lesion seen.</p>
-            <p><strong>SPLEEN:</strong> Spleen is normal in size, shape and echotexture. No focal lesion is seen.</p>
-            <p><strong>KIDNEYS:</strong> Both kidneys are normal in size, shape, position, and echotexture. Normal corticomedullary differentiation is noted. No calculi, hydronephrosis, or focal mass lesions are seen.</p>
-            <p><strong>URETERS:</strong> Visualized portions of both ureters are not dilated.</p>
-            <p><strong>URINARY BLADDER:</strong> The urinary bladder shows physiological distention. No calculus or mass lesion is seen.</p>
-            <p><strong>PROSTATE:</strong> The prostate is normal in size, shape, and echotexture. No focal lesion is seen.</p>
-            <p><strong>OTHER:</strong> Visualized portions of IVC and Aorta are grossly normal. There is no free or loculated fluid collection in abdomen or pelvis. No significant lymphadenopathy is noted.</p>
-        `
-    },
-    { command: 'Renal calculus', text: 'A calculus measuring __ x __ cm is noted in the lower/mid/upper pole calyx.' },
-    { command: 'Renal calculi', text: 'Multiple calculi noted in the right/left kidney largest one measuring __ x __ cm is noted in the lower/mid/upper pole calyx.' }
-  ]);
+  const [macros, setMacros] = useState([]); // Macros will now be loaded from Firestore
   const [showMacroModal, setShowMacroModal] = useState(false);
   const [newMacroCommand, setNewMacroCommand] = useState('');
   const [newMacroText, setNewMacroText] = useState('');
@@ -413,18 +542,39 @@ const App = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [aiMeasurements, setAiMeasurements] = useState([]);
-  const [criticalFindingData, setCriticalFindingData] = useState(null);
+  const [activeAlert, setActiveAlert] = useState(null);
+  const [isAwaitingAlertAcknowledge, setIsAwaitingAlertAcknowledge] = useState(false);
+  const [correctionSuggestion, setCorrectionSuggestion] = useState(null);
  
   // --- ALL REFS ---
   const debounceTimeoutRef = useRef(null);
+  const inconsistencyCheckTimeoutRef = useRef(null);
   const recognitionRef = useRef(null);
   const searchButtonRef = useRef(null);
   const voiceStatusRef = useRef(voiceStatus);
   const dataExtractTimeoutRef = useRef(null);
   const proactiveAnalysisTimeoutRef = useRef(null);
   const localSearchInputRef = useRef(null);
+  const searchResultsRef = useRef();
+  const isProgrammaticUpdate = useRef(false);
+ const macrosRef = useRef(macros);
+
+ useEffect(() => {
+  macrosRef.current = macros;
+}, [macros]);
+  // Keep a ref in sync with isAwaitingAlertAcknowledge to avoid stale closures
+const awaitingRef = useRef(false);
+useEffect(() => {
+  awaitingRef.current = isAwaitingAlertAcknowledge;
+}, [isAwaitingAlertAcknowledge]);
+
 
   // --- ALL HOOKS (useCallback, useEditor, useEffect) ---
+
+  useEffect(() => {
+    searchResultsRef.current = { localSearchResults, allAiSearchResults, currentAiPage };
+  });
+
   useEffect(() => {
     voiceStatusRef.current = voiceStatus;
   }, [voiceStatus]);
@@ -452,33 +602,108 @@ const App = () => {
     ],
     content: userFindings,
     onUpdate: ({ editor }) => {
+      if (isProgrammaticUpdate.current) {
+        isProgrammaticUpdate.current = false;
+        return; // Do not trigger checks or reset acknowledge flag on programmatic updates
+      }
+      
       const html = editor.getHTML();
       const text = editor.getText();
       setUserFindings(html);
+
+      if (isAwaitingAlertAcknowledge) {
+          return; 
+      }
+
       debouncedCriticalCheck(text);
+      debouncedInconsistencyCheck(text);
       debouncedExtractData(text);
       debouncedProactiveAnalysis(text);
     },
   });
 
-  // --- AUTHENTICATION LISTENER ---
+  // --- AUTHENTICATION LISTENER & FREEMIUM CHECK ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
         setUser(currentUser);
-        setIsAuthLoading(false);
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            const userRole = userData.role || 'basic';
+            setUserRole(userRole);
+
+            if (userRole === 'basic') {
+                const reportLimit = 1000;
+                const reportCount = userData.reportCount || 0;
+                const lastReportDate = userData.lastReportDate?.toDate();
+                const currentMonth = new Date().getMonth();
+
+                if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
+                    // Reset count for the new month
+                    await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
+                    setIsRestricted(false);
+                } else if (reportCount >= reportLimit) {
+                    setIsRestricted(true);
+                } else {
+                    setIsRestricted(false);
+                }
+            } else {
+                setIsRestricted(false); // Professional users are never restricted
+            }
+        } else {
+          // New user, set default values
+          await setDoc(userDocRef, {
+            email: currentUser.email,
+            role: 'basic',
+            reportCount: 0,
+            lastReportDate: serverTimestamp(),
+          });
+          setUserRole('basic');
+          setIsRestricted(false);
+        }
+      } else {
+        setUser(null);
+        setUserRole('basic');
+        setIsRestricted(false);
+      }
+      setIsAuthLoading(false);
     });
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []);
+    return () => unsubscribe();
+  }, [user]);
+
+  // --- FETCH USER-SPECIFIC MACROS FROM FIRESTORE ---
+  useEffect(() => {
+    if (user) {
+      const q = query(collection(db, "users", user.uid, "macros"));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const userMacros = [];
+        querySnapshot.forEach((doc) => {
+          userMacros.push({ id: doc.id, ...doc.data() });
+        });
+        setMacros(userMacros);
+      }, (error) => {
+        console.error("Error fetching macros: ", error);
+        toast.error("Could not fetch your macros.");
+      });
+
+      return () => unsubscribe(); // Cleanup listener on unmount or user change
+    } else {
+      setMacros([]); // Clear macros if user logs out
+    }
+  }, [user]);
+
 
   const handleSignOut = async () => {
     try {
         await signOut(auth);
+        toast.success("Signed out successfully.");
     } catch (error) {
         console.error("Error signing out: ", error);
         toast.error("Failed to sign out.");
     }
-    setUser(null); // Mock sign out
-    toast.success("Signed out successfully.");
   };
 
   const toastDone = (msg) =>
@@ -488,6 +713,7 @@ const App = () => {
   });
 
 const runProactiveAnalysis = async (text) => {
+    if (isRestricted) return;
     const prompt = `
         Act as a radiological assistant. Analyze the following dictated text. Does it contain a specific, significant radiological finding that would benefit from an immediate knowledge lookup (like a named classification, a critical finding, or a finding with a well-defined differential diagnosis)? Examples include 'spiculated mass', 'ground glass opacity', 'Bosniak IIF cyst', 'ring-enhancing lesion'.
 
@@ -509,7 +735,7 @@ const runProactiveAnalysis = async (text) => {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        
+       
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) return; // Fail silently
 
@@ -537,10 +763,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
              runProactiveAnalysis(text);
         }
     }, 3000); // 3-second delay after user stops typing
-}, [isProactiveHelpEnabled, isSearching]);
+}, [isProactiveHelpEnabled, isSearching, isRestricted]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
+      isProgrammaticUpdate.current = true;
       const initialContent = templates[modality]?.[template] || '';
       if (editor.getHTML() !== initialContent) {
         editor.commands.setContent(initialContent);
@@ -548,20 +775,157 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     }
   }, [modality, template, editor]);
 
+  const runInconsistencyCheck = useCallback(async (plainText) => {
+    if (isAwaitingAlertAcknowledge) return;
+    const findingsMatch = plainText.match(/FINDINGS:([\s\S]*)IMPRESSION:/i);
+    const impressionMatch = plainText.match(/IMPRESSION:([\s\S]*)/i);
+
+    if (!findingsMatch || !impressionMatch) {
+        setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+        return;
+    }
+
+    const findingsText = findingsMatch[1].trim();
+    const impressionText = impressionMatch[1].trim();
+
+    if (!findingsText || !impressionText) {
+        setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+        return;
+    }
+
+    const prompt = `
+        You are a meticulous radiological assistant. Compare the significant clinical findings in the FINDINGS section with the conclusions in the IMPRESSION section. Identify any major findings that are mentioned in one section but are missing from the other.
+       
+        FINDINGS:
+        ---
+        ${findingsText}
+        ---
+
+        IMPRESSION:
+        ---
+        ${impressionText}
+        ---
+
+        If you find a discrepancy, respond with a JSON object: {"isInconsistent": true, "message": "A clear explanation of the inconsistency.", "suggestedCorrection": "The exact text to add to the impression."}.
+        For example: {"isInconsistent": true, "message": "'Grade I fatty liver' is mentioned in the findings but is missing from the impression.", "suggestedCorrection": "Grade I fatty liver."}.
+        If the sections are consistent, respond with {"isInconsistent": false, "message": null, "suggestedCorrection": null}.
+    `;
+
+    try {
+        const payload = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        };
+        const model = 'gemini-2.5-flash';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) return;
+
+        const result = await response.json();
+        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+        if (textResult) {
+            const parsed = JSON.parse(textResult);
+            if (parsed.isInconsistent && parsed.suggestedCorrection) {
+                setActiveAlert({ type: 'inconsistency', message: parsed.message });
+                setCorrectionSuggestion(parsed.suggestedCorrection);
+                setIsAwaitingAlertAcknowledge(true);
+            } else {
+                setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+                setCorrectionSuggestion(null);
+            }
+        }
+    } catch (err) {
+        console.error("Inconsistency check failed:", err);
+    }
+  }, [isAwaitingAlertAcknowledge]);
+
+  const debouncedInconsistencyCheck = useCallback((text) => {
+    
+    if (inconsistencyCheckTimeoutRef.current) {
+        clearTimeout(inconsistencyCheckTimeoutRef.current);
+    }
+    inconsistencyCheckTimeoutRef.current = setTimeout(() => {
+
+        if (!awaitingRef.current && text.trim().length > 50)  { // Only run on substantial text
+            runInconsistencyCheck(text);
+        } else if (!awaitingRef.current) {
+            setActiveAlert(null);
+        }
+    }, 2000); // 2-second delay
+  }, [runInconsistencyCheck, isAwaitingAlertAcknowledge]);
+
   const debouncedCriticalCheck = useCallback((text) => {
     if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+      clearTimeout(debounceTimeoutRef.current);
     }
     debounceTimeoutRef.current = setTimeout(() => {
-        if (text.trim() !== '') {
+        if (!isAwaitingAlertAcknowledge && text.trim() !== '') {
             checkForCriticalFindings(text);
-        } else {
-            setCriticalFindingData(null);
+        } else if (!isAwaitingAlertAcknowledge) {
+            setActiveAlert(null);
         }
     }, 1000);
   }, []);
 
+  // --- NEW FUNCTION: findMissingMeasurements ---
+const findMissingMeasurements = () => {
+    if (!editor) return [];
+    const editorText = editor.getText();
+    const originalTemplateHtml = templates[modality]?.[template] || '';
+
+    // Condition 1: Check for leftover "__" placeholders.
+    const hasPlaceholders = /__/.test(editorText);
+
+    // Condition 2: Check for keywords like "measures", "size", etc., that are NOT followed by a number.
+    // This looks for the keyword, then optional whitespace, then something that isn't a digit or a period.
+    const hasKeywordsMissingValues = /(measures |size |measuring|spans )\s*(?![0-9.])/i.test(editorText);
+
+    // If neither condition is met, the report is likely complete.
+    if (!hasPlaceholders && !hasKeywordsMissingValues) {
+        return [];
+    }
+
+    const missingFields = new Set();
+
+    // If placeholders are found, try to identify which ones by checking the original template.
+    if (hasPlaceholders && originalTemplateHtml) {
+        // This regex finds text that precedes a placeholder in the original template.
+        const contextRegex = /([\w\s\d()\/.-]+?)\s*__/g;
+        const templateText = htmlToText(originalTemplateHtml);
+        let match;
+
+        while ((match = contextRegex.exec(templateText)) !== null) {
+            const context = match[1].trim();
+            if (!context) continue;
+
+            // The label is the most meaningful part of the context, usually the last few words.
+            const label = context.split('\n').pop().replace(/:$/, '').trim();
+
+            // Check if this specific placeholder is still present in the current editor text.
+            const searchRegex = new RegExp(escapeRegex(context) + "\\s*__");
+            if (searchRegex.test(editorText)) {
+                missingFields.add(`'${label}'`);
+            }
+        }
+    }
+    
+    // If we detected keywords without values, add a generic warning.
+    if (hasKeywordsMissingValues) {
+        missingFields.add("A value after a term like 'measures' or 'size'");
+    }
+
+    // If we only found placeholders but couldn't identify them, add a generic message.
+    if (missingFields.size === 0 && hasPlaceholders) {
+         missingFields.add("An unidentified measurement ('__')");
+    }
+
+    return Array.from(missingFields);
+};
   const extractStructuredData = async (text) => {
+      if (isRestricted) return;
       setIsExtracting(true);
       const prompt = `
         Act as a clinical data extraction tool. Analyze the following radiology report text and extract key structured data points like organ names, specific measurements, laterality (left/right), and key pathological findings.
@@ -591,11 +955,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify(payload) 
         });
-        
+       
         if (!response.ok) {
             throw new Error(`API Error: ${response.status} ${response.statusText}`);
         }
-        
+       
         const result = await response.json();
         const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
@@ -674,6 +1038,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         setInterimTranscript(currentInterim);
 
         if (finalTranscript) {
+            isProgrammaticUpdate.current = true;
             await handleVoiceCommand(finalTranscript);
             setInterimTranscript('');
         }
@@ -699,7 +1064,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             recognitionRef.current.stop();
         }
     }
-  }, []);
+  }, []); // This empty array is the source of the stale state, but we fix it with the ref.
 
   const handleVoiceCommand = async (command) => {
     if (!editor || !command) return;
@@ -719,8 +1084,9 @@ const debouncedProactiveAnalysis = useCallback((text) => {
 
     if (commandLC.startsWith(macroKeyword)) {
         const macroPhrase = commandLC.substring(macroKeyword.length).trim().replace(/[.,?]/g, '');
-        const macro = macros.find(m => macroPhrase === m.command.toLowerCase());
+        const macro = macrosRef.current.find(m => macroPhrase === m.command.toLowerCase().trim().replace(/[.,?]/g, ''));
         if (macro) {
+            isProgrammaticUpdate.current = true;
             editor.chain().focus().insertContent(macro.text).run();
         } else {
             console.warn(`Macro not found for: "${macroPhrase}"`);
@@ -734,7 +1100,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         if (action === "analyze images") {
             analyzeImages();
         } else if (action === "download report") {
-            const reportHtml = generateFinalReport();
+            const reportHtml = await generateFinalReport(); // Await the async function
             if (reportHtml) {
               downloadPdfReport(reportHtml);
             }
@@ -750,8 +1116,12 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
             const resultNumStr = action.substring("insert result".length).trim();
             const resultNum = numberWords[resultNumStr] || parseInt(resultNumStr, 10);
+           
+            const { localSearchResults, allAiSearchResults, currentAiPage } = searchResultsRef.current;
             const combinedResults = [...localSearchResults, ...(allAiSearchResults[currentAiPage] || [])];
+           
             if (!isNaN(resultNum) && resultNum > 0 && resultNum <= combinedResults.length) {
+                isProgrammaticUpdate.current = true;
                 insertFindings(combinedResults[resultNum - 1]);
             } else {
                 console.warn(`Invalid result number for insertion: ${resultNumStr}`);
@@ -765,6 +1135,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                 const startOfLastSentence = content.lastIndexOf(lastSentence);
                 if (startOfLastSentence !== -1) {
                     const endOfLastSentence = startOfLastSentence + lastSentence.length;
+                    isProgrammaticUpdate.current = true;
                     editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
                 }
             }
@@ -776,14 +1147,16 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                 const startOfLastSentence = content.lastIndexOf(lastSentence);
                  if (startOfLastSentence !== -1) {
                     const endOfLastSentence = startOfLastSentence + lastSentence.length;
+                    isProgrammaticUpdate.current = true;
                     editor.chain().focus().setTextSelection({ from: startOfLastSentence, to: endOfLastSentence }).toggleBold().run();
                 }
             }
         }
         return;
     }
-    
+   
     const correctedText = await getCorrectedTranscript(command);
+    isProgrammaticUpdate.current = true;
     editor.chain().focus().insertContent(correctedText + ' ').run();
   };
 
@@ -807,7 +1180,22 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         setImages(prevImages => [...prevImages, ...newImageObjects]);
     }
   };
- 
+ const handleSelectRecentReport = (report) => {
+    // This function extracts the main body of the report, skipping the patient header
+    const bodyMatch = report.reportHTML.match(/<\/table>\s*<\/div>([\s\S]*)/);
+    const reportBody = bodyMatch ? bodyMatch[1].trim() : report.reportHTML;
+
+    setPatientName(report.patientName);
+    setExamDate(report.examDate);
+    // You can add other fields here if you save them to Firestore
+
+    if (editor) {
+        isProgrammaticUpdate.current = true;
+        editor.commands.setContent(reportBody);
+        setUserFindings(reportBody); // Also update the state
+    }
+    toast.success(`Loaded report for ${report.patientName}`);
+};
   const handleDragOver = (e) => {
       e.preventDefault();
       setIsDragging(true);
@@ -849,8 +1237,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     setImages(images.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- UPDATED FUNCTION: analyzeImages ---
   const analyzeImages = async () => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to use AI image analysis.");
+    //     return;
+    // }
     if (images.length === 0) {
       setError("Please upload one or more images first.");
       return;
@@ -858,14 +1249,31 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     setIsAiLoading(true);
     setAiAnalysisStatus('Analyzing images...');
     setError(null);
-    setAiMeasurements([]); // Clear previous measurements
-    setCriticalFindingData(null); // Clear previous critical findings
-    if(editor) editor.commands.clearContent();
-    
+    setAiMeasurements([]);
+    setActiveAlert(null);
+    setCorrectionSuggestion(null);
+   
     try {
+
+      // const prompt = `
+      //       You are an advanced AI assistant specializing in the analysis of medical imaging studies.
+      //       Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
+      //       The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
+
+      //       1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
+      //       2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
+      //           - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
+      //           - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
+      //       3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
+      //           - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
+      //           - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
+      //           - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
+            
+      //       Clinical Context: "${clinicalContext || 'None'}"
+      //   `;
         const prompt = `
-            You are an advanced AI assistant specializing in the analysis of medical imaging studies.
-            Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
+        You are a highly observant, knowledgable and one of the moset experienced Senior Radiologist specialized in the analysis of medical imaging studies.
+          Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
             The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
 
             1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
@@ -877,7 +1285,23 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                 - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
                 - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
             
-            Clinical Context: "${clinicalContext || 'None'}"
+            **Please remove this for reference only** Clinical Context: "${clinicalContext || 'None'}" 
+            OR If Given one or more images of the ready-to-print report then :
+        1.  **Extract Text**: Accurately extract all text from the provided image(s) to form a complete report.
+        2.  **Analyze for Inconsistencies**:
+            * Review the "body" of the report which contains all the findings to identify all significant radiological findings.
+            * Compare these findings with the "IMPRESSION" section.
+            * If a significant finding from the body is missing from the impression (e.g., "fatty liver" is in findings but not impression), or if the significant finding present in the impression is missing in the body of the report that contains all the findings,  identify it.
+        3.  **Generate Correction and Alert**:
+            * If an inconsistency is found, create a 'suggestedCorrection' string. This should be the exact text to add to the impression (e.g., "Grade I fatty liver.").
+            * Also create a concise 'inconsistencyAlert' message explaining the issue (e.g., "'Grade I fatty liver' was found but is missing from the impression.").
+
+        Return a single JSON object with the following keys. Do not include any other text or markdown.
+        * 'analysisReport': The **original, uncorrected** report text, extracted from the image, as an HTML string.
+        * 'measurements': An array of any measurements found (or an empty array if none).
+        * 'criticalFinding': An object for any critical findings (or null if none).
+        * 'inconsistencyAlert': A string explaining the inconsistency, or null if none was found.
+        * 'suggestedCorrection': The string to be added to the impression to fix the issue, or null if none is needed.
         `;
         const imageParts = images.map(image => ({ inlineData: { mimeType: image.type, data: image.base64 } }));
         const payload = { 
@@ -885,10 +1309,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             generationConfig: { responseMimeType: "application/json" }
         };
         const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        
+       
         if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
         const result = await response.json();
@@ -897,13 +1321,30 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         if (textResult) {
             const parsedResult = JSON.parse(textResult);
             if (parsedResult.analysisReport && editor) {
+                isProgrammaticUpdate.current = true;
+                editor.commands.clearContent();
                 editor.commands.setContent(parsedResult.analysisReport);
             }
             if (parsedResult.measurements) {
                 setAiMeasurements(parsedResult.measurements);
             }
+          // Cancel any stale debounced checkers to prevent them from clearing a fresh alert
+ if (inconsistencyCheckTimeoutRef.current) {
+   clearTimeout(inconsistencyCheckTimeoutRef.current);
+   inconsistencyCheckTimeoutRef.current = null;
+ }
+ if (debounceTimeoutRef.current) {
+   clearTimeout(debounceTimeoutRef.current);
+   debounceTimeoutRef.current = null;
+ }
             if (parsedResult.criticalFinding) {
-                setCriticalFindingData(parsedResult.criticalFinding);
+                setActiveAlert({ type: 'critical', data: parsedResult.criticalFinding });
+                setIsAwaitingAlertAcknowledge(true);
+            }
+            if (parsedResult.inconsistencyAlert || parsedResult.suggestedCorrection) {
+                setActiveAlert({ type: 'inconsistency', message: parsedResult.inconsistencyAlert });
+                setCorrectionSuggestion(parsedResult.suggestedCorrection); // Store the suggestion
+                setIsAwaitingAlertAcknowledge(true);
             }
             toastDone('AI analysis complete');
         } else {
@@ -924,7 +1365,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
           return;
       }
       setError(null);
-      
+     
       const query = searchQuery.toLowerCase().trim();
       const results = localFindings.filter(finding => 
           finding.organ.toLowerCase().includes(query) ||
@@ -937,11 +1378,15 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       setAllAiFullReports([]);
       setCurrentReportPage(0);
       setAiKnowledgeLookupResult(null);
-      
+     
       setBaseSearchQuery(searchQuery);
   };
  
   const handleAiFindingsSearch = async (isMoreQuery = false) => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to use AI search.");
+    //     return;
+    // }
     if (!baseSearchQuery) {
         setError("Please perform a standard search first.");
         return;
@@ -999,13 +1444,13 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        
+       
         if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
         const result = await response.json();
         if (result.candidates?.[0]?.content.parts?.[0]?.text) {
             const textResult = result.candidates[0].content.parts[0].text;
-            
+           
             try {
                 const parsedResult = JSON.parse(textResult);
 
@@ -1045,6 +1490,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
   };
 
   const handleAiKnowledgeSearch = async (isProactive = false, queryOverride = '') => {
+      // if (isRestricted) {
+      //    toast.error("Please upgrade to a professional plan to use AI knowledge search.");
+      //    return;
+      // }
       const query = isProactive ? queryOverride : baseSearchQuery;
       if (!query) {
           setError("Please enter a search term first.");
@@ -1060,7 +1509,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       const prompt = `
         You are a master medical AI. Your sole task is to provide a knowledge lookup on a specific medical condition.
         The user wants to know about: "${query}".
-        
+       
         Perform a lookup using authoritative sources (like Radiopaedia, PubMed, StatPearls) and return a single, valid JSON object with this EXACT schema:
         {
           "queryType": "knowledgeLookup",
@@ -1070,7 +1519,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
           "differentialDiagnosis": ["string", "string"],
           "sources": [{ "name": "string", "url": "string" }]
         }
-        
+       
         Do not generate report findings. Your only job is to provide factual, educational information based on the requested condition.
       `;
 
@@ -1114,6 +1563,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
 
   // --- UPDATED FUNCTION: checkForCriticalFindings ---
   const checkForCriticalFindings = useCallback(async (plainTextFindings) => {
+    if (isAwaitingAlertAcknowledge) return;
     const prompt = `
         Act as a vigilant radiologist. Analyze the following report text for critical, urgent, or unexpected findings that require immediate attention (e.g., pneumothorax, aortic dissection, acute hemorrhage, large vessel occlusion).
 
@@ -1150,17 +1600,22 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         if (textResult) {
             const parsed = JSON.parse(textResult);
             if (parsed.criticalFinding) {
-                setCriticalFindingData(parsed.criticalFinding);
+                setActiveAlert({ type: 'critical', data: parsed.criticalFinding });
+                setIsAwaitingAlertAcknowledge(true);
             } else {
-                setCriticalFindingData(null);
+                setActiveAlert(prev => (prev?.type === 'critical' ? null : prev));
             }
         }
     } catch (err) {
         console.error("Critical finding check failed:", err);
     }
-  }, []);
+  }, [isAwaitingAlertAcknowledge]);
 
   const handleGetSuggestions = async (type) => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to get AI suggestions.");
+    //     return;
+    // }
     if (!editor) {
       setError("Editor not initialized. Please wait and try again.");
       return;
@@ -1170,11 +1625,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       setError("Please enter some findings before requesting suggestions.");
       return;
     }
-    
+   
     setIsSuggestionLoading(true);
     setError(null);
     setSuggestionType(type);
-    
+   
     let prompt = '';
     if (type === 'differentials') {
       prompt = `
@@ -1198,9 +1653,9 @@ const debouncedProactiveAnalysis = useCallback((text) => {
 
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-       const model = 'gemini-2.5-flash';
-       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const model = 'gemini-2.5-flash';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
@@ -1223,6 +1678,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
   };
 
   const handleParseReport = async () => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to use the AI report parser.");
+    //     return;
+    // }
     if (!assistantQuery) {
       setError("Please paste a report into the AI Assistant box to parse.");
       return;
@@ -1258,14 +1717,14 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
       if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      
+     
       const result = await response.json();
       const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
       if (textResult) {
         const jsonString = textResult.match(/```json\n([\s\S]*?)\n```/s)?.[1] || textResult;
         const parsed = JSON.parse(jsonString);
-        
+       
         if(parsed.patientName) setPatientName(parsed.patientName);
         if(parsed.patientId) setPatientId(parsed.patientId);
         if(parsed.patientAge) setPatientAge(parsed.patientAge);
@@ -1274,6 +1733,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         if(parsed.modality) setModality(parsed.modality);
         if(parsed.bodyPart) setTemplate(parsed.bodyPart);
         if(parsed.reportBody && editor) {
+            isProgrammaticUpdate.current = true;
             editor.commands.setContent(parsed.reportBody);
         }
 
@@ -1294,9 +1754,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     const header = suggestionType === 'differentials' 
       ? "<h3>DIFFERENTIAL DIAGNOSIS:</h3>" 
       : "<h3>RECOMMENDATIONS:</h3>";
-    
+   
     const formattedSuggestions = `<p>${aiSuggestions.replace(/\n/g, '<br>')}</p>`;
     
+    isProgrammaticUpdate.current = true;
     editor.chain().focus().insertContent(`<br>${header}${formattedSuggestions}`).run();
 
     setShowSuggestionsModal(false);
@@ -1333,17 +1794,18 @@ const debouncedProactiveAnalysis = useCallback((text) => {
  
   const insertFindings = (findingToInsert) => {
     if (!editor) return;
+    isProgrammaticUpdate.current = true;
 
     // Handle full reports from both AI (queryType) and local findings (isFullReport)
     if (findingToInsert.queryType === 'fullReport' || findingToInsert.isFullReport) {
         const { modality: newModality, template: newTemplate, fullReportText, findings, findingName } = findingToInsert;
-        
+       
         // Use fullReportText from AI or findings from local data
         const contentToInsert = fullReportText || findings;
 
         if (newModality) setModality(newModality);
         if (newTemplate) setTemplate(newTemplate);
-        
+       
         // Replace the entire editor content with the formatted HTML
         editor.commands.setContent(contentToInsert);
         toast.success(`Inserted '${findingName}' report.`);
@@ -1353,7 +1815,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     // This part handles inserting individual findings into an existing template
     const { organ, findings, impression } = findingToInsert;
     let currentHtml = editor.getHTML();
-    
+   
     const newFindingText = ` ${findings}`;
     const newImpressionHtml = `<p>- ${impression}</p>`;
 
@@ -1366,7 +1828,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         const existingContent = organMatch[2];
         const closingTag = organMatch[3];
         const placeholderRegex = /Normal in size|Not dilated|unremarkable|No significant/i;
-        
+       
         let finalContent;
         if(placeholderRegex.test(existingContent)){
             finalContent = newFindingText;
@@ -1379,7 +1841,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         wasFindingHandled = true;
     }
 
-    const impressionHeaderRegex = /(<p><strong>IMPRESSION:<\/strong>)|(IMPRESSION:)/i;
+    const impressionHeaderRegex = /(<h3>IMPRESSION:<\/h3>)/i;
     const impressionMatch = currentHtml.match(impressionHeaderRegex);
 
     if (impressionMatch) {
@@ -1387,120 +1849,230 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         currentHtml = currentHtml.replace(impressionHeaderRegex, `${impressionMatch[0]}${newImpressionHtml}`);
     } else if (wasFindingHandled) {
         // If no impression header but we did find an organ, add it at the end.
-        currentHtml += `<br><p><strong>IMPRESSION:</strong></p>${newImpressionHtml}`;
+        currentHtml += `<br><h3>IMPRESSION:</h3>${newImpressionHtml}`;
     }
 
     if (wasFindingHandled) {
         editor.commands.setContent(currentHtml);
     } else {
         // Fallback for when the organ isn't found in the current template
-        const fallbackHtml = `<p><strong>${organ.toUpperCase()}:</strong> ${findings}</p><br><p><strong>IMPRESSION:</strong></p>${newImpressionHtml}`;
+        const fallbackHtml = `<p><strong>${organ.toUpperCase()}:</strong> ${findings}</p><br><h3>IMPRESSION:</h3>${newImpressionHtml}`;
         editor.chain().focus().insertContent(fallbackHtml).run();
     }
   };
 
+  const handleFixInconsistency = () => {
+    if (!editor || !correctionSuggestion) return;
+    isProgrammaticUpdate.current = true;
 
-  const handleAIAssistant = async () => {
+    let currentHtml = editor.getHTML();
+    const newImpressionHtml = `<p>- ${correctionSuggestion}</p>`;
+
+    // Regex to find the impression header, works for <h3> or <p><strong>
+    const impressionHeaderRegex = /(<h3>IMPRESSION:<\/h3>|<p><strong>IMPRESSION:<\/strong>)/i;
+    const impressionMatch = currentHtml.match(impressionHeaderRegex);
+
+    if (impressionMatch) {
+        // Insert the new impression text immediately after the header
+        currentHtml = currentHtml.replace(impressionHeaderRegex, `${impressionMatch[0]}${newImpressionHtml}`);
+    } else {
+        // If no impression header is found, append it to the end of the report
+        currentHtml += `<br><h3>IMPRESSION:</h3>${newImpressionHtml}`;
+    }
+
+    editor.commands.setContent(currentHtml);
+    toast.success("Report corrected.");
+
+    // Clear the alert and the stored suggestion
+    setActiveAlert(null);
+    setCorrectionSuggestion(null);
+    setIsAwaitingAlertAcknowledge(false);
+  };
+
+
+  const handleCorrectReport = async () => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to use the AI Assistant.");
+    //     return;
+    // }
     if (!assistantQuery) {
-      setError("Please enter a topic or paste a report in the AI Assistant box.");
+      setError("Please paste a report in the text box to correct it.");
       return;
     }
     setIsLoading(true);
     setError(null);
-    setGeneratedReport('');
 
+    const prompt = `
+      You are an expert radiologist and medical editor. Your task is to analyze the provided medical report for completeness and accuracy.
+
+      1.  **Review the FINDINGS section** to identify all significant radiological findings.
+      2.  **Compare these findings with the IMPRESSION section.**
+      3.  **Identify any inconsistencies or omissions.** If a significant finding mentioned in the report body is missing from the impression, you must add it. For example, if the findings mention "mild diffuse increase in echotexture with fat fraction 11.3%," the impression should be updated to include a conclusion like "Grade I fatty liver."
+      4.  **Proofread** the entire report for any grammatical or structural errors.
+      5.  **Return the fully corrected and complete report** as a single, professional HTML string. Maintain the original structure.
+
+      If the report is already accurate and complete, return it as-is without any confirmation message.
+
+      Report to Analyze and Correct:
+      ---
+      ${assistantQuery}
+      ---
+    `;
     try {
-      const prompt = `
-        You are an expert radiologist and medical editor.Analyze the user's request below and perform one of two tasks:
-
-        1.  **If the request is a topic (e.g., "Liver Elastography", "CT KUB report template"):**
-            Generate a comprehensive, professionally formatted report template for that topic. The template should be detailed, including all standard sections, findings, interpretations, and placeholders like '[Patient Name]' as appropriate. The output MUST be a single string of properly formatted HTML.
-
-        2.  **If the request is a full or partial medical report:**
-            Meticulously proofread the report for any clinical, grammatical, or structural errors. Return a fully corrected, professional version of the report, formatted as an HTML string. If the report is already accurate, return a confirmation message like: "The provided report is accurate and requires no corrections."
-
-        User's Request:
-        ---
-        ${assistantQuery}
-        ---
-      `;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-         const model = 'gemini-2.5-flash';
-         const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const model = 'gemini-2.5-flash';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        
         if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
         const result = await response.json();
         const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
         if (textResult && editor) {
+            isProgrammaticUpdate.current = true;
             editor.commands.setContent(textResult);
+            toast.success("Report correction complete!");
         } else {
             throw new Error("No response from AI assistant.");
         }
     } catch (err) {
-        setError("AI Assistant request failed: " + err.message);
+        setError("AI correction request failed: " + err.message);
     } finally {
         setIsLoading(false);
     }
   };
 
-  const generateFinalReport = async () => { // Make the function async
-      let reportHtml = '';
-      if (editor) {
-          const reportBody = editor.getHTML();
-          const patientHeader = `
-            <div style="padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
-              <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0;">
-                <tbody>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient Name</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientName}</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient ID</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientId}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Age</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0;">${patientAge}</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Exam Date</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0;">${examDate}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Referring Physician</td>
-                    <td style="padding: 8px; border: 1px solid #e2e8f0;" colspan="3">${referringPhysician}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          `;
-          const fullReport = patientHeader + reportBody;
-          setGeneratedReport(fullReport);
-          toastDone('Report generated');
+  const handleGenerateTemplate = async () => {
+    // if (isRestricted) {
+    //     toast.error("Please upgrade to a professional plan to use the AI Assistant.");
+    //     return;
+    // }
+    if (!assistantQuery) {
+      setError("Please enter a topic to generate a template.");
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
 
-          // --- SAVE TO FIRESTORE ---
-          if (user) { // Only save if a user is logged in
-              try {
-                  await addDoc(collection(db, "reports"), {
-                      userId: user.uid,
-                      reportHTML: fullReport,
-                      patientName: patientName,
-                      examDate: examDate,
-                      createdAt: serverTimestamp()
-                  });
-                  // toast.success('Report saved to cloud!');
-              } catch (e) {
-                  console.error("Error adding document: ", e);
-                  toast.error('Could not save report.');
-              }
-          }
-          // --- END NEW CODE ---
+    const prompt = `
+      You are an expert radiologist. Generate a comprehensive, professionally formatted report template for the following topic.
+      The template should be detailed, including all standard sections, common findings, and placeholders where necessary.
+      The output MUST be a single string of properly formatted HTML.
 
-          return fullReport;
-      }
-      return '';
+      Topic:
+      ---
+      ${assistantQuery}
+      ---
+    `;
+    try {
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+        const model = 'gemini-2.5-flash';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+        const result = await response.json();
+        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+        if (textResult && editor) {
+            isProgrammaticUpdate.current = true;
+            editor.commands.setContent(textResult);
+            toast.success("Template generated successfully!");
+        } else {
+            throw new Error("No response from AI assistant.");
+        }
+    } catch (err) {
+        setError("AI template generation failed: " + err.message);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const generateFinalReport = async (force = false) => {
+    if (!user) return;
+    // --- NEW: Validation Check ---
+    if (!force) {
+        const missing = findMissingMeasurements();
+        if (missing.length > 0) {
+            setActiveAlert({
+                type: 'missing_info',
+                message: `The following appear to be missing or incomplete: ${missing.join(', ')}. Do you want to proceed?`,
+            });
+            return; // Stop the function until user decides
+        }
+    }
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    const userData = userDoc.data();
+    const reportLimit = 1000;
+    let newCount = userData.reportCount || 0;
+
+    // if (userRole === 'basic') {
+    //     if (newCount >= reportLimit) {
+    //         toast.error("You've reached your monthly limit of 5 reports. Please upgrade for unlimited access.");
+    //         return;
+    //     }
+    // }
+
+    let reportHtml = '';
+    if (editor) {
+        const reportBody = editor.getHTML();
+        const patientHeader = `
+          <div style="padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
+            <h3 style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #1a202c;">Patient Information</h3>
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0;">
+              <tbody>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient Name</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientName}</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient ID</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientId}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Age</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0;">${patientAge}</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Exam Date</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0;">${examDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Referring Physician</td>
+                  <td style="padding: 8px; border: 1px solid #e2e8f0;" colspan="3">${referringPhysician}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+        const fullReport = patientHeader + reportBody;
+        setGeneratedReport(fullReport);
+        toastDone('Report generated');
+
+        if (userRole === 'basic') {
+            await updateDoc(userDocRef, {
+                reportCount: newCount + 1,
+                lastReportDate: serverTimestamp(),
+            });
+        }
+
+        try {
+            await addDoc(collection(db, "users", user.uid, "reports"), {
+                userId: user.uid,
+                reportHTML: fullReport,
+                patientName: patientName,
+                examDate: examDate,
+                createdAt: serverTimestamp()
+            });
+            toast.success('Report saved to cloud!');
+        } catch (e) {
+            console.error("Error adding document: ", e);
+            toast.error('Could not save report.');
+        }
+        return fullReport;
+    }
+    return '';
   };
  
     const copyToClipboard = (text, successMessage = 'Copied!') => {
@@ -1522,22 +2094,25 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         document.body.removeChild(textArea);
     };
 
-    const downloadTxtReport = () => {
-        const reportContent = generateFinalReport();
-        if (!reportContent) return;
-        const plainText = htmlToText(reportContent, {
-            wordwrap: 130
-        });
+    const downloadTxtReport = (reportContent) => {
+    if (!reportContent) {
+        // Updated error message for clarity
+        toast.error("Please generate the report first before downloading.");
+        return;
+    }
+    const plainText = htmlToText(reportContent, {
+        wordwrap: 130
+    });
 
-        const element = document.createElement("a");
-        const file = new Blob([plainText], {type: 'text/plain;charset=utf-8'});
-        element.href = URL.createObjectURL(file);
-        element.download = `Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.txt`;
-        document.body.appendChild(element); 
-        element.click();
-        document.body.removeChild(element);
-       toastDone('TXT downloaded');
-    };
+    const element = document.createElement("a");
+    const file = new Blob([plainText], {type: 'text/plain;charset=utf-8'});
+    element.href = URL.createObjectURL(file);
+    element.download = `Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.txt`;
+    document.body.appendChild(element); 
+    element.click();
+    document.body.removeChild(element);
+    toastDone('TXT downloaded');
+};
 
     const downloadPdfReport = (reportContent) => {
         if (!reportContent) {
@@ -1547,7 +2122,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         setError(null);
         try {
             const doc = new jsPDF();
-            
+           
             const tempDiv = document.createElement('div');
             tempDiv.style.width = '170mm';
             tempDiv.style.fontFamily = 'helvetica';
@@ -1576,10 +2151,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     const handleInsertMeasurement = (finding, value) => {
         if (!editor) return;
         let currentHtml = editor.getHTML();
-        
+       
         // Escape special regex characters from the finding string
         const findingCleaned = finding.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        
+       
         // Create a regex that finds the finding's bolded header and the first placeholder after it.
         // It handles variations in whitespace and is case-insensitive.
         // It looks for placeholders like "__ x __ cm", "__ cm", "__ mm", etc.
@@ -1587,10 +2162,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             `(<strong>${findingCleaned.replace(/\s+/g, '\\s*')}:?</strong>.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`, 
             "i"
         );
-        
+       
         const match = currentHtml.match(findingRegex);
 
         if (match) {
+            isProgrammaticUpdate.current = true;
             // Replace the placeholder part (match[2]) with the new value
             const updatedSection = match[0].replace(match[2], `<strong>${value}</strong>`);
             currentHtml = currentHtml.replace(match[0], updatedSection);
@@ -1599,6 +2175,46 @@ const debouncedProactiveAnalysis = useCallback((text) => {
         } else {
             toast.error(`Could not automatically find a placeholder for "${finding}". Please insert manually.`);
         }
+    };
+
+    // --- Firestore Macro Handlers ---
+    const handleAddMacro = async () => {
+      if (!newMacroCommand || !newMacroText) {
+        toast.error("Please provide both a command and text for the macro.");
+        return;
+      }
+      if (!user) {
+        toast.error("You must be logged in to add a macro.");
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "users", user.uid, "macros"), {
+          command: newMacroCommand,
+          text: newMacroText,
+          createdAt: serverTimestamp()
+        });
+        setNewMacroCommand('');
+        setNewMacroText('');
+        toast.success("Macro added successfully!");
+      } catch (error) {
+        console.error("Error adding macro: ", error);
+        toast.error("Failed to add macro.");
+      }
+    };
+
+    const handleDeleteMacro = async (macroId) => {
+      if (!user) {
+        toast.error("You must be logged in to delete a macro.");
+        return;
+      }
+      try {
+        await deleteDoc(doc(db, "users", user.uid, "macros", macroId));
+        toast.success("Macro deleted.");
+      } catch (error) {
+        console.error("Error deleting macro: ", error);
+        toast.error("Failed to delete macro.");
+      }
     };
 
   const shortcuts = {
@@ -1622,7 +2238,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
 
         for (const config of Object.values(shortcuts)) {
             const isCtrlOrCmd = (isMac && event.metaKey) || (!isMac && event.ctrlKey);
-            
+           
             let keyMatch = event.key.toLowerCase() === config.key.toLowerCase();
             if (config.key === '/') keyMatch = event.key === '/'; // Handle special characters
 
@@ -1654,6 +2270,10 @@ const debouncedProactiveAnalysis = useCallback((text) => {
   if (!user) {
       return <Auth />;
   }
+   // If the user is not a professional, show the upgrade page
+  // if (userRole !== 'professional') {
+  //     return <UpgradePage user={user} />;
+  // }
 
   return (
     <div className="min-h-screen bg-gray-700 font-sans text-gray-800">
@@ -1675,6 +2295,16 @@ const debouncedProactiveAnalysis = useCallback((text) => {
           float: left;
           height: 0;
           pointer-events: none;
+        }
+        /* Added styles for lists */
+        .tiptap ul, .tiptap ol {
+            padding-left: 1.5rem;
+        }
+        .tiptap ul {
+            list-style-type: disc;
+        }
+        .tiptap ol {
+            list-style-type: decimal;
         }
         .toggle-checkbox:checked {
             right: 0;
@@ -1700,11 +2330,11 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       <div className="container mx-auto p-4 lg:p-8">
         <header className="text-center mb-8 relative">
         {/* <img
-                src="src\assets\aiRAD_logo.jpg"
-                alt="example"
-                style={{ maxWidth: '5%' }}
-            /> */}
-                           
+          src="src\assets\aiRAD_logo.jpg"
+          alt="example"
+          style={{ maxWidth: '5%' }}
+        /> */}
+                                
           <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <img src="src\assets\aiRAD_logo.jpg" alt="aiRAD Logo" className="h-24 w-24 mr-4 rounded-lg flex items-left justify-left"  /><br/>aiRAD-Reporting, Redefined.</h1>
           <p className="text-lg text-gray-100 mt-2">AI-Assisted Radiology Reporting System.</p>
           {user && (
@@ -1721,7 +2351,19 @@ const debouncedProactiveAnalysis = useCallback((text) => {
             </div>
           )}
         </header>
-        
+        {isRestricted && (
+            <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded-lg text-center">
+                You've reached your free limit. 
+                <button 
+                    onClick={() => { /* Navigate to upgrade page */ }} 
+                    className="font-bold underline ml-2"
+                >
+                    Upgrade to Professional
+                </button> 
+                for unlimited reports and AI features.
+            </div>
+        )}
+       
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Controls & Inputs */}
           <div className="space-y-6">
@@ -1776,7 +2418,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                     </div>
                 </div>
             </CollapsibleSection>
-            
+           
             <CollapsibleSection title="Report Template" icon={FileText}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1824,19 +2466,19 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                             </div>
                             ))}
                         </div>
-                        <button onClick={analyzeImages} disabled={isAiLoading} className="w-full mt-3 bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition flex items-center justify-center disabled:bg-indigo-300">
+                        <button onClick={analyzeImages} disabled={isAiLoading || isRestricted} className="w-full mt-3 bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition flex items-center justify-center disabled:bg-indigo-300">
                         {isAiLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>{aiAnalysisStatus || 'Analyzing...'}</span></> : <><BrainCircuit size={20} className="mr-2"/>Analyze Images</>}
                         </button>
                     </div>
                 )}
             </CollapsibleSection>
 
-            <CollapsibleSection title="AI Assistant / Corrector" icon={CheckCircle}>
-                 <div className="flex justify-between items-center">
-                    <label className="font-semibold text-gray-600 flex items-center"><CheckCircle className="mr-2 text-teal-600" />AI Assistant / Corrector</label>
-                    <button onClick={handleParseReport} disabled={isParsing || !assistantQuery} className="text-xs bg-teal-100 text-teal-800 font-semibold py-1 px-2 rounded-md hover:bg-teal-200 transition flex items-center disabled:opacity-50">
+            <CollapsibleSection title="AI Assistant" icon={CheckCircle}>
+                <div className="flex justify-between items-center">
+                    <label className="font-semibold text-gray-600 flex items-center"><CheckCircle className="mr-2 text-teal-600" />AI Assistant</label>
+                    <button onClick={handleParseReport} disabled={isParsing || !assistantQuery || isRestricted} className="text-xs bg-teal-100 text-teal-800 font-semibold py-1 px-2 rounded-md hover:bg-teal-200 transition flex items-center disabled:opacity-50">
                         {isParsing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-700 mr-2"></div> : <FileScan size={14} className="mr-1" />}
-                        Parse Report to Fields
+                        Parse to Fields
                     </button>
                 </div>
                 <textarea 
@@ -1844,13 +2486,18 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                     onChange={(e) => setAssistantQuery(e.target.value)} 
                     rows="4" 
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 transition" 
-                    placeholder="Paste a report for correction OR enter a topic to generate a new template (e.g., Liver Elastography report)..."
+                    placeholder="Paste a report for correction OR enter a topic to generate a new template..."
                 />
-                <button onClick={handleAIAssistant} disabled={isLoading || !assistantQuery} className="w-full bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 transition flex items-center justify-center disabled:bg-teal-400">
-                    {isLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>Checking...</> : <><MessageSquare className="mr-2" />Ask AI Assistant</>}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button onClick={handleCorrectReport} disabled={isLoading || !assistantQuery || isRestricted} className="w-full bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 transition flex items-center justify-center disabled:bg-teal-400">
+                        {isLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>Correcting...</> : <><CheckCircle className="mr-2" />Correct Pasted Report</>}
+                    </button>
+                    <button onClick={handleGenerateTemplate} disabled={isLoading || !assistantQuery || isRestricted} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-center disabled:bg-blue-400">
+                        {isLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>Generating...</> : <><PlusCircle className="mr-2" />Generate New Template</>}
+                    </button>
+                </div>
             </CollapsibleSection>
-            
+           
             <CollapsibleSection title="Local Findings Search" icon={Search}>
                 <div className="flex items-center space-x-2">
                     <input 
@@ -1866,7 +2513,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                         <Search size={20} />
                     </button>
                 </div>
-                
+               
                 {isSearching && !aiKnowledgeLookupResult && <SearchResultSkeleton />}
 
                 {!isSearching && localSearchResults.length > 0 && (
@@ -1902,16 +2549,16 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                       ))}
                   </div>
                 )}
-                
+               
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <button onClick={() => handleAiFindingsSearch()} disabled={isSearching || !baseSearchQuery} className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center disabled:bg-indigo-300">
+                  <button onClick={() => handleAiFindingsSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center disabled:bg-indigo-300">
                     {isSearching && !allAiFullReports.length && !allAiSearchResults.length ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><Search size={20} className="mr-2" />Search Findings</>}
                   </button>
-                  <button onClick={() => handleAiKnowledgeSearch()} disabled={isSearching || !baseSearchQuery} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center disabled:bg-green-300">
+                  <button onClick={() => handleAiKnowledgeSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center disabled:bg-green-300">
                     {isSearching ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><BookOpen size={20} className="mr-2" />Knowledge Search</>}
                   </button>
                 </div>
-                
+               
                 {!isSearching && allAiFullReports.length > 0 && (
                     <div className="mt-3 space-y-3">
                         <h3 className="font-bold text-gray-700">AI-Drafted Report</h3>
@@ -1979,40 +2626,51 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                  <div className="flex justify-between items-center">
                     <label className="font-semibold text-gray-600">Findings & Measurements</label>
                     <div className="flex space-x-2">
-                        <button onClick={() => handleGetSuggestions('differentials')} disabled={isSuggestionLoading || !userFindings} className="text-xs bg-gray-200 text-gray-700 font-semibold py-1 px-2 rounded-md hover:bg-gray-300 transition flex items-center disabled:opacity-50">
+                        <button onClick={() => handleGetSuggestions('differentials')} disabled={isSuggestionLoading || !userFindings || isRestricted} className="text-xs bg-gray-200 text-gray-700 font-semibold py-1 px-2 rounded-md hover:bg-gray-300 transition flex items-center disabled:opacity-50">
                             <Lightbulb size={14} className="mr-1" /> Suggest Differentials
                         </button>
-                        <button onClick={() => handleGetSuggestions('recommendations')} disabled={isSuggestionLoading || !userFindings} className="text-xs bg-gray-200 text-gray-700 font-semibold py-1 px-2 rounded-md hover:bg-gray-300 transition flex items-center disabled:opacity-50">
+                        <button onClick={() => handleGetSuggestions('recommendations')} disabled={isSuggestionLoading || !userFindings || isRestricted} className="text-xs bg-gray-200 text-gray-700 font-semibold py-1 px-2 rounded-md hover:bg-gray-300 transition flex items-center disabled:opacity-50">
                             <ListPlus size={14} className="mr-1" /> Generate Recommendations
                         </button>
                     </div>
                 </div>
-                
-                <CriticalFindingPanel
-                    findingData={criticalFindingData}
-                    onAcknowledge={() => setCriticalFindingData(null)}
+               
+                <AlertPanel
+                    alertData={activeAlert}
+                    onAcknowledge={() => {
+                        setActiveAlert(null);
+                        setIsAwaitingAlertAcknowledge(false);
+                    }}
                     onInsertMacro={() => {
-                        if (editor && criticalFindingData?.reportMacro) {
-                            editor.chain().focus().insertContent(`<p><strong>${criticalFindingData.reportMacro}</strong></p>`).run();
+                        if (editor && activeAlert?.type === 'critical' && activeAlert.data?.reportMacro) {
+                            isProgrammaticUpdate.current = true;
+                            editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run();
                             toast.success("Critical finding macro inserted.");
                         }
-                        setCriticalFindingData(null);
+                        setActiveAlert(null);
+                        setIsAwaitingAlertAcknowledge(false);
                     }}
                     onPrepareNotification={() => {
-                        if (criticalFindingData?.notificationTemplate) {
-                            copyToClipboard(criticalFindingData.notificationTemplate, "Notification text copied!");
+                        if (activeAlert?.type === 'critical' && activeAlert.data?.notificationTemplate) {
+                            copyToClipboard(activeAlert.data.notificationTemplate, "Notification text copied!");
                         }
-                        setCriticalFindingData(null);
+                        setActiveAlert(null);
+                        setIsAwaitingAlertAcknowledge(false);
                     }}
+                    onFix={handleFixInconsistency}
+						  onProceed={() => {
+							setActiveAlert(null);
+							generateFinalReport(true); // Re-run the function, forcing it to bypass the check
+						  }}
                 />
 
-                <div className={`rounded-lg bg-white transition-all duration-300 ${criticalFindingData ? 'border-2 border-red-500 shadow-lg ring-4 ring-red-500/20' : 'border border-gray-300'}`}>
+                <div className={`rounded-lg bg-white transition-all duration-300 ${activeAlert?.type === 'critical' ? 'border-2 border-red-500 shadow-lg ring-4 ring-red-500/20' : 'border border-gray-300'}`}>
                     <MenuBar editor={editor} />
                    <EditorContent editor={editor} aria-label="Findings editor" />
                 </div>
             </div>
           </div>
-          
+         
           {/* Right Column: Generated Report & AI Co-pilot */}
           <div className="space-y-8">
             <div>
@@ -2032,7 +2690,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                       )}
                   </div>
               </div>
-              
+             <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} />
               {/* --- NEW: Render Suggested Measurements Panel --- */}
               <AiSuggestedMeasurementsPanel 
                   measurements={aiMeasurements}
@@ -2041,30 +2699,29 @@ const debouncedProactiveAnalysis = useCallback((text) => {
               />
 
               <br />
-              
+              <h2 className="text-2xl font-bold text-gray-500 flex items-center mb-4"><FileText className="mr-3 text-green-500" />Generated Report</h2>
               {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg mb-4">Error: {error}</div>}
               <div className="relative w-full min-h-[400px] bg-white rounded-lg border p-4 overflow-y-auto shadow-inner">
-                <h2 className="text-2xl font-bold text-gray-0 flex items-center mb-4"><FileText className="mr-3 text-green-500" />Generated Report</h2>
                 <div className="absolute top-2 right-2 flex items-center space-x-2">
-                    {copySuccess && <span className="text-sm text-green-600">{copySuccess}</span>}
-                    <button onClick={() => copyToClipboard(generatedReport)} title="Copy Report" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><Clipboard size={18}/></button>
-                    <button onClick={() => downloadTxtReport()} title="Download as .txt" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><FileType size={18}/></button>
-                    <button
+                  {copySuccess && <span className="text-sm text-green-600">{copySuccess}</span>}
+                  <button onClick={() => copyToClipboard(generatedReport)} title="Copy Report" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><Clipboard size={18}/></button>
+                  <button onClick={()=>downloadTxtReport(generatedReport)} title="Download as .txt" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><FileType size={18}/></button>
+                  <button
                       onClick={() => downloadPdfReport(generatedReport)}
                       title="Download as .pdf"
                       aria-label="Download report as PDF"
                       className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50"
                       disabled={!generatedReport}
-                    >
+                  >
                       <FileJson size={18} />
-                    </button>
-                    <Toaster
+                  </button>
+                  <Toaster
                       position="top-right"
                       toastOptions={{
-                        className: 'rounded-lg shadow-md',
-                        style: { background: '#111827', color: '#fff' },
+                          className: 'rounded-lg shadow-md',
+                          style: { background: '#111827', color: '#fff' },
                       }}
-                    />
+                  />
                 </div>
                 {isLoading ? <ReportSkeleton /> : <div dangerouslySetInnerHTML={{ __html: generatedReport }} className="prose max-w-none"/>}
               </div>
@@ -2078,6 +2735,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
               onClose={() => setAiKnowledgeLookupResult(null)}
               onInsert={(content) => {
                   if (editor) {
+                      isProgrammaticUpdate.current = true;
                       editor.chain().focus().insertContent(content).run();
                       toastDone('Knowledge summary inserted.');
                       setAiKnowledgeLookupResult(null);
@@ -2146,13 +2804,7 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                     ></textarea>
                   </div>
                   <button 
-                    onClick={() => {
-                      if(newMacroCommand && newMacroText) {
-                        setMacros([...macros, { command: newMacroCommand, text: newMacroText }]);
-                        setNewMacroCommand('');
-                        setNewMacroText('');
-                      }
-                    }}
+                    onClick={handleAddMacro}
                     className="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
                   >
                     Add Macro
@@ -2162,13 +2814,13 @@ const debouncedProactiveAnalysis = useCallback((text) => {
                 <div>
                   <h4 className="font-bold text-lg mb-2">Existing Macros</h4>
                   <div className="space-y-2">
-                    {macros.map((macro, index) => (
-                      <div key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded-lg">
+                    {macros.map((macro) => (
+                      <div key={macro.id} className="flex justify-between items-center bg-gray-100 p-2 rounded-lg">
                         <div>
                           <p className="font-semibold">{macro.command}</p>
                           <p className="text-sm text-gray-600 truncate">{macro.text}</p>
                         </div>
-                        <button onClick={() => setMacros(macros.filter((_, i) => i !== index))} className="text-red-500 hover:text-red-700">
+                        <button onClick={() => handleDeleteMacro(macro.id)} className="text-red-500 hover:text-red-700">
                           <Trash2 />
                         </button>
                       </div>

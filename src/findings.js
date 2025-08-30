@@ -24,7 +24,7 @@ export const localFindings = [
     "impression": "."
   },
   {
-    "findingName": "FATTY LIVER",
+    "findingName": "Fatty liver",
     "organ": "LIVER",
     "findings": "with mild/moderate/heavy diffuse increase in echotexture with fat fraction %.",
     "impression": "Grade I/II/III fatty liver."
