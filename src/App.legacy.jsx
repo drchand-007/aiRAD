@@ -1,14 +1,24 @@
 // IMPORTANT: This file contains JSX syntax. Please ensure it has a .jsx or .tsx extension (e.g., App.jsx) to avoid build errors.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, FileText, Clipboard, Settings, BrainCircuit, User, Calendar, Stethoscope, XCircle, FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, ChevronDown, History  } from 'lucide-react';
+import { Upload, FileText, Clipboard, Settings, BrainCircuit, User, Calendar, Stethoscope, XCircle, FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, ChevronDown, History, Image as ImageIcon } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import jsPDF from 'jspdf';
 import { htmlToText } from 'html-to-text';
+import { useDropzone } from 'react-dropzone';
 
-// Firebase Imports
+// --- DICOM Libraries via CDN (Required for the viewer) ---
+
+const loadScript = (src, onLoad) => {
+  const script = document.createElement('script');
+  script.src = src;
+  script.onload = onLoad;
+  document.head.appendChild(script);
+};
+
+// --- Firebase Imports (unchanged from original code) ---
 import { auth, db } from './firebase'; // Assuming firebase.js is set up
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, limit } from "firebase/firestore";
@@ -51,39 +61,114 @@ const templates = {
   "MRI": {
     "Brain (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute infarct, intracranial hemorrhage, or mass lesion.</p><h3>FINDINGS:</h3><p><strong>PARENCHYMA:</strong> No evidence of acute restricted diffusion to suggest ischemia. No abnormal susceptibility artifact to suggest hemorrhage. Normal gray-white matter differentiation. No space-occupying lesion or significant white matter disease.</p><p><strong>VENTRICLES AND CISTERNS:</strong> The ventricular system and sulci are normal for the patient's age. The basal cisterns are patent.</p><p><strong>VASCULAR STRUCTURES:</strong> Major intracranial vascular flow voids are present and patent.</p><p><strong>EXTRACRANIAL STRUCTURES:</strong> The visualized orbits, paranasal sinuses, and mastoid air cells are unremarkable.</p>",
     "Knee (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No acute meniscal or ligamentous tear.</p><h3>FINDINGS:</h3><p><strong>MENISCI:</strong></p><p>Medial Meniscus: Intact. No tear.</p><p>Lateral Meniscus: Intact. No tear.</p><p><strong>LIGAMENTS:</strong></p><p>Anterior Cruciate Ligament (ACL): Intact.</p><p>Posterior Cruciate Ligament (PCL): Intact.</p><p>Medial Collateral Ligament (MCL): Intact.</p><p>Lateral Collateral Ligament (LCL) Complex: Intact.</p><p><strong>CARTILAGE:</strong> The articular cartilage is preserved in the patellofemoral and tibiofemoral compartments.</p><p><strong>BONE MARROW:</strong> No evidence of fracture, contusion, or aggressive bone lesion.</p><p><strong>EXTENSOR MECHANISM:</strong> The quadriceps and patellar tendons are intact.</p><p><strong>JOINT FLUID:</strong> Physiologic amount of joint fluid.</p>",
-    "Lumbar Spine (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute disc herniation, spinal stenosis, or nerve root compression.</p><p>2. Mild degenerative disc disease.</p><h3>FINDINGS:</h3><p><strong>ALIGNMENT:</strong> Normal lumbar lordosis. No subluxation.</p><p><strong>VERTEBRAL BODIES:</strong> Vertebral body heights and marrow signal are maintained. No acute fracture.</p><p><strong>DISCS:</strong></p><p>[L1-L2 through L3-L4]: No significant disc bulge or herniation.</p><p>[L4-L5]: Mild disc bulge without significant canal or foraminal stenosis.</p><p>[L5-S1]: Mild disc desiccation and height loss without significant herniation.</p><p><strong>SPINAL CANAL AND FORAMINA:</strong> The central canal and neural foramina are patent at all levels.</p><p><strong>CONUS MEDULLARIS:</strong> The conus medullaris terminates at [L1] and is normal in signal.</p><p><strong>PARASPINAL SOFT TISSUES:</strong> Unremarkable.</p>",
+    "Lumbar Spine (Non-contrast)": "<h3>IMPRESSION:</h3><p>1. No evidence of acute disc herniation, spinal stenosis, or nerve root compression.</p><p>2. Mild degenerative disc disease.</p><h3>FINDINGS:</h3><p><strong>ALIGNMENT:</strong> Normal lumbar lordosis. No subluxation.</p><p><strong>VERTEBRAL BODIES:</strong> Vertebral body heights and marrow signal are maintained. No acute fracture.</p><p><strong>DISCS:</strong></p><p>[L1-L2 through L3-L4]: No significant disc bulge or herniation.</p><p>L4-L5]: Mild disc bulge without significant canal or foraminal stenosis.</p><p>[L5-S1]: Mild disc desiccation and height loss without significant herniation.</p><p><strong>SPINAL CANAL AND FORAMINA:</strong> The central canal and neural foramina are patent at all levels.</p><p><strong>CONUS MEDULLARIS:</strong> The conus medullaris terminates at [L1] and is normal in signal.</p><p><strong>PARASPINAL SOFT TISSUES:</strong> Unremarkable.</p>",
   }
+};
+
+// --- NEW COMPONENT: AiConversationPanel ---
+const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, setUserInput }) => {
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [history]);
+
+  const handleSend = () => {
+    if (userInput.trim()) {
+      onSendMessage(userInput);
+      setUserInput('');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 mt-8">
+      <div className="p-4 bg-gray-50 border-b rounded-t-2xl">
+        <h2 className="text-xl font-bold text-gray-700 flex items-center">
+          <MessageSquare className="mr-3 text-indigo-500" />
+          AI Co-pilot Conversation
+        </h2>
+      </div>
+      <div className="p-4 h-96 overflow-y-auto flex flex-col space-y-4">
+        {history.map((msg, index) => (
+          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`rounded-xl p-3 max-w-lg ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+              <p className="text-sm" dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br />') }} />
+            </div>
+          </div>
+        ))}
+        {isReplying && (
+          <div className="flex justify-start">
+            <div className="rounded-xl p-3 bg-gray-200 text-gray-800">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+      <div className="p-4 border-t bg-white rounded-b-2xl">
+        <div className="flex items-center space-x-2">
+          <textarea
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a follow-up question..."
+            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 transition resize-none"
+            rows="2"
+            disabled={isReplying}
+          />
+          <button
+            onClick={handleSend}
+            disabled={isReplying || !userInput.trim()}
+            className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition disabled:bg-indigo-300"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- NEW COMPONENT: CollapsibleSection ---
 const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }) => {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
-    return (
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition focus:outline-none"
-            >
-                <div className="flex items-center">
-                    {Icon && <Icon className="mr-3 text-blue-500" />}
-                    <h2 className="text-xl font-bold text-gray-700">{title}</h2>
-                </div>
-                <ChevronDown
-                    size={24}
-                    className={`text-gray-500 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-                />
-            </button>
-            <div
-                className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
-                style={{ transition: 'max-height 0.7s ease-in-out, padding 0.5s ease, opacity 0.5s ease' }}
-            >
-                <div className="p-6 space-y-6">
-                    {children}
-                </div>
-            </div>
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition focus:outline-none"
+      >
+        <div className="flex items-center">
+          {Icon && <Icon className="mr-3 text-blue-500" />}
+          <h2 className="text-xl font-bold text-gray-700">{title}</h2>
         </div>
-    );
+        <ChevronDown
+          size={24}
+          className={`text-gray-500 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      <div
+        className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        style={{ transition: 'max-height 0.7s ease-in-out, padding 0.5s ease, opacity 0.5s ease' }}
+      >
+        <div className="p-6 space-y-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 
@@ -110,7 +195,7 @@ const MenuBar = ({ editor }) => {
       >
         <Italic size={16} />
       </button>
-        <button
+      <button
         onClick={() => editor.chain().focus().setParagraph().run()}
         className={`p-2 rounded ${editor.isActive('paragraph') ? 'bg-gray-300' : 'hover:bg-gray-200'}`}
         title="Paragraph"
@@ -163,14 +248,14 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
       message: alertData.message,
     },
     missing_info: {
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-500',
-     textColor: 'text-orange-800',
-     iconColor: 'text-orange-500',
-     Icon: AlertTriangle,
-   title: 'Incomplete Report',
- message: alertData.message,
- },
+      bgColor: 'bg-orange-50',
+      borderColor: 'border-orange-500',
+      textColor: 'text-orange-800',
+      iconColor: 'text-orange-500',
+      Icon: AlertTriangle,
+      title: 'Incomplete Report',
+      message: alertData.message,
+    },
   };
 
   const currentConfig = config[alertData.type];
@@ -214,36 +299,36 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
                 >
                   <CheckCircle size={16} className="mr-1.5" /> Fix Issue
                 </button>
-                 <button
+                <button
                   onClick={onAcknowledge}
                   className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center"
                 >
                   <XCircle size={16} className="mr-1.5" /> Ignore
- </button>
-  </>
- )}
- {isMissingInfo && (
-  <>
-  <button
-  onClick={onProceed}
-  className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center"
-  >
-  <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
-  </button>
-  <button
-  onClick={onAcknowledge}
-  	className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center"
-  >
-  <ChevronLeft size={16} className="mr-1.5" /> Go Back
-  </button>
-  </>
- )}
-</div>
- </div>
- 	{ (isCritical || isMissingInfo) && (
-            <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
-                <XCircle size={22} />
-            </button>
+                </button>
+              </>
+            )}
+            {isMissingInfo && (
+              <>
+                <button
+                  onClick={onProceed}
+                  className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center"
+                >
+                  <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
+                </button>
+                <button
+                  onClick={onAcknowledge}
+                  className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center"
+                >
+                  <ChevronLeft size={16} className="mr-1.5" /> Go Back
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        { (isCritical || isMissingInfo) && (
+          <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
+            <XCircle size={22} />
+          </button>
         )}
       </div>
     </div>
@@ -253,245 +338,426 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
 
 // --- NEW COMPONENT: AiSuggestedMeasurementsPanel ---
 const AiSuggestedMeasurementsPanel = ({ measurements, onInsert, onClear }) => {
-    if (!measurements || measurements.length === 0) {
-        return null;
-    }
+  if (!measurements || measurements.length === 0) {
+    return null;
+  }
 
-    return (
-        <div className="bg-blue-50 p-4 rounded-2xl shadow-lg border border-blue-200 mt-6">
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-bold text-blue-700 flex items-center">
-                    <Zap size={20} className="mr-2" />AI-Suggested Measurements
-                </h3>
-                <button onClick={onClear} className="text-gray-500 hover:text-gray-800">
-                    <XCircle size={22} />
-                </button>
+  return (
+    <div className="bg-blue-50 p-4 rounded-2xl shadow-lg border border-blue-200 mt-6">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-xl font-bold text-blue-700 flex items-center">
+          <Zap size={20} className="mr-2" />AI-Suggested Measurements
+        </h3>
+        <button onClick={onClear} className="text-gray-500 hover:text-gray-800">
+          <XCircle size={22} />
+        </button>
+      </div>
+      <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+        {measurements.map((item, index) => (
+          <div key={index} className="bg-white p-3 rounded-lg flex items-center justify-between shadow-sm">
+            <div>
+              <span className="font-semibold text-gray-800">{item.finding}:</span>
+              <span className="ml-2 text-gray-600">{item.value}</span>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                {measurements.map((item, index) => (
-                    <div key={index} className="bg-white p-3 rounded-lg flex items-center justify-between shadow-sm">
-                        <div>
-                            <span className="font-semibold text-gray-800">{item.finding}:</span>
-                            <span className="ml-2 text-gray-600">{item.value}</span>
-                        </div>
-                        <button 
-                            onClick={() => onInsert(item.finding, item.value)}
-                            className="bg-blue-100 text-blue-800 font-bold py-1 px-3 rounded-lg hover:bg-blue-200 transition text-sm flex items-center"
-                        >
-                            <Plus size={16} className="mr-1" /> Insert
-                        </button>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+            <button
+              onClick={() => onInsert(item.finding, item.value)}
+              className="bg-blue-100 text-blue-800 font-bold py-1 px-3 rounded-lg hover:bg-blue-200 transition text-sm flex items-center"
+            >
+              <Plus size={16} className="mr-1" /> Insert
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 // --- NEW COMPONENT: RecentReportsPanel ---
 const RecentReportsPanel = ({ onSelectReport, user }) => {
-    const [recentReports, setRecentReports] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+  const [recentReports, setRecentReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!user) return;
-        const q = query(
-            collection(db, "users", user.uid, "reports"),
-            orderBy("createdAt", "desc"),
-            limit(5)
-        );
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const reports = [];
-            querySnapshot.forEach((doc) => {
-                reports.push({ id: doc.id, ...doc.data() });
-            });
-            setRecentReports(reports);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching recent reports: ", error);
-            toast.error("Could not fetch recent reports.");
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [user]);
-
-    return (
-        <CollapsibleSection title="Recent Reports" icon={History}>
-            {isLoading ? (
-                <p>Loading recent reports...</p>
-            ) : recentReports.length > 0 ? (
-                <div className="space-y-2">
-                    {recentReports.map(report => (
-                        <button
-                            key={report.id}
-                            onClick={() => onSelectReport(report)}
-                            className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"
-                        >
-                            <p className="font-semibold">{report.patientName}</p>
-                            <p className="text-sm text-gray-500">
-                                {report.examDate} - {new Date(report.createdAt?.seconds * 1000).toLocaleDateString()}
-                            </p>
-                        </button>
-                    ))}
-                </div>
-            ) : (
-                <p className="text-gray-500">No recent reports found.</p>
-            )}
-        </CollapsibleSection>
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "users", user.uid, "reports"),
+      orderBy("createdAt", "desc"),
+      limit(5)
     );
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const reports = [];
+      querySnapshot.forEach((doc) => {
+        reports.push({ id: doc.id, ...doc.data() });
+      });
+      setRecentReports(reports);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching recent reports: ", error);
+      toast.error("Could not fetch recent reports.");
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  return (
+    <CollapsibleSection title="Recent Reports" icon={History}>
+      {isLoading ? (
+        <p>Loading recent reports...</p>
+      ) : recentReports.length > 0 ? (
+        <div className="space-y-2">
+          {recentReports.map(report => (
+            <button
+              key={report.id}
+              onClick={() => onSelectReport(report)}
+              className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"
+            >
+              <p className="font-semibold">{report.patientName}</p>
+              <p className="text-sm text-gray-500">
+                {report.examDate} - {new Date(report.createdAt?.seconds * 1000).toLocaleDateString()}
+              </p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No recent reports found.</p>
+      )}
+    </CollapsibleSection>
+  );
 };
 
 
 
 const ShortcutsHelpModal = ({ shortcuts, onClose }) => {
-    const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const modifierKey = isMac ? '⌘' : 'Ctrl';
-    const altKey = isMac ? '⌥' : 'Alt';
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const modifierKey = isMac ? '⌘' : 'Ctrl';
+  const altKey = isMac ? '⌥' : 'Alt';
 
-    const renderKey = (key) => <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">{key}</kbd>;
+  const renderKey = (key) => <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">{key}</kbd>;
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h3 className="text-2xl font-bold text-gray-800 flex items-center"><Zap size={24} className="mr-3 text-indigo-500"/>Keyboard Shortcuts</h3>
-                    <button onClick={onClose}><XCircle /></button>
-                </div>
-                <div className="p-6 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                        {Object.entries(shortcuts).map(([action, config]) => (
-                            <div key={action} className="flex justify-between items-center">
-                                <span className="text-gray-700">{config.label}</span>
-                                <div className="flex items-center space-x-1">
-                                    {config.ctrlOrCmd && renderKey(modifierKey)}
-                                    {config.alt && renderKey(altKey)}
-                                    {renderKey(config.key.toUpperCase())}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b flex justify-between items-center">
+          <h3 className="text-2xl font-bold text-gray-800 flex items-center"><Zap size={24} className="mr-3 text-indigo-500"/>Keyboard Shortcuts</h3>
+          <button onClick={onClose}><XCircle /></button>
         </div>
-    );
+        <div className="p-6 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            {Object.entries(shortcuts).map(([action, config]) => (
+              <div key={action} className="flex justify-between items-center">
+                <span className="text-gray-700">{config.label}</span>
+                <div className="flex items-center space-x-1">
+                  {config.ctrlOrCmd && renderKey(modifierKey)}
+                  {config.alt && renderKey(altKey)}
+                  {renderKey(config.key.toUpperCase())}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const KnowledgeLookupPanel = ({ result, onClose, onInsert }) => {
-    if (!result) return null;
+  if (!result) return null;
 
-    return (
-        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mt-8">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-700 flex items-center">
-                    <BrainCircuit className="mr-3 text-green-500" />
-                    Knowledge Lookup: {result.conditionName}
-                </h2>
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
-                    <XCircle size={24} />
-                </button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4">
-                <div>
-                    <h3 className="font-bold text-lg text-gray-800 mb-2">Summary</h3>
-                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: result.summary }} />
-                </div>
-
-                {result.keyImagingFeatures && result.keyImagingFeatures.length > 0 && (
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-800 mb-2">Key Imaging Features</h3>
-                        <ul className="list-disc list-inside space-y-1 text-sm prose prose-sm max-w-none">
-                            {result.keyImagingFeatures.map((feature, index) => (
-                                <li key={index} dangerouslySetInnerHTML={{ __html: feature.replace(/<\/?li>/g, '') }} />
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {result.differentialDiagnosis && result.differentialDiagnosis.length > 0 && (
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-800 mb-2">Differential Diagnosis</h3>
-                        <ul className="list-disc list-inside space-y-1 text-sm">
-                            {result.differentialDiagnosis.map((dx, index) => (
-                                <li key={index}>{dx}</li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {result.sources && result.sources.length > 0 && (
-                    <div>
-                        <h4 className="font-bold text-gray-700 mt-4 mb-2 flex items-center"><BookOpen size={16} className="mr-2"/>Sources</h4>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
-                            {result.sources.map((source, index) => (
-                                <li key={index}>
-                                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                        {source.name} <LinkIcon size={12} className="inline-block ml-1"/>
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-            </div>
-            <div className="mt-4 pt-4 border-t">
-               <button
-                    onClick={() => {
-                        const contentToInsert = `
-                            <h3>${result.conditionName}</h3>
-                            <h4>Summary</h4>
-                            ${result.summary}
-                            <h4>Key Imaging Features</h4>
-                            <ul>${result.keyImagingFeatures.join('')}</ul>
-                        `;
-                        onInsert(contentToInsert);
-                    }}
-                    className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center"
-                >
-                    <PlusCircle size={18} className="mr-2" /> Insert into Report
-                </button>
-            </div>
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mt-8">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-700 flex items-center">
+          <BrainCircuit className="mr-3 text-green-500" />
+          Knowledge Lookup: {result.conditionName}
+        </h2>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+          <XCircle size={24} />
+        </button>
+      </div>
+      <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4">
+        <div>
+          <h3 className="font-bold text-lg text-gray-800 mb-2">Summary</h3>
+          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: result.summary }} />
         </div>
-    );
+
+        {result.keyImagingFeatures && result.keyImagingFeatures.length > 0 && (
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Key Imaging Features</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm prose prose-sm max-w-none">
+              {result.keyImagingFeatures.map((feature, index) => (
+                <li key={index} dangerouslySetInnerHTML={{ __html: feature.replace(/<\/?li>/g, '') }} />
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {result.differentialDiagnosis && result.differentialDiagnosis.length > 0 && (
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Differential Diagnosis</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {result.differentialDiagnosis.map((dx, index) => (
+                <li key={index}>{dx}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {result.sources && result.sources.length > 0 && (
+          <div>
+            <h4 className="font-bold text-gray-700 mt-4 mb-2 flex items-center"><BookOpen size={16} className="mr-2"/>Sources</h4>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              {result.sources.map((source, index) => (
+                <li key={index}>
+                  <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {source.name} <LinkIcon size={12} className="inline-block ml-1"/>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 pt-4 border-t">
+        <button
+          onClick={() => {
+            const contentToInsert = `
+              <h3>${result.conditionName}</h3>
+              <h4>Summary</h4>
+              ${result.summary}
+              <h4>Key Imaging Features</h4>
+              <ul>${result.keyImagingFeatures.join('')}</ul>
+            `;
+            onInsert(contentToInsert);
+          }}
+          className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center"
+        >
+          <PlusCircle size={18} className="mr-2" /> Insert into Report
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // --- HELPER FUNCTION to escape characters for regex
 const escapeRegex = (string) => {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 // Skeleton Loader Components
 const SearchResultSkeleton = () => (
-    <div className="mt-3 space-y-3">
-        {[...Array(2)].map((_, i) => (
-            <div key={i} className="p-4 bg-gray-200 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-300 rounded w-1/4 mb-3"></div>
-                <div className="h-3 bg-gray-300 rounded w-full mb-1"></div>
-                <div className="h-3 bg-gray-300 rounded w-full mb-1"></div>
-                <div className="h-3 bg-gray-300 rounded w-5/6"></div>
-            </div>
-        ))}
-    </div>
+  <div className="mt-3 space-y-3">
+    {[...Array(2)].map((_, i) => (
+      <div key={i} className="p-4 bg-gray-200 rounded-lg animate-pulse">
+        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+        <div className="h-3 bg-gray-300 rounded w-1/4 mb-3"></div>
+        <div className="h-3 bg-gray-300 rounded w-full mb-1"></div>
+        <div className="h-3 bg-gray-300 rounded w-full mb-1"></div>
+        <div className="h-3 bg-gray-300 rounded w-5/6"></div>
+      </div>
+    ))}
+  </div>
 );
 
 const ReportSkeleton = () => (
-    <div className="p-4 space-y-4 animate-pulse">
-        <div className="h-6 bg-gray-300 rounded w-1/3"></div>
-        <div className="space-y-2">
-            <div className="h-4 bg-gray-300 rounded w-full"></div>
-            <div className="h-4 bg-gray-300 rounded w-full"></div>
-            <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-        </div>
-        <div className="h-6 bg-gray-300 rounded w-1/4"></div>
-        <div className="space-y-2">
-            <div className="h-4 bg-gray-300 rounded w-full"></div>
-            <div className="h-4 bg-gray-300 rounded w-5/6"></div>
-        </div>
+  <div className="p-4 space-y-4 animate-pulse">
+    <div className="h-6 bg-gray-300 rounded w-1/3"></div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-300 rounded w-full"></div>
+      <div className="h-4 bg-gray-300 rounded w-full"></div>
+      <div className="h-4 bg-gray-300 rounded w-3/4"></div>
     </div>
+    <div className="h-6 bg-gray-300 rounded w-1/4"></div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-300 rounded w-full"></div>
+      <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+    </div>
+  </div>
 );
+
+// --- UPDATED COMPONENT: ImageViewer ---
+const ImageViewer = ({ image, className }) => {
+    const viewerRef = useRef(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!image || !viewerRef.current) {
+            return;
+        }
+
+        const element = viewerRef.current;
+        const cornerstone = window.cornerstone;
+        const cornerstoneTools = window.cornerstoneTools;
+        const csWADOImageLoader = window.cornerstoneWADOImageLoader;
+
+        if (!cornerstone || !cornerstoneTools || !csWADOImageLoader) {
+            setError("Medical imaging libraries not loaded. Please wait a moment.");
+            return;
+        }
+
+        const loadAndDisplayImage = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                cornerstone.enable(element);
+                cornerstoneTools.init();
+
+                let imageId;
+                if (image.type === 'application/dicom' || image.name.toLowerCase().endsWith('.dcm')) {
+                    imageId = csWADOImageLoader.wadouri.fileManager.add(image.file);
+                } else {
+                    // For non-DICOM, create a file-like object for the loader
+                    const blob = await (await fetch(image.src)).blob();
+                    const file = new File([blob], image.name, {type: image.type});
+                    imageId = csWADOImageLoader.wadouri.fileManager.add(file);
+                }
+
+                const loadedImage = await cornerstone.loadImage(imageId);
+                cornerstone.displayImage(element, loadedImage);
+                cornerstone.resize(element, true);
+
+                cornerstoneTools.addTool(cornerstoneTools.PanTool);
+                cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
+                cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
+
+                cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 1 }); // Left mouse
+                cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 }); // Right mouse
+                cornerstoneTools.setToolActive('Wwwc', { mouseButtonMask: 4 }); // Middle mouse
+            } catch (err) {
+                console.error("Error loading image:", err);
+                setError("Failed to load image. It may not be a supported format.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAndDisplayImage();
+
+        return () => {
+            try {
+                if (cornerstone.getEnabledElement(element)) {
+                   cornerstone.disable(element);
+                }
+            } catch (err) {
+                // Ignore errors on cleanup
+            }
+        };
+    }, [image]);
+
+    return (
+        <div className={`relative w-full border rounded-lg bg-gray-900 overflow-hidden ${className || 'h-[500px]'}`}>
+            {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 text-white z-10">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                    <p className="ml-4">Loading image...</p>
+                </div>
+            )}
+            {error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-red-800 bg-opacity-70 text-white z-10 p-4">
+                    <AlertTriangle size={24} className="mr-2"/>
+                    <p className="font-bold">Error: {error}</p>
+                </div>
+            )}
+            <div ref={viewerRef} className="absolute inset-0"></div>
+        </div>
+    );
+};
+
+// --- NEW COMPONENT: ImageModal ---
+const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev }) => {
+  if (currentIndex === null || !images[currentIndex]) return null;
+
+  const currentImage = images[currentIndex];
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'ArrowRight') {
+      onNext();
+    } else if (e.key === 'ArrowLeft') {
+      onPrev();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  }, [onNext, onPrev, onClose]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div className="relative bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col p-4 border-2 border-gray-700">
+        <div className="flex justify-between items-center mb-2 text-white">
+          <h3 className="text-lg font-bold">
+            Image {currentIndex + 1} of {images.length} - {currentImage.name}
+          </h3>
+          <button onClick={onClose} className="text-gray-300 hover:text-white">
+            <XCircle size={28} />
+          </button>
+        </div>
+        <div className="flex-grow relative">
+          {isDicom(images[currentIndex]) ? (
+          <div className="w-full h-full">
+            <ImageViewer image={images[currentIndex]} />
+          </div>
+        ) : (
+          <img
+            src={getRasterSrc(images[currentIndex])}
+            alt={images[currentIndex]?.name || `Image ${currentIndex + 1}`}
+            className="max-w-full max-h-full object-contain"
+            draggable={false}
+          />
+        )}
+        </div>
+      </div>
+      {/* Navigation Buttons */}
+      <button
+        onClick={onPrev}
+        disabled={currentIndex === 0}
+        className="absolute left-4 top-1/2 -translate-y-1/2 bg-gray-700 text-white rounded-full p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+      >
+        <ChevronLeft size={32} />
+      </button>
+      <button
+        onClick={onNext}
+        disabled={currentIndex >= images.length - 1}
+        className="absolute right-4 top-1/2 -translate-y-1/2 bg-gray-700 text-white rounded-full p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+      >
+        <ChevronRight size={32} />
+      </button>
+    </div>
+  );
+};
+
+// --- Modal image-type helpers ---
+const isDicom = (img) => {
+  if (!img) return false;
+  const name = (img.name || "").toLowerCase();
+  const type = (img.type || "").toLowerCase();
+  return type === "application/dicom" || name.endsWith(".dcm");
+};
+
+const getRasterSrc = (img) => {
+  if (!img) return "";
+  if (img.src) return img.src;
+  if (img.base64?.startsWith("data:")) return img.base64;
+  if (img.base64) {
+    const mime = img.type || "image/png";
+    return `data:${mime};base64,${img.base64}`;
+  }
+  if (typeof URL !== "undefined") {
+    if (img.blob instanceof Blob) return URL.createObjectURL(img.blob);
+    if (img.file instanceof File) return URL.createObjectURL(img.file);
+  }
+  return "";
+};
+
 
 const App = () => {
   // --- AUTHENTICATION STATE ---
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState('basic'); // Add userRole state
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isRestricted, setIsRestricted] = useState(false); // Freemium restriction state
@@ -499,13 +765,14 @@ const App = () => {
 
   // --- ALL OTHER APP STATE ---
   const [patientName, setPatientName] = useState('John Doe');
-  const [patientId, setPatientId] = useState('P12345678');
+  const [patientId, setPatientId] = useState('P00000000');
   const [patientAge, setPatientAge] = useState('45');
   const [referringPhysician, setReferringPhysician] = useState('Dr. Evelyn Reed');
   const [examDate, setExamDate] = useState(new Date().toISOString().split('T')[0]);
   const [modality, setModality] = useState('Ultrasound');
   const [template, setTemplate] = useState('Abdomen');
   const [images, setImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [userFindings, setUserFindings] = useState('');
   const [generatedReport, setGeneratedReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -545,7 +812,47 @@ const App = () => {
   const [activeAlert, setActiveAlert] = useState(null);
   const [isAwaitingAlertAcknowledge, setIsAwaitingAlertAcknowledge] = useState(false);
   const [correctionSuggestion, setCorrectionSuggestion] = useState(null);
- 
+  const [isDicomLoaded, setIsDicomLoaded] = useState(false);
+// --- ALL OTHER APP STATE (Add these new states) ---
+const [isConversationActive, setIsConversationActive] = useState(false);
+const [conversationHistory, setConversationHistory] = useState([]);
+const [isAiReplying, setIsAiReplying] = useState(false);
+const [userInput, setUserInput] = useState(''); // For the chat input box
+
+// // --- Modal image-type helpers ---
+// const isDicom = (img) => {
+//   if (!img) return false;
+//   const name = (img.name || "").toLowerCase();
+//   const type = (img.type || "").toLowerCase();
+//   return type === "application/dicom" || name.endsWith(".dcm");
+// };
+
+// const getRasterSrc = (img) => {
+//   if (!img) return "";
+//   if (img.src) return img.src;
+//   if (img.base64?.startsWith("data:")) return img.base64;
+//   if (img.base64) {
+//     const mime = img.type || "image/png";
+//     return `data:${mime};base64,${img.base64}`;
+//   }
+//   if (typeof URL !== "undefined") {
+//     if (img.blob instanceof Blob) return URL.createObjectURL(img.blob);
+//     if (img.file instanceof File) return URL.createObjectURL(img.file);
+//   }
+//   return "";
+// };
+
+
+  const [modalIndex, setModalIndex] = useState(null);
+  // const openModal = (index) => setModalIndex(index);
+  // const closeModal = () => setModalIndex(null);
+  const showNext = () => setModalIndex((prev) => Math.min(prev + 1, images.length - 1));
+  const showPrev = () => setModalIndex((prev) => Math.max(prev - 1, 0));
+
+  // --- NEW: Modal State ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(null);
+
   // --- ALL REFS ---
   const debounceTimeoutRef = useRef(null);
   const inconsistencyCheckTimeoutRef = useRef(null);
@@ -557,17 +864,62 @@ const App = () => {
   const localSearchInputRef = useRef(null);
   const searchResultsRef = useRef();
   const isProgrammaticUpdate = useRef(false);
- const macrosRef = useRef(macros);
+  const macrosRef = useRef(macros);
 
- useEffect(() => {
-  macrosRef.current = macros;
-}, [macros]);
+  useEffect(() => {
+    macrosRef.current = macros;
+  }, [macros]);
   // Keep a ref in sync with isAwaitingAlertAcknowledge to avoid stale closures
-const awaitingRef = useRef(false);
-useEffect(() => {
-  awaitingRef.current = isAwaitingAlertAcknowledge;
-}, [isAwaitingAlertAcknowledge]);
+  const awaitingRef = useRef(false);
+  useEffect(() => {
+    awaitingRef.current = isAwaitingAlertAcknowledge;
+  }, [isAwaitingAlertAcknowledge]);
 
+  // --- LOAD DICOM LIBRARIES ---
+  useEffect(() => {
+    const loadLibraries = () => {
+      // These libraries must be loaded in a specific order
+      loadScript('https://unpkg.com/cornerstone-core@2.2.8/dist/cornerstone.min.js', () => {
+        loadScript('https://unpkg.com/dicom-parser@1.8.11/dist/dicomParser.min.js', () => {
+          loadScript('https://unpkg.com/cornerstone-wado-image-loader@2.0.4/dist/cornerstoneWADOImageLoader.min.js', () => {
+            const csWADOImageLoader = window.cornerstoneWADOImageLoader;
+            csWADOImageLoader.external.cornerstone = window.cornerstone;
+            csWADOImageLoader.external.dicomParser = window.dicomParser;
+            csWADOImageLoader.configure({
+                beforeSend: function(xhr) {
+                    // Add custom headers here (e.g., for authentication)
+                }
+            });
+            loadScript('https://unpkg.com/cornerstone-tools@4.22.0/dist/cornerstoneTools.min.js', () => {
+                const cornerstoneTools = window.cornerstoneTools;
+                cornerstoneTools.external.cornerstone = window.cornerstone;
+                setIsDicomLoaded(true);
+            });
+          });
+        });
+      });
+    };
+    loadLibraries();
+  }, []);
+
+  // --- NEW: Modal Handlers ---
+  const openModal = (index) => {
+    setCurrentImageIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setCurrentImageIndex(null);
+  };
+
+  const showNextImage = () => {
+    setCurrentImageIndex(prevIndex => (prevIndex < images.length - 1 ? prevIndex + 1 : prevIndex));
+  };
+
+  const showPrevImage = () => {
+    setCurrentImageIndex(prevIndex => (prevIndex > 0 ? prevIndex - 1 : prevIndex));
+  };
 
   // --- ALL HOOKS (useCallback, useEditor, useEffect) ---
 
@@ -581,14 +933,14 @@ useEffect(() => {
 
   const debouncedExtractData = useCallback((text) => {
     if (dataExtractTimeoutRef.current) {
-        clearTimeout(dataExtractTimeoutRef.current);
+      clearTimeout(dataExtractTimeoutRef.current);
     }
     dataExtractTimeoutRef.current = setTimeout(() => {
-        if (text.trim().length > 20) { 
-            extractStructuredData(text);
-        } else {
-            setStructuredData({});
-        }
+      if (text.trim().length > 20) {
+        extractStructuredData(text);
+      } else {
+        setStructuredData({});
+      }
     }, 1500);
   }, []);
 
@@ -612,7 +964,7 @@ useEffect(() => {
       setUserFindings(html);
 
       if (isAwaitingAlertAcknowledge) {
-          return; 
+        return;
       }
 
       debouncedCriticalCheck(text);
@@ -631,28 +983,28 @@ useEffect(() => {
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            const userRole = userData.role || 'basic';
-            setUserRole(userRole);
+          const userData = userDocSnap.data();
+          const userRole = userData.role || 'basic';
+          setUserRole(userRole);
 
-            if (userRole === 'basic') {
-                const reportLimit = 1000;
-                const reportCount = userData.reportCount || 0;
-                const lastReportDate = userData.lastReportDate?.toDate();
-                const currentMonth = new Date().getMonth();
+          if (userRole === 'basic') {
+            const reportLimit = 1000;
+            const reportCount = userData.reportCount || 0;
+            const lastReportDate = userData.lastReportDate?.toDate();
+            const currentMonth = new Date().getMonth();
 
-                if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
-                    // Reset count for the new month
-                    await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
-                    setIsRestricted(false);
-                } else if (reportCount >= reportLimit) {
-                    setIsRestricted(true);
-                } else {
-                    setIsRestricted(false);
-                }
+            if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
+              // Reset count for the new month
+              await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
+              setIsRestricted(false);
+            } else if (reportCount >= reportLimit) {
+              setIsRestricted(true);
             } else {
-                setIsRestricted(false); // Professional users are never restricted
+              setIsRestricted(false);
             }
+          } else {
+            setIsRestricted(false); // Professional users are never restricted
+          }
         } else {
           // New user, set default values
           await setDoc(userDocRef, {
@@ -698,72 +1050,74 @@ useEffect(() => {
 
   const handleSignOut = async () => {
     try {
-        await signOut(auth);
-        toast.success("Signed out successfully.");
+      await signOut(auth);
+      toast.success("Signed out successfully.");
     } catch (error) {
-        console.error("Error signing out: ", error);
-        toast.error("Failed to sign out.");
+      console.error("Error signing out: ", error);
+      toast.error("Failed to sign out.");
     }
   };
 
   const toastDone = (msg) =>
-  toast(msg, {
-    duration: 2500,
-    ariaProps: { role: 'status', 'aria-live': 'polite' },
-  });
+    toast(msg, {
+      duration: 2500,
+      ariaProps: { role: 'status', 'aria-live': 'polite' },
+    });
 
-const runProactiveAnalysis = async (text) => {
+  const runProactiveAnalysis = async (text) => {
     if (isRestricted) return;
     const prompt = `
-        Act as a radiological assistant. Analyze the following dictated text. Does it contain a specific, significant radiological finding that would benefit from an immediate knowledge lookup (like a named classification, a critical finding, or a finding with a well-defined differential diagnosis)? Examples include 'spiculated mass', 'ground glass opacity', 'Bosniak IIF cyst', 'ring-enhancing lesion'.
+      Act as a radiological assistant. Analyze the following dictated text. Does it contain a specific, significant radiological finding that would benefit from an immediate knowledge lookup (like a named classification, a critical finding, or a finding with a well-defined differential diagnosis)? Examples include 'spiculated mass', 'ground glass opacity', 'Bosniak IIF cyst', 'ring-enhancing lesion'.
 
-        If a key finding is present, respond with a JSON object: {"shouldSearch": true, "searchQuery": "the concise, optimal search term for that finding"}. For example, if the text says 'a 6mm ground glass opacity is seen', the searchQuery should be 'Fleischner criteria for 6mm ground glass opacity'. If the text says 'a complex cyst measuring 3 cm with multiple septations is seen in the right kidney', the searchQuery could be 'Bosniak classification for complex renal cyst'.
+      If a key finding is present, respond with a JSON object: {"shouldSearch": true, "searchQuery": "the concise, optimal search term for that finding"}. For example, if the text says 'a 6mm ground glass opacity is seen', the searchQuery should be 'Fleischner criteria for 6mm ground glass opacity'. If the text says 'a complex cyst measuring 3 cm with multiple septations is seen in the right kidney', the searchQuery could be 'Bosniak classification for complex renal cyst'.
 
-        If no specific, actionable finding is mentioned, or if the text is too generic, respond with {"shouldSearch": false, "searchQuery": null}. Only trigger a search for high-value terms.
+      If no specific, actionable finding is mentioned, or if the text is too generic, respond with {"shouldSearch": false, "searchQuery": null}. Only trigger a search for high-value terms.
 
-        Dictated Text:
-        ---
-        ${text}
-        ---
+      Dictated Text:
+      ---
+      ${text}
+      ---
     `;
     try {
-        const payload = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-       
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) return; // Fail silently
 
-        const result = await response.json();
-        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) return; // Fail silently
 
-        if (textResult) {
-            const parsedResult = JSON.parse(textResult);
-            if (parsedResult.shouldSearch && parsedResult.searchQuery) {
-                toast('Co-pilot found something relevant...', { icon: '💡' });
-                handleAiKnowledgeSearch(true, parsedResult.searchQuery);
-            }
+      const result = await response.json();
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+      if (textResult) {
+        const parsedResult = JSON.parse(textResult);
+        if (parsedResult.shouldSearch && parsedResult.searchQuery) {
+          toast('Co-pilot found something relevant...', { icon: '💡' });
+          handleAiKnowledgeSearch(true, parsedResult.searchQuery);
         }
+      }
     } catch (err) {
-        console.error("Proactive analysis failed:", err); // Log error but don't bother the user
+      console.error("Proactive analysis failed:", err); // Log error but don't bother the user
     }
-};
+  };
 
-const debouncedProactiveAnalysis = useCallback((text) => {
+  const debouncedProactiveAnalysis = useCallback((text) => {
     if (proactiveAnalysisTimeoutRef.current) {
-        clearTimeout(proactiveAnalysisTimeoutRef.current);
+      clearTimeout(proactiveAnalysisTimeoutRef.current);
     }
     proactiveAnalysisTimeoutRef.current = setTimeout(() => {
-        if (isProactiveHelpEnabled && !isSearching && text.trim().length > 40) {
-             runProactiveAnalysis(text);
-        }
+      if (isProactiveHelpEnabled && !isSearching && text.trim().length > 40) {
+        runProactiveAnalysis(text);
+      } else if (!awaitingRef.current) {
+        setActiveAlert(null);
+      }
     }, 3000); // 3-second delay after user stops typing
-}, [isProactiveHelpEnabled, isSearching, isRestricted]);
+  }, [isProactiveHelpEnabled, isSearching, isRestricted]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed) {
@@ -781,79 +1135,79 @@ const debouncedProactiveAnalysis = useCallback((text) => {
     const impressionMatch = plainText.match(/IMPRESSION:([\s\S]*)/i);
 
     if (!findingsMatch || !impressionMatch) {
-        setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
-        return;
+      setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+      return;
     }
 
     const findingsText = findingsMatch[1].trim();
     const impressionText = impressionMatch[1].trim();
 
     if (!findingsText || !impressionText) {
-        setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
-        return;
+      setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+      return;
     }
 
     const prompt = `
-        You are a meticulous radiological assistant. Compare the significant clinical findings in the FINDINGS section with the conclusions in the IMPRESSION section. Identify any major findings that are mentioned in one section but are missing from the other.
-       
-        FINDINGS:
-        ---
-        ${findingsText}
-        ---
+      You are a meticulous radiological assistant. Compare the significant clinical findings in the FINDINGS section with the conclusions in the IMPRESSION section. Identify any major findings that are mentioned in one section but are missing from the other.
+      
+      FINDINGS:
+      ---
+      ${findingsText}
+      ---
 
-        IMPRESSION:
-        ---
-        ${impressionText}
-        ---
+      IMPRESSION:
+      ---
+      ${impressionText}
+      ---
 
-        If you find a discrepancy, respond with a JSON object: {"isInconsistent": true, "message": "A clear explanation of the inconsistency.", "suggestedCorrection": "The exact text to add to the impression."}.
-        For example: {"isInconsistent": true, "message": "'Grade I fatty liver' is mentioned in the findings but is missing from the impression.", "suggestedCorrection": "Grade I fatty liver."}.
-        If the sections are consistent, respond with {"isInconsistent": false, "message": null, "suggestedCorrection": null}.
+      If you find a discrepancy, respond with a JSON object: {"isInconsistent": true, "message": "A clear explanation of the inconsistency.", "suggestedCorrection": "The exact text to add to the impression."}.
+      For example: {"isInconsistent": true, "message": "'Grade I fatty liver' is mentioned in the findings but is missing from the impression.", "suggestedCorrection": "Grade I fatty liver."}.
+      If the sections are consistent, respond with {"isInconsistent": false, "message": null, "suggestedCorrection": null}.
     `;
 
     try {
-        const payload = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) return;
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) return;
 
-        const result = await response.json();
-        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+      const result = await response.json();
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
-        if (textResult) {
-            const parsed = JSON.parse(textResult);
-            if (parsed.isInconsistent && parsed.suggestedCorrection) {
-                setActiveAlert({ type: 'inconsistency', message: parsed.message });
-                setCorrectionSuggestion(parsed.suggestedCorrection);
-                setIsAwaitingAlertAcknowledge(true);
-            } else {
-                setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
-                setCorrectionSuggestion(null);
-            }
+      if (textResult) {
+        const parsed = JSON.parse(textResult);
+        if (parsed.isInconsistent && parsed.suggestedCorrection) {
+          setActiveAlert({ type: 'inconsistency', message: parsed.message });
+          setCorrectionSuggestion(parsed.suggestedCorrection);
+          setIsAwaitingAlertAcknowledge(true);
+        } else {
+          setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+          setCorrectionSuggestion(null);
         }
+      }
     } catch (err) {
-        console.error("Inconsistency check failed:", err);
+      console.error("Inconsistency check failed:", err);
     }
   }, [isAwaitingAlertAcknowledge]);
 
   const debouncedInconsistencyCheck = useCallback((text) => {
     
     if (inconsistencyCheckTimeoutRef.current) {
-        clearTimeout(inconsistencyCheckTimeoutRef.current);
+      clearTimeout(inconsistencyCheckTimeoutRef.current);
     }
     inconsistencyCheckTimeoutRef.current = setTimeout(() => {
 
-        if (!awaitingRef.current && text.trim().length > 50)  { // Only run on substantial text
-            runInconsistencyCheck(text);
-        } else if (!awaitingRef.current) {
-            setActiveAlert(null);
-        }
+      if (!awaitingRef.current && text.trim().length > 50) { // Only run on substantial text
+        runInconsistencyCheck(text);
+      } else if (!awaitingRef.current) {
+        setActiveAlert(null);
+      }
     }, 2000); // 2-second delay
   }, [runInconsistencyCheck, isAwaitingAlertAcknowledge]);
 
@@ -862,16 +1216,16 @@ const debouncedProactiveAnalysis = useCallback((text) => {
       clearTimeout(debounceTimeoutRef.current);
     }
     debounceTimeoutRef.current = setTimeout(() => {
-        if (!isAwaitingAlertAcknowledge && text.trim() !== '') {
-            checkForCriticalFindings(text);
-        } else if (!isAwaitingAlertAcknowledge) {
-            setActiveAlert(null);
-        }
+      if (!isAwaitingAlertAcknowledge && text.trim() !== '') {
+        checkForCriticalFindings(text);
+      } else if (!isAwaitingAlertAcknowledge) {
+        setActiveAlert(null);
+      }
     }, 1000);
   }, []);
 
   // --- NEW FUNCTION: findMissingMeasurements ---
-const findMissingMeasurements = () => {
+  const findMissingMeasurements = () => {
     if (!editor) return [];
     const editorText = editor.getText();
     const originalTemplateHtml = templates[modality]?.[template] || '';
@@ -885,96 +1239,96 @@ const findMissingMeasurements = () => {
 
     // If neither condition is met, the report is likely complete.
     if (!hasPlaceholders && !hasKeywordsMissingValues) {
-        return [];
+      return [];
     }
 
     const missingFields = new Set();
 
     // If placeholders are found, try to identify which ones by checking the original template.
     if (hasPlaceholders && originalTemplateHtml) {
-        // This regex finds text that precedes a placeholder in the original template.
-        const contextRegex = /([\w\s\d()\/.-]+?)\s*__/g;
-        const templateText = htmlToText(originalTemplateHtml);
-        let match;
+      // This regex finds text that precedes a placeholder in the original template.
+      const contextRegex = /([\w\s\d()\/.-]+?)\s*__/g;
+      const templateText = htmlToText(originalTemplateHtml);
+      let match;
 
-        while ((match = contextRegex.exec(templateText)) !== null) {
-            const context = match[1].trim();
-            if (!context) continue;
+      while ((match = contextRegex.exec(templateText)) !== null) {
+        const context = match[1].trim();
+        if (!context) continue;
 
-            // The label is the most meaningful part of the context, usually the last few words.
-            const label = context.split('\n').pop().replace(/:$/, '').trim();
+        // The label is the most meaningful part of the context, usually the last few words.
+        const label = context.split('\n').pop().replace(/:$/, '').trim();
 
-            // Check if this specific placeholder is still present in the current editor text.
-            const searchRegex = new RegExp(escapeRegex(context) + "\\s*__");
-            if (searchRegex.test(editorText)) {
-                missingFields.add(`'${label}'`);
-            }
+        // Check if this specific placeholder is still present in the current editor text.
+        const searchRegex = new RegExp(escapeRegex(context) + "\\s*__");
+        if (searchRegex.test(editorText)) {
+          missingFields.add(`'${label}'`);
         }
+      }
     }
     
     // If we detected keywords without values, add a generic warning.
     if (hasKeywordsMissingValues) {
-        missingFields.add("A value after a term like 'measures' or 'size'");
+      missingFields.add("A value after a term like 'measures' or 'size'");
     }
 
     // If we only found placeholders but couldn't identify them, add a generic message.
     if (missingFields.size === 0 && hasPlaceholders) {
-         missingFields.add("An unidentified measurement ('__')");
+      missingFields.add("An unidentified measurement ('__')");
     }
 
     return Array.from(missingFields);
-};
+  };
   const extractStructuredData = async (text) => {
-      if (isRestricted) return;
-      setIsExtracting(true);
-      const prompt = `
-        Act as a clinical data extraction tool. Analyze the following radiology report text and extract key structured data points like organ names, specific measurements, laterality (left/right), and key pathological findings.
-        Return the data as a single, valid JSON object. Do not include any explanatory text, comments, or markdown formatting.
-        The keys of the JSON object should be the name of the data point (e.g., "Liver Size", "Right Kidney Finding").
-        The values should be the extracted data (e.g., "16.5 cm", "Normal").
-        If a piece of information isn't present, omit its key. Be concise.
+    if (isRestricted) return;
+    setIsExtracting(true);
+    const prompt = `
+      Act as a clinical data extraction tool. Analyze the following radiology report text and extract key structured data points like organ names, specific measurements, laterality (left/right), and key pathological findings.
+      Return the data as a single, valid JSON object. Do not include any explanatory text, comments, or markdown formatting.
+      The keys of the JSON object should be the name of the data point (e.g., "Liver Size", "Right Kidney Finding").
+      The values should be the extracted data (e.g., "16.5 cm", "Normal").
+      If a piece of information isn't present, omit its key. Be concise.
 
-        Text to analyze:
-        ---
-        ${text}
-        ---
-      `;
-      try {
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-        const response = await fetch(apiUrl, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload) 
-        });
-       
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      Text to analyze:
+      ---
+      ${text}
+      ---
+    `;
+    try {
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
         }
-       
-        const result = await response.json();
-        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        if (textResult) {
-            const parsedJson = JSON.parse(textResult);
-            setStructuredData(parsedJson);
-        } else {
-            setStructuredData({});
-        }
-      } catch (err) {
-          console.error("Failed to extract structured data:", err);
-          setStructuredData({});
-      } finally {
-          setIsExtracting(false);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
+      
+      const result = await response.json();
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+      if (textResult) {
+        const parsedJson = JSON.parse(textResult);
+        setStructuredData(parsedJson);
+      } else {
+        setStructuredData({});
+      }
+    } catch (err) {
+      console.error("Failed to extract structured data:", err);
+      setStructuredData({});
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
 
@@ -1002,14 +1356,14 @@ const findMissingMeasurements = () => {
 
   const handleToggleListening = useCallback(() => {
     if (!recognitionRef.current) {
-        setError("Voice dictation is not supported by your browser.");
-        return;
+      setError("Voice dictation is not supported by your browser.");
+      return;
     }
     const currentStatus = voiceStatusRef.current;
     if (currentStatus !== 'idle') {
-        recognitionRef.current.stop();
+      recognitionRef.current.stop();
     } else {
-        recognitionRef.current.start();
+      recognitionRef.current.start();
     }
   }, []);
 
@@ -1038,9 +1392,9 @@ const findMissingMeasurements = () => {
         setInterimTranscript(currentInterim);
 
         if (finalTranscript) {
-            isProgrammaticUpdate.current = true;
-            await handleVoiceCommand(finalTranscript);
-            setInterimTranscript('');
+          isProgrammaticUpdate.current = true;
+          await handleVoiceCommand(finalTranscript);
+          setInterimTranscript('');
         }
       };
 
@@ -1060,9 +1414,9 @@ const findMissingMeasurements = () => {
     }
 
     return () => {
-        if(recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
+      if(recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
     }
   }, []); // This empty array is the source of the stale state, but we fix it with the ref.
 
@@ -1075,86 +1429,86 @@ const findMissingMeasurements = () => {
     const macroKeyword = "macro";
 
     if (commandLC.startsWith(aiSearchKeyword)) {
-        const query = commandLC.substring(aiSearchKeyword.length).trim();
-        if (query) {
-            await handleAiKnowledgeSearch(true, query);
-        }
-        return; // Exit after handling
+      const query = commandLC.substring(aiSearchKeyword.length).trim();
+      if (query) {
+        await handleAiKnowledgeSearch(true, query);
+      }
+      return; // Exit after handling
     }
 
     if (commandLC.startsWith(macroKeyword)) {
-        const macroPhrase = commandLC.substring(macroKeyword.length).trim().replace(/[.,?]/g, '');
-        const macro = macrosRef.current.find(m => macroPhrase === m.command.toLowerCase().trim().replace(/[.,?]/g, ''));
-        if (macro) {
-            isProgrammaticUpdate.current = true;
-            editor.chain().focus().insertContent(macro.text).run();
-        } else {
-            console.warn(`Macro not found for: "${macroPhrase}"`);
-        }
-        return;
+      const macroPhrase = commandLC.substring(macroKeyword.length).trim().replace(/[.,?]/g, '');
+      const macro = macrosRef.current.find(m => macroPhrase === m.command.toLowerCase().trim().replace(/[.,?]/g, ''));
+      if (macro) {
+        isProgrammaticUpdate.current = true;
+        editor.chain().focus().insertContent(macro.text).run();
+      } else {
+        console.warn(`Macro not found for: "${macroPhrase}"`);
+      }
+      return;
     }
 
     if (commandLC.startsWith(commandKeyword)) {
-        const action = commandLC.substring(commandKeyword.length).trim().replace(/[.,?]/g, '');
+      const action = commandLC.substring(commandKeyword.length).trim().replace(/[.,?]/g, '');
 
-        if (action === "analyze images") {
-            analyzeImages();
-        } else if (action === "download report") {
-            const reportHtml = await generateFinalReport(); // Await the async function
-            if (reportHtml) {
-              downloadPdfReport(reportHtml);
-            }
-        } else if (action.startsWith("search for")) {
-            const searchTerm = action.substring("search for".length).trim();
-            setSearchQuery(searchTerm);
-            setTimeout(() => {
-                if(searchButtonRef.current) {
-                    searchButtonRef.current.click();
-                }
-            }, 100);
-        } else if (action.startsWith("insert result")) {
-            const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
-            const resultNumStr = action.substring("insert result".length).trim();
-            const resultNum = numberWords[resultNumStr] || parseInt(resultNumStr, 10);
-           
-            const { localSearchResults, allAiSearchResults, currentAiPage } = searchResultsRef.current;
-            const combinedResults = [...localSearchResults, ...(allAiSearchResults[currentAiPage] || [])];
-           
-            if (!isNaN(resultNum) && resultNum > 0 && resultNum <= combinedResults.length) {
+      if (action === "analyze images") {
+        analyzeImages();
+      } else if (action === "download report") {
+        const reportHtml = await generateFinalReport(); // Await the async function
+        if (reportHtml) {
+          downloadPdfReport(reportHtml);
+        }
+      } else if (action.startsWith("search for")) {
+        const searchTerm = action.substring("search for".length).trim();
+        setSearchQuery(searchTerm);
+        setTimeout(() => {
+          if(searchButtonRef.current) {
+            searchButtonRef.current.click();
+          }
+        }, 100);
+      } else if (action.startsWith("insert result")) {
+        const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
+        const resultNumStr = action.substring("insert result".length).trim();
+        const resultNum = numberWords[resultNumStr] || parseInt(resultNumStr, 10);
+        
+        const { localSearchResults, allAiSearchResults, currentAiPage } = searchResultsRef.current;
+        const combinedResults = [...localSearchResults, ...(allAiSearchResults[currentAiPage] || [])];
+        
+        if (!isNaN(resultNum) && resultNum > 0 && resultNum <= combinedResults.length) {
+          isProgrammaticUpdate.current = true;
+          insertFindings(combinedResults[resultNum - 1]);
+        } else {
+          console.warn(`Invalid result number for insertion: ${resultNumStr}`);
+        }
+      }
+      else if (action.includes("delete last sentence")) {
+        const content = editor.state.doc.textContent;
+        const sentences = content.trim().split(/(?<=[.?!])\s+/);
+        if (sentences.length > 0) {
+          const lastSentence = sentences[sentences.length - 1];
+          const startOfLastSentence = content.lastIndexOf(lastSentence);
+          if (startOfLastSentence !== -1) {
+            const endOfLastSentence = startOfLastSentence + lastSentence.length;
+            isProgrammaticUpdate.current = true;
+            editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
+          }
+        }
+      } else if (action.includes("bold last sentence") || action.includes("bold the last sentence")) {
+        const content = editor.state.doc.textContent;
+        const sentences = content.trim().split(/(?<=[.?!])\s+/);
+          if (sentences.length > 0) {
+            const lastSentence = sentences[sentences.length - 1];
+            const startOfLastSentence = content.lastIndexOf(lastSentence);
+              if (startOfLastSentence !== -1) {
+                const endOfLastSentence = startOfLastSentence + lastSentence.length;
                 isProgrammaticUpdate.current = true;
-                insertFindings(combinedResults[resultNum - 1]);
-            } else {
-                console.warn(`Invalid result number for insertion: ${resultNumStr}`);
-            }
-        }
-        else if (action.includes("delete last sentence")) {
-            const content = editor.state.doc.textContent;
-            const sentences = content.trim().split(/(?<=[.?!])\s+/);
-            if (sentences.length > 0) {
-                const lastSentence = sentences[sentences.length - 1];
-                const startOfLastSentence = content.lastIndexOf(lastSentence);
-                if (startOfLastSentence !== -1) {
-                    const endOfLastSentence = startOfLastSentence + lastSentence.length;
-                    isProgrammaticUpdate.current = true;
-                    editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
-                }
-            }
-        } else if (action.includes("bold last sentence") || action.includes("bold the last sentence")) {
-            const content = editor.state.doc.textContent;
-            const sentences = content.trim().split(/(?<=[.?!])\s+/);
-             if (sentences.length > 0) {
-                const lastSentence = sentences[sentences.length - 1];
-                const startOfLastSentence = content.lastIndexOf(lastSentence);
-                 if (startOfLastSentence !== -1) {
-                    const endOfLastSentence = startOfLastSentence + lastSentence.length;
-                    isProgrammaticUpdate.current = true;
-                    editor.chain().focus().setTextSelection({ from: startOfLastSentence, to: endOfLastSentence }).toggleBold().run();
-                }
-            }
-        }
-        return;
+                editor.chain().focus().setTextSelection({ from: startOfLastSentence, to: endOfLastSentence }).toggleBold().run();
+              }
+          }
+      }
+      return;
     }
-   
+    
     const correctedText = await getCorrectedTranscript(command);
     isProgrammaticUpdate.current = true;
     editor.chain().focus().insertContent(correctedText + ' ').run();
@@ -1162,25 +1516,32 @@ const findMissingMeasurements = () => {
 
   const fileToImageObject = (file) => {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result.split(',')[1];
-            const src = URL.createObjectURL(file);
-            resolve({ src, base64, name: file.name, type: file.type });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result.split(',')[1];
+        const src = URL.createObjectURL(file);
+        resolve({ src, base64, name: file.name, type: file.type, file }); // Store original file for dicom loader
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
   }
+  
+  const onDrop = useCallback(acceptedFiles => {
+      const processFiles = async () => {
+          const newImageObjects = await Promise.all(acceptedFiles.map(file => fileToImageObject(file)));
+          setImages(prevImages => [...prevImages, ...newImageObjects]);
+          if (newImageObjects.length > 0 && !selectedImage) {
+              setSelectedImage(newImageObjects[0]);
+          }
+      };
+      processFiles();
+  }, [selectedImage]);
 
-  const handleImageChange = async (e) => {
-    const files = e.target.files ? Array.from(e.target.files) : [];
-    if (files.length > 0) {
-        const newImageObjects = await Promise.all(files.map(fileToImageObject));
-        setImages(prevImages => [...prevImages, ...newImageObjects]);
-    }
-  };
- const handleSelectRecentReport = (report) => {
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': ['.png', '.jpeg', '.jpg', '.dcm'], 'application/dicom': ['.dcm'] } });
+
+
+  const handleSelectRecentReport = (report) => {
     // This function extracts the main body of the report, skipping the patient header
     const bodyMatch = report.reportHTML.match(/<\/table>\s*<\/div>([\s\S]*)/);
     const reportBody = bodyMatch ? bodyMatch[1].trim() : report.reportHTML;
@@ -1190,58 +1551,147 @@ const findMissingMeasurements = () => {
     // You can add other fields here if you save them to Firestore
 
     if (editor) {
-        isProgrammaticUpdate.current = true;
-        editor.commands.setContent(reportBody);
-        setUserFindings(reportBody); // Also update the state
+      isProgrammaticUpdate.current = true;
+      editor.commands.setContent(reportBody);
+      setUserFindings(reportBody); // Also update the state
     }
     toast.success(`Loaded report for ${report.patientName}`);
-};
-  const handleDragOver = (e) => {
-      e.preventDefault();
-      setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-  };
-
-  const handleDrop = async (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
-      if (files.length > 0) {
-          const imageFiles = files.filter(file => file.type.startsWith('image/'));
-          if (imageFiles.length > 0) {
-              const newImageObjects = await Promise.all(imageFiles.map(fileToImageObject));
-              setImages(prevImages => [...prevImages, ...newImageObjects]);
-          }
-      }
-  };
- 
-  const handlePaste = async (e) => {
-    const items = e.clipboardData.items;
-    const imageFiles = [];
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
-            imageFiles.push(items[i].getAsFile());
-        }
-    }
-    if (imageFiles.length > 0) {
-        const newImageObjects = await Promise.all(imageFiles.map(fileToImageObject));
-        setImages(prevImages => [...prevImages, ...newImageObjects]);
-    }
   };
 
   const removeImage = (indexToRemove) => {
-    setImages(images.filter((_, index) => index !== indexToRemove));
+    setImages(currentImages => {
+        const newImages = currentImages.filter((_, index) => index !== indexToRemove);
+        if (selectedImage && currentImages[indexToRemove]?.src === selectedImage.src) {
+            setSelectedImage(newImages.length > 0 ? newImages[0] : null);
+        }
+        return newImages;
+    });
   };
 
-  const analyzeImages = async () => {
-    // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to use AI image analysis.");
-    //     return;
+  // const analyzeImages = async () => {
+  //   // if (isRestricted) {
+  //   //    toast.error("Please upgrade to a professional plan to use AI image analysis.");
+  //   //    return;
+  //   // }
+  //   if (images.length === 0) {
+  //     setError("Please upload one or more images first.");
+  //     return;
+  //   }
+  //   setIsAiLoading(true);
+  //   setAiAnalysisStatus('Analyzing images...');
+  //   setError(null);
+  //   setAiMeasurements([]);
+  //   setActiveAlert(null);
+  //   setCorrectionSuggestion(null);
+    
+    // try {
+
+    //   // const prompt = `
+    //   //       You are an advanced AI assistant specializing in the analysis of medical imaging studies.
+    //   //       Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
+    //   //       The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
+
+    //   //       1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
+    //   //       2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
+    //   //          - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
+    //   //          - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
+    //   //       3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
+    //   //          - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
+    //   //          - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
+    //   //          - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
+      
+    //   //       Clinical Context: "${clinicalContext || 'None'}"
+    //   //     `;
+    //   // const prompt = `
+    //   // You are a highly observant, knowledgable and one of the moset experienced Senior Radiologist and Cardiologist specialized in the analysis of medical imaging studies like Ultrasound, X-Ray, MRI, CT, 2d-Echo, 3d-Echo,ECG,etc .
+    //   //   Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
+    //   //     The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
+
+    //   //     1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.**Note: Impression should provide brief info about the finding not repeat the same thing (for example for this finding:'Two well defined hyperechoic lesions are noted in the subcutaneous plane of anterior abdominal wall in left hypochondria region with no e/o vascularity on applying colour doppler likely to be lipoma, largest measuring 2.1 x 0.8 x 1.1 cm' , The Impression should be :•	'Anterior Abdomial wall lipoma.')
+    //   //     2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
+    //   //         - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
+    //   //         - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
+    //   //     3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
+    //   //         - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
+    //   //         - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
+    //   //         - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
+        
+    //   //     **Please remove this for reference only** Clinical Context: "${clinicalContext || 'None'}"
+    //   //     OR If Given one or more images of the ready-to-print report then :
+    //   //   1.  **Extract Text**: Accurately extract all text from the provided image(s) to form a complete report.
+    //   //   2.  **Analyze for Inconsistencies**:
+    //   //       * Review the "body" of the report which contains all the findings to identify all significant radiological findings.
+    //   //       * Compare these findings with the "IMPRESSION" section.
+    //   //       * If a significant finding from the body is missing from the impression (e.g., "fatty liver" is in findings but not impression), or if the significant finding present in the impression is missing in the body of the report that contains all the findings,  identify it.
+    //   //   3.  **Generate Correction and Alert**:
+    //   //       * If an inconsistency is found, create a 'suggestedCorrection' string. This should be the exact text to add to the impression (e.g., "Grade I fatty liver.").
+    //   //       * Also create a concise 'inconsistencyAlert' message explaining the issue (e.g., "'Grade I fatty liver' was found but is missing from the impression.").
+
+    //   //   Return a single JSON object with the following keys. Do not include any other text or markdown.
+    //   //   * 'analysisReport': The **original, uncorrected** report text, extracted from the image, as an HTML string.
+    //   //   * 'measurements': An array of any measurements found (or an empty array if none).
+    //   //   * 'criticalFinding': An object for any critical findings (or null if none).
+    //   //   * 'inconsistencyAlert': A string explaining the inconsistency, or null if none was found.
+    //   //   * 'suggestedCorrection': The string to be added to the impression to fix the issue, or null if none is needed.
+    //   //   `;
+      
+    //   const imageParts = images.map(image => ({ inlineData: { mimeType: image.type, data: image.base64 } }));
+    //   const payload = {
+    //     contents: [{ role: "user", parts: [{ text: prompt }, ...imageParts] }],
+    //     generationConfig: { responseMimeType: "application/json" }
+    //   };
+    //   const model = 'gemini-2.5-flash';
+    //   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    //   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    //   const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      
+    //   if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+    //   const result = await response.json();
+    //   const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+    //   if (textResult) {
+    //     const parsedResult = JSON.parse(textResult);
+    //     if (parsedResult.analysisReport && editor) {
+    //       isProgrammaticUpdate.current = true;
+    //       editor.commands.clearContent();
+    //       editor.commands.setContent(parsedResult.analysisReport);
+    //     }
+    //     if (parsedResult.measurements) {
+    //       setAiMeasurements(parsedResult.measurements);
+    //     }
+    //     // Cancel any stale debounced checkers to prevent them from clearing a fresh alert
+    //     if (inconsistencyCheckTimeoutRef.current) {
+    //       clearTimeout(inconsistencyCheckTimeoutRef.current);
+    //       inconsistencyCheckTimeoutRef.current = null;
+    //     }
+    //     if (debounceTimeoutRef.current) {
+    //       clearTimeout(debounceTimeoutRef.current);
+    //       debounceTimeoutRef.current = null;
+    //     }
+    //     if (parsedResult.criticalFinding) {
+    //       setActiveAlert({ type: 'critical', data: parsedResult.criticalFinding });
+    //       setIsAwaitingAlertAcknowledge(true);
+    //     }
+    //     if (parsedResult.inconsistencyAlert || parsedResult.suggestedCorrection) {
+    //       setActiveAlert({ type: 'inconsistency', message: parsedResult.inconsistencyAlert });
+    //       setCorrectionSuggestion(parsedResult.suggestedCorrection); // Store the suggestion
+    //       setIsAwaitingAlertAcknowledge(true);
+    //     }
+    //     toastDone('AI analysis complete');
+    //   } else {
+    //     throw new Error("No valid response returned from AI.");
+    //   }
+    // } catch (err) {
+    //   setError("Failed to analyze images. " + err.message);
+    //   console.error(err);
+    // } finally {
+    //   setIsAiLoading(false);
+    //   setAiAnalysisStatus('');
     // }
+    // Replace the entire try...catch...finally block in analyzeImages
+
+   const analyzeImages = async () => {
     if (images.length === 0) {
       setError("Please upload one or more images first.");
       return;
@@ -1252,122 +1702,190 @@ const findMissingMeasurements = () => {
     setAiMeasurements([]);
     setActiveAlert(null);
     setCorrectionSuggestion(null);
-   
+
+    const prompt = `
+   You are a highly observant, knowledgable and one of the moset experienced Senior Radiologist and Cardiologist specialized in the analysis of medical imaging studies like Ultrasound, X-Ray, MRI, CT, 2d-Echo, 3d-Echo,ECG,etc .
+    Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
+    The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
+
+    1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.**Note: Impression should provide brief info about the finding not repeat the same thing (for example for this finding:'Two well defined hyperechoic lesions are noted in the subcutaneous plane of anterior abdominal wall in left hypochondria region with no e/o vascularity on applying colour doppler likely to be lipoma, largest measuring 2.1 x 0.8 x 1.1 cm' , The Impression should be :•	'Anterior Abdomial wall lipoma.')
+    2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
+     - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
+     - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
+    3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
+     - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
+     - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
+     - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
+        
+       **Please remove this for reference only** Clinical Context: "${clinicalContext || 'None'}"
+       OR If Given one or more images of the ready-to-print report then :
+      1.  **Extract Text**: Accurately extract all text from the provided image(s) to form a complete report.
+      2.  **Analyze for Inconsistencies**:
+      * Review the "body" of the report which contains all the findings to identify all significant radiological findings.
+      * Compare these findings with the "IMPRESSION" section.
+      * If a significant finding from the body is missing from the impression (e.g., "fatty liver" is in findings but not impression), or if the significant finding present in the impression is missing in the body of the report that contains all the findings,  identify it.
+      3.  **Generate Correction and Alert**:
+      * If an inconsistency is found, create a 'suggestedCorrection' string. This should be the exact text to add to the impression (e.g., "Grade I fatty liver.").
+      * Also create a concise 'inconsistencyAlert' message explaining the issue (e.g., "'Grade I fatty liver' was found but is missing from the impression.").
+
+       Return a single JSON object with the following keys. Do not include any other text or markdown.
+       * 'analysisReport': The **original, uncorrected** report text, extracted from the image, as an HTML string.
+       * 'measurements': An array of any measurements found (or an empty array if none).
+       * 'criticalFinding': An object for any critical findings (or null if none).
+       * 'inconsistencyAlert': A string explaining the inconsistency, or null if none was found.
+       * 'suggestedCorrection': The string to be added to the impression to fix the issue, or null if none is needed.
+
+    
+    **Your Response MUST be a single, valid JSON object following one of these two schemas:**
+
+    ---
+    **Schema 1: High-Confidence Analysis (Default)**
+    {
+      "analysisSuccessful": true,
+      "analysisReport": "string (The full report, formatted as an HTML string with <p> and <strong> tags.)",
+      "measurements": [{ "finding": "string", "value": "string" }],
+      "criticalFinding": { "findingName": "string", "reportMacro": "string", "notificationTemplate": "string" } | null
+    }
+    ---
+    **Schema 2: Clarification Needed**
+    {
+      "analysisSuccessful": false,
+      "clarificationNeeded": true,
+      "questionForDoctor": "string (Your specific, concise question for the doctor.)"
+    }
+    ---
+    
+    Clinical Context: "${clinicalContext || 'None'}"
+    `;
+
     try {
+      setAiAnalysisStatus('Processing images...');
+      const imageParts = [];
+      for (const image of images) {
+        try {
+          let base64Data = image.base64;
+          let mimeType = image.type;
 
-      // const prompt = `
-      //       You are an advanced AI assistant specializing in the analysis of medical imaging studies.
-      //       Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
-      //       The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
-
-      //       1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
-      //       2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
-      //           - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
-      //           - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
-      //       3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
-      //           - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
-      //           - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
-      //           - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
-            
-      //       Clinical Context: "${clinicalContext || 'None'}"
-      //   `;
-        const prompt = `
-        You are a highly observant, knowledgable and one of the moset experienced Senior Radiologist specialized in the analysis of medical imaging studies.
-          Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
-            The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
-
-            1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
-            2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
-                - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
-                - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
-            3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
-                - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
-                - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
-                - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
-            
-            **Please remove this for reference only** Clinical Context: "${clinicalContext || 'None'}" 
-            OR If Given one or more images of the ready-to-print report then :
-        1.  **Extract Text**: Accurately extract all text from the provided image(s) to form a complete report.
-        2.  **Analyze for Inconsistencies**:
-            * Review the "body" of the report which contains all the findings to identify all significant radiological findings.
-            * Compare these findings with the "IMPRESSION" section.
-            * If a significant finding from the body is missing from the impression (e.g., "fatty liver" is in findings but not impression), or if the significant finding present in the impression is missing in the body of the report that contains all the findings,  identify it.
-        3.  **Generate Correction and Alert**:
-            * If an inconsistency is found, create a 'suggestedCorrection' string. This should be the exact text to add to the impression (e.g., "Grade I fatty liver.").
-            * Also create a concise 'inconsistencyAlert' message explaining the issue (e.g., "'Grade I fatty liver' was found but is missing from the impression.").
-
-        Return a single JSON object with the following keys. Do not include any other text or markdown.
-        * 'analysisReport': The **original, uncorrected** report text, extracted from the image, as an HTML string.
-        * 'measurements': An array of any measurements found (or an empty array if none).
-        * 'criticalFinding': An object for any critical findings (or null if none).
-        * 'inconsistencyAlert': A string explaining the inconsistency, or null if none was found.
-        * 'suggestedCorrection': The string to be added to the impression to fix the issue, or null if none is needed.
-        `;
-        const imageParts = images.map(image => ({ inlineData: { mimeType: image.type, data: image.base64 } }));
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }, ...imageParts] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-       
-        if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-        const result = await response.json();
-        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
-
-        if (textResult) {
-            const parsedResult = JSON.parse(textResult);
-            if (parsedResult.analysisReport && editor) {
-                isProgrammaticUpdate.current = true;
-                editor.commands.clearContent();
-                editor.commands.setContent(parsedResult.analysisReport);
+          if (!base64Data && !image.file) {
+            console.warn(`Skipping image with no data: ${image.name}`);
+            continue;
+          }
+          
+          if (image.type === 'application/dicom' || image.name.toLowerCase().endsWith('.dcm')) {
+            if (!image.file) {
+                console.warn(`Skipping DICOM with no file object: ${image.name}`);
+                continue;
             }
-            if (parsedResult.measurements) {
-                setAiMeasurements(parsedResult.measurements);
-            }
-          // Cancel any stale debounced checkers to prevent them from clearing a fresh alert
- if (inconsistencyCheckTimeoutRef.current) {
-   clearTimeout(inconsistencyCheckTimeoutRef.current);
-   inconsistencyCheckTimeoutRef.current = null;
- }
- if (debounceTimeoutRef.current) {
-   clearTimeout(debounceTimeoutRef.current);
-   debounceTimeoutRef.current = null;
- }
-            if (parsedResult.criticalFinding) {
-                setActiveAlert({ type: 'critical', data: parsedResult.criticalFinding });
-                setIsAwaitingAlertAcknowledge(true);
-            }
-            if (parsedResult.inconsistencyAlert || parsedResult.suggestedCorrection) {
-                setActiveAlert({ type: 'inconsistency', message: parsedResult.inconsistencyAlert });
-                setCorrectionSuggestion(parsedResult.suggestedCorrection); // Store the suggestion
-                setIsAwaitingAlertAcknowledge(true);
-            }
-            toastDone('AI analysis complete');
-        } else {
-            throw new Error("No valid response returned from AI.");
+            base64Data = await convertDicomToPngBase64(image.file);
+            mimeType = 'image/png';
+          }
+
+          if (!base64Data) {
+            console.warn(`Skipping image after failed processing: ${image.name}`);
+            continue;
+          }
+
+          imageParts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data,
+            },
+          });
+        } catch (procError) {
+          console.error(`Could not process image ${image.name}:`, procError);
+          toast.error(`Failed to process image: ${image.name}`);
         }
+      }
+
+      if (imageParts.length === 0) {
+        throw new Error("No images could be processed for analysis.");
+      }
+      
+      setAiAnalysisStatus('Sending to AI...');
+
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }, ...imageParts] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("API Error Response:", errorBody);
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // --- NEW, CRUCIAL DEBUGGING STEP ---
+      console.log("RAW API RESPONSE:", JSON.stringify(result, null, 2));
+
+      // --- NEW, MORE ROBUST CHECK ---
+      if (!result.candidates || result.candidates.length === 0) {
+        let reason = "The AI returned an empty response.";
+        if (result.promptFeedback?.blockReason) {
+            reason = `The request was blocked. Reason: ${result.promptFeedback.blockReason}.`;
+        } else if (result.candidates?.[0]?.finishReason === 'SAFETY') {
+            reason = "The response was blocked by safety filters.";
+        }
+        throw new Error(reason + " Please check your input or adjust safety settings in your Google AI project.");
+      }
+      
+      const textResult = result.candidates[0]?.content?.parts?.[0]?.text;
+
+      if (textResult) {
+        const parsedResult = JSON.parse(textResult);
+        if (parsedResult.analysisSuccessful) {
+          if (parsedResult.analysisReport && editor) {
+            editor.commands.setContent(parsedResult.analysisReport);
+          }
+          if (parsedResult.measurements) {
+            setAiMeasurements(parsedResult.measurements);
+          }
+          const openingMessage = {
+            sender: 'ai',
+            text: 'Analysis complete. The report has been drafted. Ask any follow-up questions.'
+          };
+          setConversationHistory([openingMessage]);
+          setIsConversationActive(true);
+          toastDone('AI analysis complete');
+        } else if (parsedResult.clarificationNeeded) {
+          const clarificationMessage = { sender: 'ai', text: parsedResult.questionForDoctor };
+          setConversationHistory([clarificationMessage]);
+          setIsConversationActive(true);
+          toast.info('AI needs clarification.', { icon: '🤔' });
+        }
+        if (parsedResult.criticalFinding) {
+          setActiveAlert({ type: 'critical', data: parsedResult.criticalFinding });
+          setIsAwaitingAlertAcknowledge(true);
+        }
+      } else {
+        throw new Error("AI response was received, but it was empty or in an unexpected format.");
+      }
     } catch (err) {
-        setError("Failed to analyze images. " + err.message);
-        console.error(err);
+      setError(`Failed to analyze images. ${err.message}`);
+      console.error(err);
     } finally {
-        setIsAiLoading(false);
-        setAiAnalysisStatus('');
+      setIsAiLoading(false);
+      setAiAnalysisStatus('');
     }
   };
- 
+
+  
   const handleSearch = () => {
       if (!searchQuery) {
           setError("Please enter a search term.");
           return;
       }
       setError(null);
-     
+      
       const query = searchQuery.toLowerCase().trim();
-      const results = localFindings.filter(finding => 
+      const results = localFindings.filter(finding =>
           finding.organ.toLowerCase().includes(query) ||
           finding.findingName.toLowerCase().includes(query)
       );
@@ -1378,18 +1896,18 @@ const findMissingMeasurements = () => {
       setAllAiFullReports([]);
       setCurrentReportPage(0);
       setAiKnowledgeLookupResult(null);
-     
+      
       setBaseSearchQuery(searchQuery);
   };
- 
+  
   const handleAiFindingsSearch = async (isMoreQuery = false) => {
     // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to use AI search.");
-    //     return;
+    //    toast.error("Please upgrade to a professional plan to use AI search.");
+    //    return;
     // }
     if (!baseSearchQuery) {
-        setError("Please perform a standard search first.");
-        return;
+      setError("Please perform a standard search first.");
+      return;
     }
     setIsSearching(true);
     setError(null);
@@ -1436,56 +1954,56 @@ const findMissingMeasurements = () => {
     `;
 
     try {
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-       
-        if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      
+      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-        const result = await response.json();
-        if (result.candidates?.[0]?.content.parts?.[0]?.text) {
-            const textResult = result.candidates[0].content.parts[0].text;
-           
-            try {
-                const parsedResult = JSON.parse(textResult);
+      const result = await response.json();
+      if (result.candidates?.[0]?.content.parts?.[0]?.text) {
+        const textResult = result.candidates[0].content.parts[0].text;
+        
+        try {
+          const parsedResult = JSON.parse(textResult);
 
-                if (parsedResult.queryType === 'fullReport' && parsedResult.fullReportText) {
-                    setAllAiFullReports(prev => [...prev, parsedResult]);
-                    setCurrentReportPage(allAiFullReports.length);
-                    if (!isReportContext) {
-                        setAllAiSearchResults([]);
-                        setLocalSearchResults([]);
-                    }
-                } else if (parsedResult.results) {
-                    if (isReportContext) {
-                        setError("AI returned findings when a new report version was expected. Please try again.");
-                    } else {
-                        setAllAiSearchResults(prev => [...prev, parsedResult.results]);
-                        setCurrentAiPage(allAiSearchResults.length);
-                        if (allAiSearchResults.length === 0) {
-                            setAllAiFullReports([]);
-                        }
-                    }
-                } else {
-                    setError("The AI returned a response with an unexpected format.");
-                }
-
-            } catch (jsonError) {
-                console.error("JSON Parsing Error:", jsonError, "Raw Text:", textResult);
-                setError("The AI returned a non-standard response. Please try rephrasing your query."); 
+          if (parsedResult.queryType === 'fullReport' && parsedResult.fullReportText) {
+            setAllAiFullReports(prev => [...prev, parsedResult]);
+            setCurrentReportPage(allAiFullReports.length);
+            if (!isReportContext) {
+              setAllAiSearchResults([]);
+              setLocalSearchResults([]);
             }
-        } else {
-            throw new Error("Search failed.");
+          } else if (parsedResult.results) {
+            if (isReportContext) {
+              setError("AI returned findings when a new report version was expected. Please try again.");
+            } else {
+              setAllAiSearchResults(prev => [...prev, parsedResult.results]);
+              setCurrentAiPage(allAiSearchResults.length);
+              if (allAiSearchResults.length === 0) {
+                setAllAiFullReports([]);
+              }
+            }
+          } else {
+            setError("The AI returned a response with an unexpected format.");
+          }
+
+        } catch (jsonError) {
+          console.error("JSON Parsing Error:", jsonError, "Raw Text:", textResult);
+          setError("The AI returned a non-standard response. Please try rephrasing your query.");
         }
+      } else {
+        throw new Error("Search failed.");
+      }
     } catch (err) {
-        setError("Failed to perform search. " + err.message);
+      setError("Failed to perform search. " + err.message);
     } finally {
-        setIsSearching(false);
+      setIsSearching(false);
     }
   };
 
@@ -1509,7 +2027,7 @@ const findMissingMeasurements = () => {
       const prompt = `
         You are a master medical AI. Your sole task is to provide a knowledge lookup on a specific medical condition.
         The user wants to know about: "${query}".
-       
+        
         Perform a lookup using authoritative sources (like Radiopaedia, PubMed, StatPearls) and return a single, valid JSON object with this EXACT schema:
         {
           "queryType": "knowledgeLookup",
@@ -1519,7 +2037,7 @@ const findMissingMeasurements = () => {
           "differentialDiagnosis": ["string", "string"],
           "sources": [{ "name": "string", "url": "string" }]
         }
-       
+        
         Do not generate report findings. Your only job is to provide factual, educational information based on the requested condition.
       `;
 
@@ -1565,56 +2083,56 @@ const findMissingMeasurements = () => {
   const checkForCriticalFindings = useCallback(async (plainTextFindings) => {
     if (isAwaitingAlertAcknowledge) return;
     const prompt = `
-        Act as a vigilant radiologist. Analyze the following report text for critical, urgent, or unexpected findings that require immediate attention (e.g., pneumothorax, aortic dissection, acute hemorrhage, large vessel occlusion).
+      Act as a vigilant radiologist. Analyze the following report text for critical, urgent, or unexpected findings that require immediate attention (e.g., pneumothorax, aortic dissection, acute hemorrhage, large vessel occlusion).
 
-        If a critical finding is detected, respond with a JSON object containing the full critical finding details.
-        If no critical finding is detected, respond with a JSON object where "criticalFinding" is null.
+      If a critical finding is detected, respond with a JSON object containing the full critical finding details.
+      If no critical finding is detected, respond with a JSON object where "criticalFinding" is null.
 
-        The JSON object MUST follow this exact schema:
-        {
-            "criticalFinding": {
-                "findingName": "string",
-                "reportMacro": "string",
-                "notificationTemplate": "string"
-            } | null
-        }
+      The JSON object MUST follow this exact schema:
+      {
+        "criticalFinding": {
+          "findingName": "string",
+          "reportMacro": "string",
+          "notificationTemplate": "string"
+        } | null
+      }
 
-        Report Text:
-        ---
-        ${plainTextFindings}
-        ---
+      Report Text:
+      ---
+      ${plainTextFindings}
+      ---
     `;
     try {
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) return; // Fail silently
-        const result = await response.json();
-        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
-        if (textResult) {
-            const parsed = JSON.parse(textResult);
-            if (parsed.criticalFinding) {
-                setActiveAlert({ type: 'critical', data: parsed.criticalFinding });
-                setIsAwaitingAlertAcknowledge(true);
-            } else {
-                setActiveAlert(prev => (prev?.type === 'critical' ? null : prev));
-            }
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) return; // Fail silently
+      const result = await response.json();
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+      if (textResult) {
+        const parsed = JSON.parse(textResult);
+        if (parsed.criticalFinding) {
+          setActiveAlert({ type: 'critical', data: parsed.criticalFinding });
+          setIsAwaitingAlertAcknowledge(true);
+        } else {
+          setActiveAlert(prev => (prev?.type === 'critical' ? null : prev));
         }
+      }
     } catch (err) {
-        console.error("Critical finding check failed:", err);
+      console.error("Critical finding check failed:", err);
     }
   }, [isAwaitingAlertAcknowledge]);
 
   const handleGetSuggestions = async (type) => {
     // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to get AI suggestions.");
-    //     return;
+    //    toast.error("Please upgrade to a professional plan to get AI suggestions.");
+    //    return;
     // }
     if (!editor) {
       setError("Editor not initialized. Please wait and try again.");
@@ -1625,11 +2143,11 @@ const findMissingMeasurements = () => {
       setError("Please enter some findings before requesting suggestions.");
       return;
     }
-   
+    
     setIsSuggestionLoading(true);
     setError(null);
     setSuggestionType(type);
-   
+    
     let prompt = '';
     if (type === 'differentials') {
       prompt = `
@@ -1653,9 +2171,9 @@ const findMissingMeasurements = () => {
 
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-2.5-flash';
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
@@ -1679,8 +2197,8 @@ const findMissingMeasurements = () => {
 
   const handleParseReport = async () => {
     // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to use the AI report parser.");
-    //     return;
+    //    toast.error("Please upgrade to a professional plan to use the AI report parser.");
+    //    return;
     // }
     if (!assistantQuery) {
       setError("Please paste a report into the AI Assistant box to parse.");
@@ -1717,14 +2235,14 @@ const findMissingMeasurements = () => {
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
       if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-     
+      
       const result = await response.json();
       const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
       if (textResult) {
         const jsonString = textResult.match(/```json\n([\s\S]*?)\n```/s)?.[1] || textResult;
         const parsed = JSON.parse(jsonString);
-       
+        
         if(parsed.patientName) setPatientName(parsed.patientName);
         if(parsed.patientId) setPatientId(parsed.patientId);
         if(parsed.patientAge) setPatientAge(parsed.patientAge);
@@ -1733,8 +2251,8 @@ const findMissingMeasurements = () => {
         if(parsed.modality) setModality(parsed.modality);
         if(parsed.bodyPart) setTemplate(parsed.bodyPart);
         if(parsed.reportBody && editor) {
-            isProgrammaticUpdate.current = true;
-            editor.commands.setContent(parsed.reportBody);
+          isProgrammaticUpdate.current = true;
+          editor.commands.setContent(parsed.reportBody);
         }
 
         setAssistantQuery(''); // Clear the box after parsing
@@ -1751,10 +2269,10 @@ const findMissingMeasurements = () => {
   const appendSuggestionsToReport = () => {
     if (!aiSuggestions || !editor) return;
 
-    const header = suggestionType === 'differentials' 
-      ? "<h3>DIFFERENTIAL DIAGNOSIS:</h3>" 
+    const header = suggestionType === 'differentials'
+      ? "<h3>DIFFERENTIAL DIAGNOSIS:</h3>"
       : "<h3>RECOMMENDATIONS:</h3>";
-   
+    
     const formattedSuggestions = `<p>${aiSuggestions.replace(/\n/g, '<br>')}</p>`;
     
     isProgrammaticUpdate.current = true;
@@ -1791,7 +2309,7 @@ const findMissingMeasurements = () => {
       setCurrentReportPage(prev => prev - 1);
     }
   };
- 
+  
   const insertFindings = (findingToInsert) => {
     if (!editor) return;
     isProgrammaticUpdate.current = true;
@@ -1799,13 +2317,13 @@ const findMissingMeasurements = () => {
     // Handle full reports from both AI (queryType) and local findings (isFullReport)
     if (findingToInsert.queryType === 'fullReport' || findingToInsert.isFullReport) {
         const { modality: newModality, template: newTemplate, fullReportText, findings, findingName } = findingToInsert;
-       
+        
         // Use fullReportText from AI or findings from local data
         const contentToInsert = fullReportText || findings;
 
         if (newModality) setModality(newModality);
         if (newTemplate) setTemplate(newTemplate);
-       
+        
         // Replace the entire editor content with the formatted HTML
         editor.commands.setContent(contentToInsert);
         toast.success(`Inserted '${findingName}' report.`);
@@ -1815,7 +2333,7 @@ const findMissingMeasurements = () => {
     // This part handles inserting individual findings into an existing template
     const { organ, findings, impression } = findingToInsert;
     let currentHtml = editor.getHTML();
-   
+    
     const newFindingText = ` ${findings}`;
     const newImpressionHtml = `<p>- ${impression}</p>`;
 
@@ -1828,7 +2346,7 @@ const findMissingMeasurements = () => {
         const existingContent = organMatch[2];
         const closingTag = organMatch[3];
         const placeholderRegex = /Normal in size|Not dilated|unremarkable|No significant/i;
-       
+        
         let finalContent;
         if(placeholderRegex.test(existingContent)){
             finalContent = newFindingText;
@@ -1889,11 +2407,73 @@ const findMissingMeasurements = () => {
     setIsAwaitingAlertAcknowledge(false);
   };
 
+const handleSendMessage = async (message) => {
+    if (isRestricted) {
+      toast.error("Please upgrade to a professional plan for conversational follow-ups.");
+      return;
+    }
+    
+    const newUserMessage = { sender: 'user', text: message };
+    const updatedHistory = [...conversationHistory, newUserMessage];
+    setConversationHistory(updatedHistory);
+    setIsAiReplying(true);
+
+    const reportText = editor ? editor.getText() : 'No report has been generated yet.';
+    
+    // Convert history to a simple string format for the prompt
+    const historyString = updatedHistory.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n');
+
+    const prompt = `
+      You are a radiology AI co-pilot in an ongoing conversation with a doctor. Continue the conversation based on the provided context.
+
+      **Initial Clinical Context:**
+      ---
+      ${clinicalContext || 'None'}
+      ---
+
+      **Current Draft Report:**
+      ---
+      ${reportText}
+      ---
+
+      **Conversation History:**
+      ---
+      ${historyString}
+      ---
+
+      Based on all the above context and the user's last message, provide a concise and helpful response. If the user asks you to modify the report, you can suggest the exact text to add or change. If the user provides the clarification you asked for earlier, re-attempt the analysis and provide the full report content in your response.
+    `;
+
+    try {
+      const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+      const result = await response.json();
+      const aiResponseText = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+      if (aiResponseText) {
+        const newAiMessage = { sender: 'ai', text: aiResponseText };
+        setConversationHistory(prev => [...prev, newAiMessage]);
+      } else {
+        throw new Error("No response from AI assistant.");
+      }
+    } catch (err) {
+      const errorMessage = { sender: 'ai', text: `Sorry, I encountered an error: ${err.message}` };
+      setConversationHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAiReplying(false);
+    }
+  };
 
   const handleCorrectReport = async () => {
     // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to use the AI Assistant.");
-    //     return;
+    //    toast.error("Please upgrade to a professional plan to use the AI Assistant.");
+    //    return;
     // }
     if (!assistantQuery) {
       setError("Please paste a report in the text box to correct it.");
@@ -1946,8 +2526,8 @@ const findMissingMeasurements = () => {
 
   const handleGenerateTemplate = async () => {
     // if (isRestricted) {
-    //     toast.error("Please upgrade to a professional plan to use the AI Assistant.");
-    //     return;
+    //    toast.error("Please upgrade to a professional plan to use the AI Assistant.");
+    //    return;
     // }
     if (!assistantQuery) {
       setError("Please enter a topic to generate a template.");
@@ -1996,14 +2576,14 @@ const findMissingMeasurements = () => {
     if (!user) return;
     // --- NEW: Validation Check ---
     if (!force) {
-        const missing = findMissingMeasurements();
-        if (missing.length > 0) {
-            setActiveAlert({
-                type: 'missing_info',
-                message: `The following appear to be missing or incomplete: ${missing.join(', ')}. Do you want to proceed?`,
-            });
-            return; // Stop the function until user decides
-        }
+      const missing = findMissingMeasurements();
+      if (missing.length > 0) {
+        setActiveAlert({
+          type: 'missing_info',
+          message: `The following appear to be missing or incomplete: ${missing.join(', ')}. Do you want to proceed?`,
+        });
+        return; // Stop the function until user decides
+      }
     }
     const userDocRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userDocRef);
@@ -2012,10 +2592,10 @@ const findMissingMeasurements = () => {
     let newCount = userData.reportCount || 0;
 
     // if (userRole === 'basic') {
-    //     if (newCount >= reportLimit) {
-    //         toast.error("You've reached your monthly limit of 5 reports. Please upgrade for unlimited access.");
-    //         return;
-    //     }
+    //    if (newCount >= reportLimit) {
+    //        toast.error("You've reached your monthly limit of 5 reports. Please upgrade for unlimited access.");
+    //        return;
+    //    }
     // }
 
     let reportHtml = '';
@@ -2074,27 +2654,27 @@ const findMissingMeasurements = () => {
     }
     return '';
   };
- 
-    const copyToClipboard = (text, successMessage = 'Copied!') => {
-        const plainText = htmlToText(text, {
-            wordwrap: 130
-        });
+  
+  const copyToClipboard = (text, successMessage = 'Copied!') => {
+      const plainText = htmlToText(text, {
+          wordwrap: 130
+      });
 
-        const textArea = document.createElement('textarea');
-        textArea.value = plainText;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try { 
-            document.execCommand('copy'); 
-            toast.success(successMessage);
-        }
-        catch (err) { 
-            toast.error('Failed to copy'); 
-        }
-        document.body.removeChild(textArea);
-    };
+      const textArea = document.createElement('textarea');
+      textArea.value = plainText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+          document.execCommand('copy');
+          toast.success(successMessage);
+      }
+      catch (err) {
+          toast.error('Failed to copy');
+      }
+      document.body.removeChild(textArea);
+  };
 
-    const downloadTxtReport = (reportContent) => {
+  const downloadTxtReport = (reportContent) => {
     if (!reportContent) {
         // Updated error message for clarity
         toast.error("Please generate the report first before downloading.");
@@ -2108,114 +2688,114 @@ const findMissingMeasurements = () => {
     const file = new Blob([plainText], {type: 'text/plain;charset=utf-8'});
     element.href = URL.createObjectURL(file);
     element.download = `Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.txt`;
-    document.body.appendChild(element); 
+    document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
     toastDone('TXT downloaded');
-};
+  };
 
-    const downloadPdfReport = (reportContent) => {
-        if (!reportContent) {
-            setError("Report content is empty. Please generate the report first.");
-            return;
-        }
-        setError(null);
-        try {
-            const doc = new jsPDF();
-           
-            const tempDiv = document.createElement('div');
-            tempDiv.style.width = '170mm';
-            tempDiv.style.fontFamily = 'helvetica';
-            tempDiv.style.fontSize = '12px';
-            tempDiv.innerHTML = reportContent;
-            document.body.appendChild(tempDiv);
-
-            doc.html(tempDiv, {
-                callback: function (doc) {
-                    document.body.removeChild(tempDiv);
-                    doc.save(`Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.pdf`);
-                    toastDone('PDF downloaded');
-                },
-                x: 15,
-                y: 15,
-                width: 170,
-                windowWidth: tempDiv.scrollWidth
-            });
-        } catch (err) {
-            setError(`An unexpected error occurred during PDF generation: ${err.message}`);
-            console.error(err);
-        }
-    };
-
-    // --- NEW FUNCTION: handleInsertMeasurement ---
-    const handleInsertMeasurement = (finding, value) => {
-        if (!editor) return;
-        let currentHtml = editor.getHTML();
-       
-        // Escape special regex characters from the finding string
-        const findingCleaned = finding.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-       
-        // Create a regex that finds the finding's bolded header and the first placeholder after it.
-        // It handles variations in whitespace and is case-insensitive.
-        // It looks for placeholders like "__ x __ cm", "__ cm", "__ mm", etc.
-        const findingRegex = new RegExp(
-            `(<strong>${findingCleaned.replace(/\s+/g, '\\s*')}:?</strong>.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`, 
-            "i"
-        );
-       
-        const match = currentHtml.match(findingRegex);
-
-        if (match) {
-            isProgrammaticUpdate.current = true;
-            // Replace the placeholder part (match[2]) with the new value
-            const updatedSection = match[0].replace(match[2], `<strong>${value}</strong>`);
-            currentHtml = currentHtml.replace(match[0], updatedSection);
-            editor.commands.setContent(currentHtml);
-            toast.success(`Inserted measurement for ${finding}`);
-        } else {
-            toast.error(`Could not automatically find a placeholder for "${finding}". Please insert manually.`);
-        }
-    };
-
-    // --- Firestore Macro Handlers ---
-    const handleAddMacro = async () => {
-      if (!newMacroCommand || !newMacroText) {
-        toast.error("Please provide both a command and text for the macro.");
+  const downloadPdfReport = (reportContent) => {
+    if (!reportContent) {
+        setError("Report content is empty. Please generate the report first.");
         return;
-      }
-      if (!user) {
-        toast.error("You must be logged in to add a macro.");
-        return;
-      }
+    }
+    setError(null);
+    try {
+        const doc = new jsPDF();
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.style.width = '170mm';
+        tempDiv.style.fontFamily = 'helvetica';
+        tempDiv.style.fontSize = '12px';
+        tempDiv.innerHTML = reportContent;
+        document.body.appendChild(tempDiv);
 
-      try {
-        await addDoc(collection(db, "users", user.uid, "macros"), {
-          command: newMacroCommand,
-          text: newMacroText,
-          createdAt: serverTimestamp()
+        doc.html(tempDiv, {
+            callback: function (doc) {
+                document.body.removeChild(tempDiv);
+                doc.save(`Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.pdf`);
+                toastDone('PDF downloaded');
+            },
+            x: 15,
+            y: 15,
+            width: 170,
+            windowWidth: tempDiv.scrollWidth
         });
-        setNewMacroCommand('');
-        setNewMacroText('');
-        toast.success("Macro added successfully!");
-      } catch (error) {
-        console.error("Error adding macro: ", error);
-        toast.error("Failed to add macro.");
-      }
-    };
+    } catch (err) {
+        setError(`An unexpected error occurred during PDF generation: ${err.message}`);
+        console.error(err);
+    }
+  };
 
-    const handleDeleteMacro = async (macroId) => {
-      if (!user) {
-        toast.error("You must be logged in to delete a macro.");
-        return;
+  // --- NEW FUNCTION: handleInsertMeasurement ---
+  const handleInsertMeasurement = (finding, value) => {
+      if (!editor) return;
+      let currentHtml = editor.getHTML();
+      
+      // Escape special regex characters from the finding string
+      const findingCleaned = finding.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      
+      // Create a regex that finds the finding's bolded header and the first placeholder after it.
+      // It handles variations in whitespace and is case-insensitive.
+      // It looks for placeholders like "__ x __ cm", "__ cm", "__ mm", etc.
+      const findingRegex = new RegExp(
+          `(<strong>${findingCleaned.replace(/\s+/g, '\\s*')}:?</strong>.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`,
+          "i"
+      );
+      
+      const match = currentHtml.match(findingRegex);
+
+      if (match) {
+          isProgrammaticUpdate.current = true;
+          // Replace the placeholder part (match[2]) with the new value
+          const updatedSection = match[0].replace(match[2], `<strong>${value}</strong>`);
+          currentHtml = currentHtml.replace(match[0], updatedSection);
+          editor.commands.setContent(currentHtml);
+          toast.success(`Inserted measurement for ${finding}`);
+      } else {
+          toast.error(`Could not automatically find a placeholder for "${finding}". Please insert manually.`);
       }
-      try {
-        await deleteDoc(doc(db, "users", user.uid, "macros", macroId));
-        toast.success("Macro deleted.");
-      } catch (error) {
-        console.error("Error deleting macro: ", error);
-        toast.error("Failed to delete macro.");
-      }
-    };
+  };
+
+  // --- Firestore Macro Handlers ---
+  const handleAddMacro = async () => {
+    if (!newMacroCommand || !newMacroText) {
+      toast.error("Please provide both a command and text for the macro.");
+      return;
+    }
+    if (!user) {
+      toast.error("You must be logged in to add a macro.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "users", user.uid, "macros"), {
+        command: newMacroCommand,
+        text: newMacroText,
+        createdAt: serverTimestamp()
+      });
+      setNewMacroCommand('');
+      setNewMacroText('');
+      toast.success("Macro added successfully!");
+    } catch (error) {
+      console.error("Error adding macro: ", error);
+      toast.error("Failed to add macro.");
+    }
+  };
+
+  const handleDeleteMacro = async (macroId) => {
+    if (!user) {
+      toast.error("You must be logged in to delete a macro.");
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "macros", macroId));
+      toast.success("Macro deleted.");
+    } catch (error) {
+      console.error("Error deleting macro: ", error);
+      toast.error("Failed to delete macro.");
+    }
+  };
 
   const shortcuts = {
     toggleMic: { label: 'Toggle Microphone', ctrlOrCmd: true, key: 'm', action: handleToggleListening },
@@ -2238,7 +2818,7 @@ const findMissingMeasurements = () => {
 
         for (const config of Object.values(shortcuts)) {
             const isCtrlOrCmd = (isMac && event.metaKey) || (!isMac && event.ctrlKey);
-           
+            
             let keyMatch = event.key.toLowerCase() === config.key.toLowerCase();
             if (config.key === '/') keyMatch = event.key === '/'; // Handle special characters
 
@@ -2270,11 +2850,48 @@ const findMissingMeasurements = () => {
   if (!user) {
       return <Auth />;
   }
-   // If the user is not a professional, show the upgrade page
-  // if (userRole !== 'professional') {
-  //     return <UpgradePage user={user} />;
-  // }
+    // If the user is not a professional, show the upgrade page
+    // if (userRole !== 'professional') {
+    //    return <UpgradePage user={user} />;
+    // }
+// --- NEW HELPER FUNCTION for DICOM Conversion ---
+  const convertDicomToPngBase64 = async (dicomFile) => {
+    const cornerstone = window.cornerstone;
+    const csWADOImageLoader = window.cornerstoneWADOImageLoader;
 
+    if (!cornerstone || !csWADOImageLoader) {
+      throw new Error("Cornerstone libraries are not loaded yet.");
+    }
+
+    // Create an off-screen div and canvas to render the image
+    const container = document.createElement('div');
+    container.style.width = '512px';
+    container.style.height = '512px';
+    container.style.position = 'absolute';
+    container.style.left = '-9999px'; // Hide it off-screen
+    document.body.appendChild(container);
+
+    try {
+      cornerstone.enable(container);
+      const imageId = csWADOImageLoader.wadouri.fileManager.add(dicomFile);
+      const image = await cornerstone.loadImage(imageId);
+      cornerstone.displayImage(container, image);
+      
+      const canvas = container.querySelector('canvas');
+      if (!canvas) {
+        throw new Error("Canvas element not found after rendering.");
+      }
+      
+      // Get the data URL (which is base64 encoded) and extract the data part
+      const dataUrl = canvas.toDataURL('image/png');
+      return dataUrl.split(',')[1];
+
+    } finally {
+      // Clean up the off-screen element
+      cornerstone.disable(container);
+      document.body.removeChild(container);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-700 font-sans text-gray-800">
       <style>{`
@@ -2334,14 +2951,14 @@ const findMissingMeasurements = () => {
           alt="example"
           style={{ maxWidth: '5%' }}
         /> */}
-                                
+        
           <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <img src="src\assets\aiRAD_logo.jpg" alt="aiRAD Logo" className="h-24 w-24 mr-4 rounded-lg flex items-left justify-left"  /><br/>aiRAD-Reporting, Redefined.</h1>
           <p className="text-lg text-gray-100 mt-2">AI-Assisted Radiology Reporting System.</p>
           {user && (
             <div className="absolute top-0 right-0 flex items-center space-x-4">
                 <span className="text-white text-sm hidden sm:inline">{user.email}</span>
-                <button 
-                    onClick={handleSignOut} 
+                <button
+                    onClick={handleSignOut}
                     className="bg-red-500 text-white font-semibold px-3 py-2 rounded-lg hover:bg-red-600 transition shadow-sm flex items-center space-x-2"
                     title="Sign Out"
                 >
@@ -2353,17 +2970,17 @@ const findMissingMeasurements = () => {
         </header>
         {isRestricted && (
             <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded-lg text-center">
-                You've reached your free limit. 
-                <button 
-                    onClick={() => { /* Navigate to upgrade page */ }} 
+                You've reached your free limit.
+                <button
+                    onClick={() => { /* Navigate to upgrade page */ }}
                     className="font-bold underline ml-2"
                 >
                     Upgrade to Professional
-                </button> 
+                </button>
                 for unlimited reports and AI features.
             </div>
         )}
-       
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Controls & Inputs */}
           <div className="space-y-6">
@@ -2381,10 +2998,10 @@ const findMissingMeasurements = () => {
                         Proactive AI Co-pilot
                     </label>
                     <div className="relative inline-block w-10 align-middle select-none">
-                        <input 
-                            type="checkbox" 
-                            name="proactive-toggle" 
-                            id="proactive-toggle" 
+                        <input
+                            type="checkbox"
+                            name="proactive-toggle"
+                            id="proactive-toggle"
                             checked={isProactiveHelpEnabled}
                             onChange={() => setIsProactiveHelpEnabled(!isProactiveHelpEnabled)}
                             className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
@@ -2418,7 +3035,7 @@ const findMissingMeasurements = () => {
                     </div>
                 </div>
             </CollapsibleSection>
-           
+            
             <CollapsibleSection title="Report Template" icon={FileText}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -2436,42 +3053,87 @@ const findMissingMeasurements = () => {
                 </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="Radiology Images & AI Analysis" icon={Upload}>
-                 <div 
-                    onDragOver={handleDragOver} 
-                    onDragLeave={handleDragLeave} 
-                    onDrop={handleDrop} 
-                    onPaste={handlePaste}
-                    className={`p-4 border-2 border-dashed rounded-lg text-center transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-                >
-                    <input type="file" onChange={handleImageChange} accept="image/*" className="hidden" id="image-upload" multiple />
-                    <label htmlFor="image-upload" className="cursor-pointer text-blue-600 font-semibold">
-                        {isDragging ? 'Drop images here' : (images.length > 0 ? 'Add more images' : 'Choose image(s)')}
-                    </label>
-                    <p className="text-sm text-gray-500 mt-1">or drag and drop, or paste from clipboard</p>
+            {/* NEW: Image Uploads and Viewer */}
+            <CollapsibleSection title="Radiology Images & Viewer" icon={Upload} defaultOpen={true}>
+                <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-2xl text-center transition-colors cursor-pointer ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
+                    <input {...getInputProps()} />
+                    <p className="text-gray-600 font-semibold">{isDragActive ? 'Drop the files here...' : 'Drag & drop images here, or click to select files'}</p>
+                    <p className="text-sm text-gray-500 mt-1">Accepts DICOM, PNG, and JPEG files.</p>
                 </div>
-                {images.length > 0 && (
-                    <div className="mt-4 p-2 border rounded-lg bg-gray-100">
-                        <div className="space-y-2 mb-2">
-                            <label className="font-semibold text-gray-600 flex items-center"><MessageSquare size={18} className="mr-2" />Clinical Context (Optional)</label>
-                            <textarea value={clinicalContext} onChange={e => setClinicalContext(e.target.value)} rows="2" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 transition" placeholder="e.g., Patient presents with right upper quadrant pain."></textarea>
+                {isDicomLoaded && selectedImage ? (
+                    <div className="space-y-4">
+                        <div className="cursor-pointer" onClick={() => images.length > 0 && openModal(images.indexOf(selectedImage) > -1 ? images.indexOf(selectedImage) : 0)}>
+                            <ImageViewer image={selectedImage} />
                         </div>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        <div className="flex space-x-2 p-2 overflow-x-auto border rounded-lg bg-gray-100">
                             {images.map((img, index) => (
-                            <div key={index} className="relative group">
-                                    <img src={img.src} alt={`Scan ${index+1}`} className="w-full h-24 object-cover rounded-md shadow-md"/>
-                                    <button onClick={() => removeImage(index)} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <XCircle size={18}/>
+                                <div key={index} className="relative group flex-shrink-0 cursor-pointer" onClick={() => openModal(index)}>
+                                    <img
+                                        src={img.src}
+                                        alt={`Scan ${index+1}`}
+                                        className={`w-24 h-24 object-contain rounded-md shadow-md transition-all border-2 ${selectedImage === img ? 'border-indigo-500 scale-105' : 'border-transparent'}`}
+                                    />
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <XCircle size={18} />
                                     </button>
-                            </div>
+                                </div>
                             ))}
                         </div>
-                        <button onClick={analyzeImages} disabled={isAiLoading || isRestricted} className="w-full mt-3 bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition flex items-center justify-center disabled:bg-indigo-300">
-                        {isAiLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>{aiAnalysisStatus || 'Analyzing...'}</span></> : <><BrainCircuit size={20} className="mr-2"/>Analyze Images</>}
-                        </button>
+                    </div>
+                ) : images.length > 0 ? (
+                    <div className="mt-4 p-2 border rounded-lg bg-gray-100">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                             {images.map((img, index) => (
+                                <div key={index} className="relative group">
+                                     <img src={img.src} alt={`Scan ${index+1}`} className="w-full h-24 object-cover rounded-md shadow-md cursor-pointer" onClick={() => openModal(index)}/>
+                                     <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <XCircle size={18}/>
+                                     </button>
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-4 p-4 text-center text-gray-500">
+                        {isDicomLoaded ? "No images loaded. Drag or select files above." : "Loading medical imaging libraries..."}
                     </div>
                 )}
             </CollapsibleSection>
+
+      {/* Image Modal for DICOM & Raster navigation */}
+      <ImageModal
+        images={images}
+        currentIndex={modalIndex}
+        onClose={closeModal}
+        onNext={showNext}
+        onPrev={showPrev}
+      />
+
+            <div className="w-full bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                    <ImageIcon size={20} className="text-gray-600" />
+                    <label htmlFor="clinical-context" className="font-semibold text-gray-600">Clinical Context (Optional)</label>
+                </div>
+                <textarea
+                    id="clinical-context"
+                    value={clinicalContext}
+                    onChange={e => setClinicalContext(e.target.value)}
+                    rows="2"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                    placeholder="e.g., Patient presents with right upper quadrant pain."
+                />
+                <button
+                    onClick={analyzeImages}
+                    disabled={isAiLoading || images.length === 0 || isRestricted}
+                    className="w-full mt-3 bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition flex items-center justify-center disabled:bg-indigo-300"
+                >
+                    {isAiLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>{aiAnalysisStatus || 'Analyzing...'}</span></> : <><BrainCircuit size={20} className="mr-2"/>Analyze Images</>}
+                </button>
+            </div>
+
 
             <CollapsibleSection title="AI Assistant" icon={CheckCircle}>
                 <div className="flex justify-between items-center">
@@ -2481,11 +3143,11 @@ const findMissingMeasurements = () => {
                         Parse to Fields
                     </button>
                 </div>
-                <textarea 
-                    value={assistantQuery} 
-                    onChange={(e) => setAssistantQuery(e.target.value)} 
-                    rows="4" 
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 transition" 
+                <textarea
+                    value={assistantQuery}
+                    onChange={(e) => setAssistantQuery(e.target.value)}
+                    rows="4"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 transition"
                     placeholder="Paste a report for correction OR enter a topic to generate a new template..."
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2497,11 +3159,11 @@ const findMissingMeasurements = () => {
                     </button>
                 </div>
             </CollapsibleSection>
-           
+            
             <CollapsibleSection title="Local Findings Search" icon={Search}>
                 <div className="flex items-center space-x-2">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         ref={localSearchInputRef}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
@@ -2513,52 +3175,52 @@ const findMissingMeasurements = () => {
                         <Search size={20} />
                     </button>
                 </div>
-               
+                
                 {isSearching && !aiKnowledgeLookupResult && <SearchResultSkeleton />}
 
                 {!isSearching && localSearchResults.length > 0 && (
-                  <div className="mt-3 space-y-3 max-h-60 overflow-y-auto pr-2">
-                      <h3 className="font-bold text-gray-700">Standard Findings</h3>
-                      {localSearchResults.map((result, index) => (
-                          <div key={result.id || index} className="p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-2 relative">
-                              <span className="absolute top-2 right-2 bg-purple-200 text-purple-800 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">{index + 1}</span>
-                              <h4 className="font-bold text-purple-800">{result.findingName}</h4>
-                              <div className="text-sm space-y-1">
-                                  <p><span className="font-semibold">ORGAN:</span> {result.organ}</p>
-                                  {result.isFullReport ? (
-                                      <div>
-                                          <span className="font-semibold">REPORT PREVIEW:</span>
-                                          <div className="prose prose-sm max-w-none mt-1 p-2 bg-white rounded border h-24 overflow-y-hidden relative text-xs">
-                                              <div dangerouslySetInnerHTML={{ __html: result.findings }} />
-                                              <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-purple-50 to-transparent pointer-events-none"></div>
-                                          </div>
-                                      </div>
-                                  ) : (
-                                      <>
-                                          <p><span className="font-semibold">FINDINGS:</span> {result.findings}</p>
-                                          <p><span className="font-semibold">IMPRESSION:</span> {result.impression}</p>
-                                      </>
-                                  )}
-                              </div>
-                              <div className="flex space-x-2 mt-2">
-                                  <button onClick={() => insertFindings(result)} className="w-full bg-purple-200 text-purple-800 font-bold py-2 px-4 rounded-lg hover:bg-purple-300 transition flex items-center justify-center">
-                                      <PlusCircle size={18} className="mr-2" /> Insert
-                                  </button>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
+                    <div className="mt-3 space-y-3 max-h-60 overflow-y-auto pr-2">
+                        <h3 className="font-bold text-gray-700">Standard Findings</h3>
+                        {localSearchResults.map((result, index) => (
+                            <div key={result.id || index} className="p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-2 relative">
+                                <span className="absolute top-2 right-2 bg-purple-200 text-purple-800 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">{index + 1}</span>
+                                <h4 className="font-bold text-purple-800">{result.findingName}</h4>
+                                <div className="text-sm space-y-1">
+                                    <p><span className="font-semibold">ORGAN:</span> {result.organ}</p>
+                                    {result.isFullReport ? (
+                                        <div>
+                                            <span className="font-semibold">REPORT PREVIEW:</span>
+                                            <div className="prose prose-sm max-w-none mt-1 p-2 bg-white rounded border h-24 overflow-y-hidden relative text-xs">
+                                                <div dangerouslySetInnerHTML={{ __html: result.findings }} />
+                                                <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-purple-50 to-transparent pointer-events-none"></div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p><span className="font-semibold">FINDINGS:</span> {result.findings}</p>
+                                            <p><span className="font-semibold">IMPRESSION:</span> {result.impression}</p>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex space-x-2 mt-2">
+                                    <button onClick={() => insertFindings(result)} className="w-full bg-purple-200 text-purple-800 font-bold py-2 px-4 rounded-lg hover:bg-purple-300 transition flex items-center justify-center">
+                                        <PlusCircle size={18} className="mr-2" /> Insert
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
-               
+                
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <button onClick={() => handleAiFindingsSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center disabled:bg-indigo-300">
-                    {isSearching && !allAiFullReports.length && !allAiSearchResults.length ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><Search size={20} className="mr-2" />Search Findings</>}
-                  </button>
-                  <button onClick={() => handleAiKnowledgeSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center disabled:bg-green-300">
-                    {isSearching ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><BookOpen size={20} className="mr-2" />Knowledge Search</>}
-                  </button>
+                    <button onClick={() => handleAiFindingsSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center disabled:bg-indigo-300">
+                        {isSearching && !allAiFullReports.length && !allAiSearchResults.length ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><Search size={20} className="mr-2" />Search Findings</>}
+                    </button>
+                    <button onClick={() => handleAiKnowledgeSearch()} disabled={isSearching || !baseSearchQuery || isRestricted} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center disabled:bg-green-300">
+                        {isSearching ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div><span>Searching...</span></> : <><BookOpen size={20} className="mr-2" />Knowledge Search</>}
+                    </button>
                 </div>
-               
+                
                 {!isSearching && allAiFullReports.length > 0 && (
                     <div className="mt-3 space-y-3">
                         <h3 className="font-bold text-gray-700">AI-Drafted Report</h3>
@@ -2623,7 +3285,7 @@ const findMissingMeasurements = () => {
             </CollapsibleSection>
 
             <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 space-y-6">
-                 <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center">
                     <label className="font-semibold text-gray-600">Findings & Measurements</label>
                     <div className="flex space-x-2">
                         <button onClick={() => handleGetSuggestions('differentials')} disabled={isSuggestionLoading || !userFindings || isRestricted} className="text-xs bg-gray-200 text-gray-700 font-semibold py-1 px-2 rounded-md hover:bg-gray-300 transition flex items-center disabled:opacity-50">
@@ -2634,7 +3296,7 @@ const findMissingMeasurements = () => {
                         </button>
                     </div>
                 </div>
-               
+                
                 <AlertPanel
                     alertData={activeAlert}
                     onAcknowledge={() => {
@@ -2658,19 +3320,19 @@ const findMissingMeasurements = () => {
                         setIsAwaitingAlertAcknowledge(false);
                     }}
                     onFix={handleFixInconsistency}
-						  onProceed={() => {
-							setActiveAlert(null);
-							generateFinalReport(true); // Re-run the function, forcing it to bypass the check
-						  }}
+                    onProceed={() => {
+                        setActiveAlert(null);
+                        generateFinalReport(true); // Re-run the function, forcing it to bypass the check
+                    }}
                 />
 
                 <div className={`rounded-lg bg-white transition-all duration-300 ${activeAlert?.type === 'critical' ? 'border-2 border-red-500 shadow-lg ring-4 ring-red-500/20' : 'border border-gray-300'}`}>
                     <MenuBar editor={editor} />
-                   <EditorContent editor={editor} aria-label="Findings editor" />
+                    <EditorContent editor={editor} aria-label="Findings editor" />
                 </div>
             </div>
           </div>
-         
+          
           {/* Right Column: Generated Report & AI Co-pilot */}
           <div className="space-y-8">
             <div>
@@ -2690,9 +3352,9 @@ const findMissingMeasurements = () => {
                       )}
                   </div>
               </div>
-             <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} />
+              <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} />
               {/* --- NEW: Render Suggested Measurements Panel --- */}
-              <AiSuggestedMeasurementsPanel 
+              <AiSuggestedMeasurementsPanel
                   measurements={aiMeasurements}
                   onInsert={handleInsertMeasurement}
                   onClear={() => setAiMeasurements([])}
@@ -2702,31 +3364,31 @@ const findMissingMeasurements = () => {
               <h2 className="text-2xl font-bold text-gray-500 flex items-center mb-4"><FileText className="mr-3 text-green-500" />Generated Report</h2>
               {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg mb-4">Error: {error}</div>}
               <div className="relative w-full min-h-[400px] bg-white rounded-lg border p-4 overflow-y-auto shadow-inner">
-                <div className="absolute top-2 right-2 flex items-center space-x-2">
-                  {copySuccess && <span className="text-sm text-green-600">{copySuccess}</span>}
-                  <button onClick={() => copyToClipboard(generatedReport)} title="Copy Report" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><Clipboard size={18}/></button>
-                  <button onClick={()=>downloadTxtReport(generatedReport)} title="Download as .txt" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><FileType size={18}/></button>
-                  <button
-                      onClick={() => downloadPdfReport(generatedReport)}
-                      title="Download as .pdf"
-                      aria-label="Download report as PDF"
-                      className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50"
-                      disabled={!generatedReport}
-                  >
-                      <FileJson size={18} />
-                  </button>
-                  <Toaster
-                      position="top-right"
-                      toastOptions={{
-                          className: 'rounded-lg shadow-md',
-                          style: { background: '#111827', color: '#fff' },
-                      }}
-                  />
-                </div>
-                {isLoading ? <ReportSkeleton /> : <div dangerouslySetInnerHTML={{ __html: generatedReport }} className="prose max-w-none"/>}
+                  <div className="absolute top-2 right-2 flex items-center space-x-2">
+                      {copySuccess && <span className="text-sm text-green-600">{copySuccess}</span>}
+                      <button onClick={() => copyToClipboard(generatedReport)} title="Copy Report" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><Clipboard size={18}/></button>
+                      <button onClick={()=>downloadTxtReport(generatedReport)} title="Download as .txt" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><FileType size={18}/></button>
+                      <button
+                          onClick={() => downloadPdfReport(generatedReport)}
+                          title="Download as .pdf"
+                          aria-label="Download report as PDF"
+                          className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50"
+                          disabled={!generatedReport}
+                      >
+                          <FileJson size={18} />
+                      </button>
+                      <Toaster
+                          position="top-right"
+                          toastOptions={{
+                              className: 'rounded-lg shadow-md',
+                              style: { background: '#111827', color: '#fff' },
+                          }}
+                      />
+                  </div>
+                  {isLoading ? <ReportSkeleton /> : <div dangerouslySetInnerHTML={{ __html: generatedReport }} className="prose max-w-none"/>}
               </div>
-               <button onClick={generateFinalReport} disabled={isLoading || !userFindings} className="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-center disabled:bg-blue-400 text-lg shadow-md hover:shadow-lg">
-                {isLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>Generating Report...</> : <><FileText className="mr-2" /> Generate Full Report</>}
+              <button onClick={()=>generateFinalReport()} disabled={isLoading || !userFindings} className="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-center disabled:bg-blue-400 text-lg shadow-md hover:shadow-lg">
+              {isLoading ? <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>Generating Report...</> : <><FileText className="mr-2" /> Generate Full Report</>}
               </button>
             </div>
 
@@ -2744,9 +3406,27 @@ const findMissingMeasurements = () => {
             />
           </div>
         </div>
-
+{/* --- NEW: RENDER CONVERSATION PANEL --- */}
+        {isConversationActive && (
+          <AiConversationPanel
+            history={conversationHistory}
+            onSendMessage={handleSendMessage}
+            isReplying={isAiReplying}
+            userInput={userInput}
+            setUserInput={setUserInput}
+          />
+        )}
 
         {/* Modals */}
+        {isModalOpen && (
+          <ImageModal
+            images={images}
+            currentIndex={currentImageIndex}
+            onClose={closeModal}
+            onNext={showNextImage}
+            onPrev={showPrevImage}
+          />
+        )}
         {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
 
         {showSuggestionsModal && (
@@ -2788,14 +3468,14 @@ const findMissingMeasurements = () => {
                 <div>
                   <h4 className="font-bold text-lg mb-2">Add New Macro</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input 
-                      type="text" 
-                      placeholder="Voice Command (e.g., 'normal abdomen')" 
+                    <input
+                      type="text"
+                      placeholder="Voice Command (e.g., 'normal abdomen')"
                       value={newMacroCommand}
                       onChange={(e) => setNewMacroCommand(e.target.value)}
                       className="w-full p-2 border rounded-lg"
                     />
-                    <textarea 
+                    <textarea
                       placeholder="Text to insert"
                       value={newMacroText}
                       onChange={(e) => setNewMacroText(e.target.value)}
@@ -2803,7 +3483,7 @@ const findMissingMeasurements = () => {
                       rows="3"
                     ></textarea>
                   </div>
-                  <button 
+                  <button
                     onClick={handleAddMacro}
                     className="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
                   >
@@ -2832,24 +3512,24 @@ const findMissingMeasurements = () => {
           </div>
         )}
       </div>
-       <div className="fixed bottom-8 right-8 z-50 flex flex-col items-center">
-          <button
-              onClick={handleToggleListening}
-              disabled={!isDictationSupported}
-              title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
-              className={`w-16 h-16 rounded-full text-white flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110
-                  ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
-              `}
-          >
-              <Mic size={28} />
-          </button>
-          {voiceStatus === 'listening' && (
-              <div className="mt-2 text-center text-xs bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg max-w-xs">
-                  <p className="font-bold">Listening...</p>
-                  {interimTranscript && <p className="mt-1 italic">{interimTranscript}</p>}
-              </div>
-          )}
-      </div>
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col items-center">
+            <button
+                onClick={handleToggleListening}
+                disabled={!isDictationSupported}
+                title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
+                className={`w-16 h-16 rounded-full text-white flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110
+                    ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
+                `}
+            >
+                <Mic size={28} />
+            </button>
+            {voiceStatus === 'listening' && (
+                <div className="mt-2 text-center text-xs bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg max-w-xs">
+                    <p className="font-bold">Listening...</p>
+                    {interimTranscript && <p className="mt-1 italic">{interimTranscript}</p>}
+                </div>
+            )}
+        </div>
     </div>
   );
 };
