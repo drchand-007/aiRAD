@@ -2828,7 +2828,7 @@ const handleSendMessage = async (message) => {
           style={{ maxWidth: '5%' }}
         /> */}
         
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <img src="src\assets\aiRAD_logo.jpg" alt="aiRAD Logo" className="h-24 w-24 mr-4 rounded-lg flex items-left justify-left"  /><br/>aiRAD-Reporting, Redefined.</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <br/>aiRAD-Reporting, Redefined.</h1>
           <p className="text-lg text-gray-100 mt-2">AI-Assisted Radiology Reporting System.</p>
           {user && (
             <div className="absolute top-0 right-0 flex items-center space-x-4">
