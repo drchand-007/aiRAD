@@ -819,29 +819,6 @@ const [conversationHistory, setConversationHistory] = useState([]);
 const [isAiReplying, setIsAiReplying] = useState(false);
 const [userInput, setUserInput] = useState(''); // For the chat input box
 
-// // --- Modal image-type helpers ---
-// const isDicom = (img) => {
-//   if (!img) return false;
-//   const name = (img.name || "").toLowerCase();
-//   const type = (img.type || "").toLowerCase();
-//   return type === "application/dicom" || name.endsWith(".dcm");
-// };
-
-// const getRasterSrc = (img) => {
-//   if (!img) return "";
-//   if (img.src) return img.src;
-//   if (img.base64?.startsWith("data:")) return img.base64;
-//   if (img.base64) {
-//     const mime = img.type || "image/png";
-//     return `data:${mime};base64,${img.base64}`;
-//   }
-//   if (typeof URL !== "undefined") {
-//     if (img.blob instanceof Blob) return URL.createObjectURL(img.blob);
-//     if (img.file instanceof File) return URL.createObjectURL(img.file);
-//   }
-//   return "";
-// };
-
 
   const [modalIndex, setModalIndex] = useState(null);
   // const openModal = (index) => setModalIndex(index);
@@ -1527,15 +1504,51 @@ const [userInput, setUserInput] = useState(''); // For the chat input box
     });
   }
   
-  const onDrop = useCallback(acceptedFiles => {
-      const processFiles = async () => {
-          const newImageObjects = await Promise.all(acceptedFiles.map(file => fileToImageObject(file)));
-          setImages(prevImages => [...prevImages, ...newImageObjects]);
-          if (newImageObjects.length > 0 && !selectedImage) {
-              setSelectedImage(newImageObjects[0]);
+    const onDrop = useCallback(async (acceptedFiles, _, event) => {
+    let filesToProcess = [...acceptedFiles];
+
+    // If no files were accepted directly, try to parse the data transfer object
+    // This handles cases like dragging from a native app that provides HTML or raw image data
+    if (acceptedFiles.length === 0 && event.dataTransfer) {
+      const droppedItems = await Promise.all(
+        Array.from(event.dataTransfer.items).map(async (item) => {
+          if (item.type.startsWith('image/')) {
+            return item.getAsFile();
           }
-      };
-      processFiles();
+          if (item.type === 'text/html') {
+            const html = await new Promise(resolve => item.getAsString(resolve));
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const img = tempDiv.querySelector('img');
+            if (img && img.src) {
+              // Handle base64 data URIs
+              if (img.src.startsWith('data:')) {
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                return new File([blob], 'pasted-image.png', { type: blob.type });
+              }
+              // Note: file:/// URIs cannot be accessed due to browser security.
+              // We can't fix this case, but we handle base64 which is common.
+            }
+          }
+          return null;
+        })
+      );
+      filesToProcess.push(...droppedItems.filter(Boolean));
+    }
+
+    if (filesToProcess.length > 0) {
+      try {
+        const newImageObjects = await Promise.all(filesToProcess.map(file => fileToImageObject(file)));
+        setImages(prevImages => [...prevImages, ...newImageObjects]);
+        if (newImageObjects.length > 0 && !selectedImage) {
+            setSelectedImage(newImageObjects[0]);
+        }
+      } catch (error) {
+        console.error("Error processing dropped files:", error);
+        toast.error("Could not process one or more of the dropped items.");
+      }
+    }
   }, [selectedImage]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': ['.png', '.jpeg', '.jpg', '.dcm'], 'application/dicom': ['.dcm'] } });
@@ -1568,128 +1581,7 @@ const [userInput, setUserInput] = useState(''); // For the chat input box
     });
   };
 
-  // const analyzeImages = async () => {
-  //   // if (isRestricted) {
-  //   //    toast.error("Please upgrade to a professional plan to use AI image analysis.");
-  //   //    return;
-  //   // }
-  //   if (images.length === 0) {
-  //     setError("Please upload one or more images first.");
-  //     return;
-  //   }
-  //   setIsAiLoading(true);
-  //   setAiAnalysisStatus('Analyzing images...');
-  //   setError(null);
-  //   setAiMeasurements([]);
-  //   setActiveAlert(null);
-  //   setCorrectionSuggestion(null);
-    
-    // try {
-
-    //   // const prompt = `
-    //   //       You are an advanced AI assistant specializing in the analysis of medical imaging studies.
-    //   //       Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
-    //   //       The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
-
-    //   //       1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.
-    //   //       2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
-    //   //          - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
-    //   //          - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
-    //   //       3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
-    //   //          - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
-    //   //          - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
-    //   //          - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
-      
-    //   //       Clinical Context: "${clinicalContext || 'None'}"
-    //   //     `;
-    //   // const prompt = `
-    //   // You are a highly observant, knowledgable and one of the moset experienced Senior Radiologist and Cardiologist specialized in the analysis of medical imaging studies like Ultrasound, X-Ray, MRI, CT, 2d-Echo, 3d-Echo,ECG,etc .
-    //   //   Given one or more medical images and optional clinical context, you must analyze the content and return a single, valid JSON object.
-    //   //     The root of this object must contain the following keys: "analysisReport", "measurements", and "criticalFinding".
-
-    //   //     1. "analysisReport" (String): A comprehensive, human-readable narrative report describing the findings and impressions, formatted as an HTML string with <p> and <strong> tags.**Note: Impression should provide brief info about the finding not repeat the same thing (for example for this finding:'Two well defined hyperechoic lesions are noted in the subcutaneous plane of anterior abdominal wall in left hypochondria region with no e/o vascularity on applying colour doppler likely to be lipoma, largest measuring 2.1 x 0.8 x 1.1 cm' , The Impression should be :•	'Anterior Abdomial wall lipoma.')
-    //   //     2. "measurements" (Array of Objects): An array for all identifiable and measurable findings. If none, return an empty array []. Each object must contain:
-    //   //         - "finding" (String): A concise description of the object being measured (e.g., "Right Kidney", "Aortic Diameter", "Pulmonary Nodule in Left Upper Lobe").
-    //   //         - "value" (String): The measurement value with units (e.g., "10.2 x 4.5 cm", "4.1 cm", "8 mm").
-    //   //     3. "criticalFinding" (Object or Null): An object for actionable critical findings. If none, this MUST be null. If a critical finding is detected, the object MUST contain:
-    //   //         - "findingName" (String): The specific name of the critical finding (e.g., "Aortic Dissection").
-    //   //         - "reportMacro" (String): A pre-defined sentence for the report (e.g., "CRITICAL FINDING: Acute aortic dissection is identified.").
-    //   //         - "notificationTemplate" (String): A pre-populated message for communication (e.g., "URGENT: Critical finding on Patient [Patient Name/ID]. CT shows acute aortic dissection...").
-        
-    //   //     **Please remove this for reference only** Clinical Context: "${clinicalContext || 'None'}"
-    //   //     OR If Given one or more images of the ready-to-print report then :
-    //   //   1.  **Extract Text**: Accurately extract all text from the provided image(s) to form a complete report.
-    //   //   2.  **Analyze for Inconsistencies**:
-    //   //       * Review the "body" of the report which contains all the findings to identify all significant radiological findings.
-    //   //       * Compare these findings with the "IMPRESSION" section.
-    //   //       * If a significant finding from the body is missing from the impression (e.g., "fatty liver" is in findings but not impression), or if the significant finding present in the impression is missing in the body of the report that contains all the findings,  identify it.
-    //   //   3.  **Generate Correction and Alert**:
-    //   //       * If an inconsistency is found, create a 'suggestedCorrection' string. This should be the exact text to add to the impression (e.g., "Grade I fatty liver.").
-    //   //       * Also create a concise 'inconsistencyAlert' message explaining the issue (e.g., "'Grade I fatty liver' was found but is missing from the impression.").
-
-    //   //   Return a single JSON object with the following keys. Do not include any other text or markdown.
-    //   //   * 'analysisReport': The **original, uncorrected** report text, extracted from the image, as an HTML string.
-    //   //   * 'measurements': An array of any measurements found (or an empty array if none).
-    //   //   * 'criticalFinding': An object for any critical findings (or null if none).
-    //   //   * 'inconsistencyAlert': A string explaining the inconsistency, or null if none was found.
-    //   //   * 'suggestedCorrection': The string to be added to the impression to fix the issue, or null if none is needed.
-    //   //   `;
-      
-    //   const imageParts = images.map(image => ({ inlineData: { mimeType: image.type, data: image.base64 } }));
-    //   const payload = {
-    //     contents: [{ role: "user", parts: [{ text: prompt }, ...imageParts] }],
-    //     generationConfig: { responseMimeType: "application/json" }
-    //   };
-    //   const model = 'gemini-2.5-flash';
-    //   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    //   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    //   const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      
-    //   if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-    //   const result = await response.json();
-    //   const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
-
-    //   if (textResult) {
-    //     const parsedResult = JSON.parse(textResult);
-    //     if (parsedResult.analysisReport && editor) {
-    //       isProgrammaticUpdate.current = true;
-    //       editor.commands.clearContent();
-    //       editor.commands.setContent(parsedResult.analysisReport);
-    //     }
-    //     if (parsedResult.measurements) {
-    //       setAiMeasurements(parsedResult.measurements);
-    //     }
-    //     // Cancel any stale debounced checkers to prevent them from clearing a fresh alert
-    //     if (inconsistencyCheckTimeoutRef.current) {
-    //       clearTimeout(inconsistencyCheckTimeoutRef.current);
-    //       inconsistencyCheckTimeoutRef.current = null;
-    //     }
-    //     if (debounceTimeoutRef.current) {
-    //       clearTimeout(debounceTimeoutRef.current);
-    //       debounceTimeoutRef.current = null;
-    //     }
-    //     if (parsedResult.criticalFinding) {
-    //       setActiveAlert({ type: 'critical', data: parsedResult.criticalFinding });
-    //       setIsAwaitingAlertAcknowledge(true);
-    //     }
-    //     if (parsedResult.inconsistencyAlert || parsedResult.suggestedCorrection) {
-    //       setActiveAlert({ type: 'inconsistency', message: parsedResult.inconsistencyAlert });
-    //       setCorrectionSuggestion(parsedResult.suggestedCorrection); // Store the suggestion
-    //       setIsAwaitingAlertAcknowledge(true);
-    //     }
-    //     toastDone('AI analysis complete');
-    //   } else {
-    //     throw new Error("No valid response returned from AI.");
-    //   }
-    // } catch (err) {
-    //   setError("Failed to analyze images. " + err.message);
-    //   console.error(err);
-    // } finally {
-    //   setIsAiLoading(false);
-    //   setAiAnalysisStatus('');
-    // }
-    // Replace the entire try...catch...finally block in analyzeImages
+  
 
    const analyzeImages = async () => {
     if (images.length === 0) {
@@ -2130,10 +2022,6 @@ const [userInput, setUserInput] = useState(''); // For the chat input box
   }, [isAwaitingAlertAcknowledge]);
 
   const handleGetSuggestions = async (type) => {
-    // if (isRestricted) {
-    //    toast.error("Please upgrade to a professional plan to get AI suggestions.");
-    //    return;
-    // }
     if (!editor) {
       setError("Editor not initialized. Please wait and try again.");
       return;
@@ -2196,10 +2084,6 @@ const [userInput, setUserInput] = useState(''); // For the chat input box
   };
 
   const handleParseReport = async () => {
-    // if (isRestricted) {
-    //    toast.error("Please upgrade to a professional plan to use the AI report parser.");
-    //    return;
-    // }
     if (!assistantQuery) {
       setError("Please paste a report into the AI Assistant box to parse.");
       return;
@@ -2471,10 +2355,7 @@ const handleSendMessage = async (message) => {
   };
 
   const handleCorrectReport = async () => {
-    // if (isRestricted) {
-    //    toast.error("Please upgrade to a professional plan to use the AI Assistant.");
-    //    return;
-    // }
+
     if (!assistantQuery) {
       setError("Please paste a report in the text box to correct it.");
       return;
@@ -2525,10 +2406,7 @@ const handleSendMessage = async (message) => {
   };
 
   const handleGenerateTemplate = async () => {
-    // if (isRestricted) {
-    //    toast.error("Please upgrade to a professional plan to use the AI Assistant.");
-    //    return;
-    // }
+
     if (!assistantQuery) {
       setError("Please enter a topic to generate a template.");
       return;
@@ -2591,12 +2469,6 @@ const handleSendMessage = async (message) => {
     const reportLimit = 1000;
     let newCount = userData.reportCount || 0;
 
-    // if (userRole === 'basic') {
-    //    if (newCount >= reportLimit) {
-    //        toast.error("You've reached your monthly limit of 5 reports. Please upgrade for unlimited access.");
-    //        return;
-    //    }
-    // }
 
     let reportHtml = '';
     if (editor) {
@@ -2850,10 +2722,6 @@ const handleSendMessage = async (message) => {
   if (!user) {
       return <Auth />;
   }
-    // If the user is not a professional, show the upgrade page
-    // if (userRole !== 'professional') {
-    //    return <UpgradePage user={user} />;
-    // }
 // --- NEW HELPER FUNCTION for DICOM Conversion ---
   const convertDicomToPngBase64 = async (dicomFile) => {
     const cornerstone = window.cornerstone;
@@ -2893,7 +2761,15 @@ const handleSendMessage = async (message) => {
     }
   };
   return (
-    <div className="min-h-screen bg-gray-700 font-sans text-gray-800">
+    <div
+      className="min-h-screen font-sans text-gray-800"
+      style={{
+        backgroundImage: `linear-gradient(rgba(24, 32, 47, 0.9), rgba(24, 32, 47, 0.9)), url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
       <style>{`
         .tiptap {
           min-height: 250px;
@@ -2952,7 +2828,7 @@ const handleSendMessage = async (message) => {
           style={{ maxWidth: '5%' }}
         /> */}
         
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <img src="src/assets/aiRAD_logo.jpg" alt="aiRAD Logo" className="h-24 w-24 mr-4 rounded-lg flex items-left justify-left"  /><br/>aiRAD-Reporting, Redefined.</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-100 flex items-center justify-center"> <img src="src\assets\aiRAD_logo.jpg" alt="aiRAD Logo" className="h-24 w-24 mr-4 rounded-lg flex items-left justify-left"  /><br/>aiRAD-Reporting, Redefined.</h1>
           <p className="text-lg text-gray-100 mt-2">AI-Assisted Radiology Reporting System.</p>
           {user && (
             <div className="absolute top-0 right-0 flex items-center space-x-4">
