@@ -4775,8 +4775,16 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
 
         if (!image || !element) {
             console.log("ImageViewer: Aborting - No image or element provided.");
+            // Ensure cornerstone is disabled if no image is present but element exists
+            try {
+                if (element && window.cornerstone && window.cornerstone.getEnabledElement(element)) {
+                   console.log("ImageViewer: Disabling element due to missing image.");
+                   window.cornerstone.disable(element);
+                }
+            } catch (cleanupError) { console.warn("ImageViewer: Error during cleanup for missing image:", cleanupError); }
             return; // Exit if no image or element ref
         }
+
 
         // Display message if loaders aren't ready yet
         if (!isDicomLoaded) {
@@ -4786,6 +4794,7 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
         }
 
         let isEffectActive = true; // Flag to check if component is still mounted during async ops
+        let resizeObserver = null; // Variable to hold the observer instance
 
         const loadAndDisplayImage = async () => {
             if (!isEffectActive) return; // Prevent execution if component unmounted
@@ -4825,7 +4834,10 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
                 cornerstone.enable(element);
 
                 // Initialize tools (consider if this needs protection, maybe init once in App?)
-                // cornerstoneTools.init();
+                try {
+                    cornerstoneTools.init({ showSVGCursors: true }); // Initialize tools if not already
+                } catch (initError) { console.warn("ImageViewer: cornerstoneTools.init() likely already called:", initError); }
+
 
                 let imageId;
                 console.log("ImageViewer: Determining image type:", image.type, image.name);
@@ -4833,12 +4845,20 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
                 if (image.type === 'application/dicom' || image.name?.toLowerCase().endsWith('.dcm')) {
                     if (!image.file) throw new Error("DICOM image object missing 'file' property.");
                     console.log("ImageViewer: Adding DICOM file:", image.file);
+                    // Ensure previous file with same name is removed if re-adding
+                    try {
+                        csWADOImageLoader.wadouri.fileManager.remove(image.file);
+                    } catch (removeError) { /* File likely wasn't added before, ignore */ }
                     imageId = csWADOImageLoader.wadouri.fileManager.add(image.file);
                 } else if (image.type?.startsWith('image/')) {
                     if (!image.file && !image.src) throw new Error("Web image object missing 'file' or 'src'.");
                     // Prefer file if available, otherwise fetch from src
                     const fileToLoad = image.file || new File([await (await fetch(image.src)).blob()], image.name || 'image.png', {type: image.type || 'image/png'});
                     console.log("ImageViewer: Adding Web image file:", fileToLoad);
+                     // Ensure previous file with same name is removed if re-adding
+                    try {
+                        csWebImageLoader.fileManager.remove(fileToLoad);
+                    } catch (removeError) { /* File likely wasn't added before, ignore */ }
                     imageId = csWebImageLoader.fileManager.add(fileToLoad);
                 } else {
                     throw new Error(`Unsupported image type: ${image.type || 'unknown'}`);
@@ -4854,16 +4874,70 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
 
                 console.log("ImageViewer: Displaying image...");
                 cornerstone.displayImage(element, loadedImage);
-                cornerstone.resize(element, true);
-                console.log("ImageViewer: Image displayed.");
+
+
+                // === START FIX: Disable Overlays ===
+                try {
+                    const viewport = cornerstone.getViewport(element);
+                    if (viewport) {
+                        viewport.overlay = false; // Disable general overlay
+                        // Optionally disable specific overlays if needed:
+                        // viewport.textOverlay = false;
+                        // viewport.patientInfoOverlay = false;
+                        cornerstone.setViewport(element, viewport);
+                        console.log("ImageViewer: Disabled viewport overlays.");
+                    } else {
+                         console.warn("ImageViewer: Could not get viewport to disable overlays.");
+                    }
+                } catch (viewportError) {
+                    console.error("ImageViewer: Error disabling overlays:", viewportError);
+                }
+                // === END FIX ===
+                
+                // === START FIX: ResizeObserver ===
+                if (window.ResizeObserver) {
+                    resizeObserver = new ResizeObserver(() => {
+                        console.log("ImageViewer (ResizeObserver): Element resized, calling cornerstone.resize.");
+                        try {
+                            // Check if element is still enabled before resizing
+                            if (cornerstone.getEnabledElement(element)) {
+                                cornerstone.resize(element, true); // Use checkSize = true
+                            }
+                        } catch (resizeError) {
+                             console.warn("ImageViewer (ResizeObserver): Error during resize, element might be disabled:", resizeError);
+                             // Optionally disconnect observer if element is consistently disabled
+                             // if (resizeObserver) resizeObserver.disconnect();
+                        }
+                    });
+                    resizeObserver.observe(element);
+                    console.log("ImageViewer: ResizeObserver attached.");
+                    // Trigger initial resize explicitly AFTER observing, ensures it runs at least once
+                    // cornerstone.resize(element, true); // Let observer handle initial size calculation
+                } else {
+                    // Fallback for older browsers (less reliable)
+                    console.warn("ImageViewer: ResizeObserver not supported, falling back to manual resize.");
+                    cornerstone.resize(element, true);
+                    // Consider adding a window resize listener as a further fallback here
+                }
+                // === END FIX ===
+
+                cornerstone.resize(element, true); // Resize after setting viewport potentially
+                console.log("ImageViewer: Image displayed and overlays potentially disabled.");
 
                 // Tool setup
                 console.log("ImageViewer: Setting up tools...");
                 try {
-                    cornerstoneTools.addTool(cornerstoneTools.PanTool);
-                    cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
-                    cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
-                } catch (toolError) { console.warn("ImageViewer: Tools likely already added:", toolError); }
+                    // Check if tools exist before adding to prevent errors on re-renders
+                    if (!cornerstoneTools.getToolState(element, 'Pan')) {
+                        cornerstoneTools.addTool(cornerstoneTools.PanTool);
+                    }
+                    if (!cornerstoneTools.getToolState(element, 'Zoom')) {
+                       cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
+                    }
+                     if (!cornerstoneTools.getToolState(element, 'Wwwc')) {
+                       cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
+                     }
+                } catch (toolError) { console.warn("ImageViewer: Error during tool setup/check:", toolError); }
 
                 cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 1 });
                 cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 });
@@ -4874,6 +4948,12 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
                 if (!isEffectActive) return; // Don't set error if unmounted
                 console.error("ImageViewer: Error during load/display:", err);
                 setError(`Failed to load image: ${err.message}.`);
+                // Attempt to disable the element on error to clean up
+                 try {
+                     if (element && window.cornerstone && window.cornerstone.getEnabledElement(element)) {
+                        window.cornerstone.disable(element);
+                     }
+                 } catch (disableError) { console.warn("ImageViewer: Error disabling element after load failure:", disableError); }
             } finally {
                 if (isEffectActive) setLoading(false);
                 console.log("ImageViewer: loadAndDisplayImage finished.");
@@ -4889,6 +4969,8 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
             try {
                 if (element && window.cornerstone && window.cornerstone.getEnabledElement(element)) {
                    console.log("ImageViewer: Disabling cornerstone element.");
+                   // Remove tool state before disabling if necessary, though disable often handles this
+                   // cornerstoneTools.clearToolState(element, 'Pan'); // Example
                    window.cornerstone.disable(element);
                 }
             } catch (err) {
@@ -4898,6 +4980,7 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
     }, [image, isDicomLoaded]); // Depend on both image and loader status
 
     // --- JSX for the viewer component ---
+    // (The JSX part of ImageViewer remains unchanged)
     return (
         <div className={`relative w-full border border-slate-700 rounded-lg bg-black overflow-hidden ${className || 'h-[500px]'}`}>
             {/* Loading Overlay */}
@@ -4921,7 +5004,7 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
 };
 
 // --- NEW COMPONENT: ImageModal ---
-const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev }) => {
+const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev, isDicomLoaded }) => { // Added isDicomLoaded prop
   if (currentIndex === null || !images[currentIndex]) return null;
 
   const currentImage = images[currentIndex];
@@ -4944,45 +5027,62 @@ const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev }) => {
   }, [handleKeyDown]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-      <div className="relative bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col p-4 border-2 border-gray-700">
-        <div className="flex justify-between items-center mb-2 text-white">
-          <h3 className="text-lg font-bold">
-            Image {currentIndex + 1} of {images.length} - {currentImage.name}
-          </h3>
-          <button onClick={onClose} className="text-gray-300 hover:text-white">
-            <XCircle size={28} />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-2 sm:p-4">
+      {/* Main modal container */}
+      <div className="relative bg-gray-900 rounded-lg sm:rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col p-3 sm:p-4 border-2 border-gray-700">
+
+        {/* Header (Unchanged from previous fix) */}
+        <div className="flex items-center justify-between mb-2 text-white gap-3 flex-shrink-0">
+            <div className="flex-grow min-w-0">
+                <h3 className="text-base sm:text-lg font-bold truncate">
+                    <span className="hidden sm:inline">Image </span>{currentIndex + 1}/{images.length} - {currentImage.name}
+                </h3>
+            </div>
+            <button onClick={onClose} className="text-gray-300 hover:text-white flex-shrink-0 p-1">
+                <XCircle size={24} sm:size={28} />
+            </button>
         </div>
-        <div className="flex-grow relative">
-          {isDicom(images[currentIndex]) ? (
-          <div className="w-full h-full">
-            <ImageViewer image={images[currentIndex]} />
-          </div>
-        ) : (
-          <img
-            src={getRasterSrc(images[currentIndex])}
-            alt={images[currentIndex]?.name || `Image ${currentIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
-            draggable={false}
-          />
-        )}
+
+        {/* Image display area - Parent defines the boundary */}
+        <div className="flex-grow relative min-h-0 overflow-hidden">
+          {isDicom(currentImage) ? (
+            // DICOM container - Still uses absolute positioning for ImageViewer
+            <div className="absolute inset-0">
+              <ImageViewer image={currentImage} isDicomLoaded={isDicomLoaded} />
+            </div>
+          ) : (
+            // === START FIX: Raster Image Container ===
+            // Reverted: Use standard flex centering within the parent bounds
+            // The parent div above provides the actual size via flex-grow
+            <div className="w-full h-full flex items-center justify-center p-1">
+                 <img
+                    src={getRasterSrc(currentImage)}
+                    alt={currentImage?.name || `Image ${currentIndex + 1}`}
+                    // max-w/max-h constrain the image within this flex container
+                    className="block max-w-full max-h-full object-contain"
+                    draggable={false}
+                 />
+            </div>
+            // === END FIX ===
+          )}
         </div>
+
       </div>
-      {/* Navigation Buttons */}
+
+      {/* Navigation Buttons (Unchanged) */}
       <button
         onClick={onPrev}
         disabled={currentIndex === 0}
-        className="absolute left-4 top-1/2 -translate-y-1/2 bg-gray-700 text-white rounded-full p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 bg-gray-700/70 text-white rounded-full p-1.5 sm:p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
       >
-        <ChevronLeft size={32} />
+        <ChevronLeft size={24} sm:size={32} />
       </button>
       <button
         onClick={onNext}
         disabled={currentIndex >= images.length - 1}
-        className="absolute right-4 top-1/2 -translate-y-1/2 bg-gray-700 text-white rounded-full p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 bg-gray-700/70 text-white rounded-full p-1.5 sm:p-3 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
       >
-        <ChevronRight size={32} />
+        <ChevronRight size={24} sm:size={32} />
       </button>
     </div>
   );
@@ -5535,136 +5635,215 @@ useEffect(() => {
 }, [editorContent, modality]); // This runs whenever the template or modality changes
 
 
-// --- END: Replacement block ---
+
   
-//     const handleInsertMeasurements = (values, calculusData) => {
-//     if (!editor) return;
-    
-//     // Always start from the clean, original template to prevent errors
-//     let updatedHtml = allTemplates[modality]?.[template] || '';
+// const handleInsertMeasurements = (values, calculusData) => {
+//         if (!editor) return;
 
-//     // This robust regex finds a placeholder defined as one or more underscores,
-//     // optionally followed by a space and a common unit (cm, mm, ml, cc).
-//     const placeholderRegex = /_+\s?(cm|mm|ml|cc)?/;
+//         // Start with the clean, original template content from state or props
+//         let updatedHtml = allTemplates[modality]?.[template] || '';
 
-//     // 1. Replace standard measurement placeholders sequentially
-//     dynamicMeasurements.forEach(measurementConfig => {
-//         const value = values[measurementConfig.id];
-//         // Only replace if there is a value
-//         if (value && value.trim() !== '') {
-//             // Replace the *next available* placeholder that matches the pattern
-//             updatedHtml = updatedHtml.replace(placeholderRegex, `<strong>${value}</strong>`);
-//         }
-//     });
+//         // Regex for placeholders like "__ cm", "__ mm", etc.
+//         const placeholderRegex = /_+\s?(cm|mm|ml|cc)?/;
 
-//     // 2. Insert calculus/mass lesion findings
-//     calculusData.forEach(calculus => {
-//         if (!calculus.location || !calculus.size) return;
-//         const organName = calculus.location;
-//         let findingText = ` A ${calculus.size}`;
-//         if (calculus.description) {
-//             findingText += ` ${calculus.description}`;
-//         }
-//         findingText += " is noted.";
-
-//         const organRegex = new RegExp(`(<p><strong>${escapeRegex(organName)}:?<\/strong>)(.*?)(<\/p>)`, "i");
-        
-//         updatedHtml = updatedHtml.replace(organRegex, (match, openingTags, existingContent, closingTag) => {
-//             const placeholderRegex = /Normal in size|Not dilated|unremarkable|No significant/i;
-//             let finalContent = placeholderRegex.test(existingContent) ? findingText : existingContent + findingText;
-//             return `${openingTags}${finalContent}${closingTag}`;
+//         // 1. Replace standard measurement placeholders sequentially
+//         dynamicMeasurements.forEach(measurementConfig => {
+//             const value = values[measurementConfig.id];
+//             if (value && value.trim() !== '') {
+//                 // Replace the *next available* placeholder
+//                 updatedHtml = updatedHtml.replace(placeholderRegex, `<strong>${value}</strong>`);
+//             }
 //         });
-//     });
 
-//     // Use the programmatic update flag to prevent the editor's onUpdate from re-triggering this logic
-//     isProgrammaticUpdate.current = true;
-//     editor.commands.setContent(updatedHtml);
-//     setEditorContent(updatedHtml); // <-- THIS LINE IS ADDED
-// };
+//         // 2. Insert calculus/mass lesion findings
+//         calculusData.forEach(calculus => {
+//             if (!calculus.location || !calculus.size) return; // Skip if essential data is missing
 
+//             const organName = calculus.location;
+//             let findingText = ` A ${calculus.size}`;
+//             if (calculus.description) {
+//                 findingText += ` ${calculus.description}`;
+//             }
+//             findingText += " is noted."; // Specify 'calculus'
+
+//             // Regex to find the <p> tag containing the organ name (case-insensitive)
+//             const organRegex = new RegExp(`(<p><strong>${escapeRegex(organName)}:?<\/strong>)(.*?)(<\/p>)`, "i");
+
+//             // Use the replace callback function
+//             updatedHtml = updatedHtml.replace(organRegex, (match, openingTags, existingContent, closingTag) => {
+//                 // Sentences indicating normality that should be replaced
+//                 // Make this more specific to avoid accidentally replacing other content
+//                 const normalSentencesRegex = new RegExp(
+//                     [
+//                         // General
+//                         "Normal morphology and echotexture\\.",
+//                         "Normal size, shape, position, echogenicity and echotexture\\.",
+//                         "unremarkable\\.",
+//                         // Specific organs
+//                         "No hydronephrosis, calculus, or mass\\.", // Kidneys
+//                         "No gallstones, sludge, or polyps\\.", // Gallbladder
+//                         "Not dilated, measuring __ mm at the porta hepatis\\.", // CBD (Handle placeholder)
+//                         "Not dilated\\.", // Ureters, CBD etc.
+//                         "No calculus is seen in the portions of ureters which can be seen by sonography\\.", // Ureters specific
+//                         "No calculi, masses, or diverticula identified\\.", // Bladder
+//                         "No calculi or masses\\." // Bladder simplified
+//                     ].map(s => `(${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`).join('|'), // Escape regex chars and join with OR
+//                     "gi" // Global, case-insensitive
+//                 );
+
+//                 let finalContent;
+//                 let replacedNormalSentence = false;
+
+//                 // Attempt to replace a specific "normal" sentence
+//                 finalContent = existingContent.replace(normalSentencesRegex, (sentenceMatch) => {
+//                     replacedNormalSentence = true; // Mark that replacement happened
+//                     return findingText; // Replace the matched normal sentence
+//                 });
+
+//                 // If no specific normal sentence was found and replaced, append the finding
+//                 if (!replacedNormalSentence) {
+//                     // Append with a space, ensuring not to add if already ends with a period.
+//                     finalContent = existingContent.trim().endsWith('.')
+//                         ? existingContent + ' ' + findingText
+//                         : existingContent + '.' + ' ' + findingText;
+//                 }
+
+//                 // Return the modified paragraph content
+//                 return `${openingTags}${finalContent}${closingTag}`;
+//             });
+//         });
+
+//         // Update the editor and the React state
+//         isProgrammaticUpdate.current = true;
+//         editor.commands.setContent(updatedHtml);
+//         setEditorContent(updatedHtml); // Keep React state in sync
+//     };
   
 const handleInsertMeasurements = (values, calculusData) => {
-        if (!editor) return;
+        if (!editor) {
+            console.error("Apply Measurements: Editor not available.");
+            return;
+        }
 
-        // Start with the clean, original template content from state or props
-        let updatedHtml = allTemplates[modality]?.[template] || '';
+        console.log("Apply Measurements: Received Values:", values);
+        console.log("Apply Measurements: Received Calculus Data:", calculusData);
 
-        // Regex for placeholders like "__ cm", "__ mm", etc.
-        const placeholderRegex = /_+\s?(cm|mm|ml|cc)?/;
+        let currentHtml = editor.getHTML();
+        let updatedHtml = currentHtml; // Start with current content
 
-        // 1. Replace standard measurement placeholders sequentially
+        console.log("Apply Measurements: Starting HTML:", currentHtml.substring(0, 300) + "..."); // Log beginning
+
+        // --- Corrected Placeholder Replacement Logic ---
         dynamicMeasurements.forEach(measurementConfig => {
-            const value = values[measurementConfig.id];
-            if (value && value.trim() !== '') {
-                // Replace the *next available* placeholder
-                updatedHtml = updatedHtml.replace(placeholderRegex, `<strong>${value}</strong>`);
+            const valueKey = measurementConfig.id;
+            const providedValue = values[valueKey];
+
+            if (providedValue && providedValue.trim() !== '') {
+                // FIX: Use '_+' to match one or more underscores
+                const placeholderRegex = /_+\s?(cm|mm|ml|cc)?/;
+
+                if (placeholderRegex.test(updatedHtml)) {
+                    const tempHtml = updatedHtml.replace(placeholderRegex, `<strong>${providedValue}</strong>`);
+                    if (tempHtml !== updatedHtml) {
+                         console.log(`Apply Measurements: Replaced placeholder for value '${providedValue}' (Key: ${valueKey})`);
+                         updatedHtml = tempHtml;
+                    } else {
+                        console.warn(`Apply Measurements: Regex test passed but replace failed for value '${providedValue}'. Check placeholder format.`);
+                    }
+                } else {
+                     console.warn(`Apply Measurements: No placeholder found in current HTML state for value '${providedValue}' (Key: ${valueKey})`);
+                }
             }
         });
+        // --- End Placeholder Logic ---
 
-        // 2. Insert calculus/mass lesion findings
-        calculusData.forEach(calculus => {
-            if (!calculus.location || !calculus.size) return; // Skip if essential data is missing
+
+        // --- Calculus/Mass Lesion Insertion Logic (with logging) ---
+        calculusData.forEach((calculus, index) => {
+            if (!calculus.location || !calculus.size) {
+                console.log(`Calculus Entry ${index}: Skipping due to missing location or size.`);
+                return;
+            }
 
             const organName = calculus.location;
             let findingText = ` A ${calculus.size}`;
             if (calculus.description) {
                 findingText += ` ${calculus.description}`;
             }
-            findingText += " is noted."; // Specify 'calculus'
+            findingText += " calculus is noted.";
+            const findingTextTrimmed = findingText.trim();
 
-            // Regex to find the <p> tag containing the organ name (case-insensitive)
+             console.log(`Calculus Entry ${index}: Processing for ${organName} - Finding: "${findingTextTrimmed}"`);
+
             const organRegex = new RegExp(`(<p><strong>${escapeRegex(organName)}:?<\/strong>)(.*?)(<\/p>)`, "i");
 
-            // Use the replace callback function
+            let organParagraphFound = false;
+
             updatedHtml = updatedHtml.replace(organRegex, (match, openingTags, existingContent, closingTag) => {
-                // Sentences indicating normality that should be replaced
-                // Make this more specific to avoid accidentally replacing other content
+                organParagraphFound = true;
+                console.log(`Calculus Entry ${index}: Found organ paragraph for ${organName}. Existing content: "${existingContent}"`);
+
+                if (existingContent.includes(findingTextTrimmed)) {
+                    console.log(`Calculus Entry ${index}: Finding text already present. Skipping insertion.`);
+                    return match;
+                }
+
                 const normalSentencesRegex = new RegExp(
                     [
-                        // General
                         "Normal morphology and echotexture\\.",
                         "Normal size, shape, position, echogenicity and echotexture\\.",
                         "unremarkable\\.",
-                        // Specific organs
-                        "No hydronephrosis, calculus, or mass\\.", // Kidneys
-                        "No gallstones, sludge, or polyps\\.", // Gallbladder
-                        "Not dilated, measuring __ mm at the porta hepatis\\.", // CBD (Handle placeholder)
-                        "Not dilated\\.", // Ureters, CBD etc.
-                        "No calculus is seen in the portions of ureters which can be seen by sonography\\.", // Ureters specific
-                        "No calculi, masses, or diverticula identified\\.", // Bladder
-                        "No calculi or masses\\." // Bladder simplified
-                    ].map(s => `(${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`).join('|'), // Escape regex chars and join with OR
-                    "gi" // Global, case-insensitive
+                        "No hydronephrosis, calculus, or mass\\.",
+                        "No gallstones, sludge, or polyps\\.",
+                        // FIX: Match one or more underscores in CBD regex
+                        "Not dilated, measuring _+\\s?mm at the porta hepatis\\.",
+                        "Not dilated\\.",
+                        "No calculus is seen in the portions of ureters which can be seen by sonography\\.",
+                        "No calculi, masses, or diverticula identified\\.",
+                        "No calculi or masses\\."
+                    ].map(s => `(${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`).join('|'), // Escape normally
+                    "gi"
                 );
 
                 let finalContent;
                 let replacedNormalSentence = false;
 
-                // Attempt to replace a specific "normal" sentence
                 finalContent = existingContent.replace(normalSentencesRegex, (sentenceMatch) => {
-                    replacedNormalSentence = true; // Mark that replacement happened
-                    return findingText; // Replace the matched normal sentence
+                    console.log(`Calculus Entry ${index}: Replacing normal sentence "${sentenceMatch}" with finding.`);
+                    replacedNormalSentence = true;
+                    return findingText;
                 });
 
-                // If no specific normal sentence was found and replaced, append the finding
                 if (!replacedNormalSentence) {
-                    // Append with a space, ensuring not to add if already ends with a period.
+                    console.log(`Calculus Entry ${index}: No normal sentence found/replaced. Appending finding.`);
                     finalContent = existingContent.trim().endsWith('.')
                         ? existingContent + ' ' + findingText
                         : existingContent + '.' + ' ' + findingText;
                 }
 
-                // Return the modified paragraph content
                 return `${openingTags}${finalContent}${closingTag}`;
             });
-        });
 
-        // Update the editor and the React state
-        isProgrammaticUpdate.current = true;
-        editor.commands.setContent(updatedHtml);
-        setEditorContent(updatedHtml); // Keep React state in sync
+             if (!organParagraphFound) {
+                 console.warn(`Calculus Entry ${index}: Could not find organ paragraph matching "${organName}". Calculus not inserted.`);
+            }
+        });
+        // --- End Calculus Logic ---
+
+        console.log("Apply Measurements: Final HTML:", updatedHtml.substring(0, 300) + "...");
+
+        if (updatedHtml !== currentHtml) {
+            console.log("Apply Measurements: HTML changed, updating editor and state.");
+            isProgrammaticUpdate.current = true;
+            editor.commands.setContent(updatedHtml);
+            setEditorContent(updatedHtml);
+        } else {
+             console.log("Apply Measurements: HTML did not change. No update applied.");
+             if (Object.keys(values).some(key => values[key]) || calculusData.length > 0) {
+                 toast.error("Could not apply measurements. Check console logs or if values already match.", {duration: 4000}); // Updated toast
+             }
+        }
     };
-  
   // --- AUTHENTICATION LISTENER & FREEMIUM CHECK ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -6789,7 +6968,19 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
     let prompt = '';
     if (type === 'differentials') {
       prompt = `
-        Act as an expert radiologist. Based on the following radiological findings, provide a list of potential differential diagnoses. For each diagnosis, provide a brief rationale and an estimated likelihood (e.g., Likely, Less Likely, Remote).
+        Act as a highly experienced diagnostic radiologist with deep knowledge across various modalities and pathologies, including both common and uncommon conditions.
+
+        Carefully analyze the key imaging features described in the **Findings** section of the following radiology report.
+
+        Based *specifically* on these key imaging features, generate a list of the **3 to 5 most relevant potential differential diagnoses**.
+
+        For each differential diagnosis:
+        1.  State the name of the condition clearly.
+        2.  **Crucially, list the specific imaging findings** from the provided report text that support this possibility.
+        3.  Briefly mention any **key distinguishing imaging features** (present or absent in the report) that help differentiate this diagnosis from others on the list, if applicable and concise.
+        4.  Provide an estimated likelihood using one of these terms: **Most Likely, Possible, Less Likely, Remote**.
+
+        Present the differentials in order, starting with the most likely. Format the output as a numbered list. Ensure the rationale directly connects the findings to the potential diagnoses.
 
         Findings:
         ---
@@ -6798,7 +6989,18 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       `;
     } else if (type === 'recommendations') {
       prompt = `
-        Act as an expert radiologist. Based on the following radiology report (especially the impression), suggest clinically appropriate follow-up actions or recommendations.
+        Act as a highly experienced, detail-oriented expert radiologist, fully aware of current clinical guidelines (e.g., ACR appropriateness criteria, Fleischner criteria where relevant).
+
+        Analyze the following radiology report, paying close attention to the **Impression** section to identify the most clinically significant findings.
+
+        Based *specifically* on these significant findings, provide a list of **3 to 5 clinically appropriate follow-up actions or recommendations**.
+
+        For each recommendation:
+        1.  State the recommendation clearly and concisely (e.g., "Follow-up CT chest in 6 months," "Correlation with liver function tests recommended," "Surgical consultation advised").
+        2.  Briefly explain the clinical reasoning or guideline supporting it, directly linking it to a finding in the impression.
+        3.  Prioritize the recommendations based on the urgency or importance of the corresponding findings.
+
+        Ensure the recommendations are precise, accurate, evidence-based where applicable, and directly relevant to the report's conclusions. Format the output as a numbered list. Avoid generic advice.
 
         Report:
         ---
