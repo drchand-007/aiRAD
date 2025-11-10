@@ -4214,6 +4214,10 @@ import TemplateManagerModal from './components/modals/TemplateManagerModal.jsx';
 import CollapsibleSection from './components/common/CollapsibleSection.jsx';
 import DOMPurify from 'dompurify';
 
+import { geminiTools } from './api/geminiTools.js'; // Import the tools
+import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the new hook
+import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
+import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
 
@@ -4375,43 +4379,85 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 
 
 // --- REDESIGNED COMPONENT: MenuBar ---
-const MenuBar = ({ editor }) => {
+// --- REPLACE your old MenuBar with this ---
+
+const MenuBar = ({ 
+  editor, 
+  voiceStatus, 
+  isDictationSupported, 
+  handleToggleListening,
+  interimTranscript 
+}) => {
   if (!editor) return null;
+  
   return (
-    <div className="flex items-center space-x-1 p-2 bg-slate-900 border-b border-slate-700 rounded-t-lg">
-      {['bold', 'italic', 'paragraph', 'bulletList', 'orderedList'].map(type => {
-        const icons = { bold: Bold, italic: Italic, paragraph: Pilcrow, bulletList: List, orderedList: ListOrdered };
-        const actions = {
-          bold: () => editor.chain().focus().toggleBold().run(),
-          italic: () => editor.chain().focus().toggleItalic().run(),
-          paragraph: () => editor.chain().focus().setParagraph().run(),
-          bulletList: () => editor.chain().focus().toggleBulletList().run(),
-          orderedList: () => editor.chain().focus().toggleOrderedList().run(),
-        };
-        const Icon = icons[type];
-        return (
-          <button
-            key={type}
-            onClick={actions[type]}
-            className={`p-2 rounded ${editor.isActive(type) ? 'bg-slate-700 text-white' : 'text-gray-400 hover:bg-slate-700 hover:text-white'}`}
-            title={type.charAt(0).toUpperCase() + type.slice(1)}
-          >
-            <Icon size={16} />
-          </button>
-        );
-      })}
+    // Make the menubar a flex container with space-between
+    <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900 border-b border-slate-700 rounded-t-lg">
+      
+      {/* Group for Tiptap buttons */}
+      <div className="flex items-center space-x-1">
+        {['bold', 'italic', 'paragraph', 'bulletList', 'orderedList'].map(type => {
+          const icons = { bold: Bold, italic: Italic, paragraph: Pilcrow, bulletList: List, orderedList: ListOrdered };
+          const actions = {
+            bold: () => editor.chain().focus().toggleBold().run(),
+            italic: () => editor.chain().focus().toggleItalic().run(),
+            paragraph: () => editor.chain().focus().setParagraph().run(),
+            bulletList: () => editor.chain().focus().toggleBulletList().run(),
+            orderedList: () => editor.chain().focus().toggleOrderedList().run(),
+          };
+          const Icon = icons[type];
+          return (
+            <button
+              key={type}
+              onClick={actions[type]}
+              className={`p-2 rounded ${editor.isActive(type) ? 'bg-slate-700 text-white' : 'text-gray-400 hover:bg-slate-700 hover:text-white'}`}
+              title={type.charAt(0).toUpperCase() + type.slice(1)}
+            >
+              <Icon size={16} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Group for Voice Assistant */}
+      <div className="flex items-center space-x-3">
+        {/* Show interim transcript if listening */}
+        {(voiceStatus === 'listening' || voiceStatus === 'processing') && interimTranscript && (
+          <p className="text-sm text-gray-400 italic hidden md:block">
+            {interimTranscript}
+          </p>
+        )}
+        
+        {/* The Voice Button */}
+        <button
+          onClick={handleToggleListening}
+          disabled={!isDictationSupported}
+          title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
+          className={`w-10 h-10 rounded-full text-white flex items-center justify-center transition-all
+              ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
+              ${voiceStatus === 'processing' ? 'bg-yellow-500 animate-spin' : ''}
+              disabled:bg-slate-700 disabled:cursor-not-allowed
+          `}
+        >
+          {voiceStatus === 'listening' && <Mic size={20} />}
+          {voiceStatus === 'processing' && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+          {voiceStatus === 'idle' && <Mic size={20} />}
+        </button>
+      </div>
+
     </div>
   );
 };
 
-
 // --- UNIFIED COMPONENT: AlertPanel (UNCHANGED) ---
-const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed }) => {
+// THIS IS THE CORRECT DEFINITION TO REPLACE (around line 4519)
+const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => { // 1. ADD onInsertGuideline HERE
   if (!alertData) return null;
 
   const isCritical = alertData.type === 'critical';
   const isFixable = alertData.type === 'inconsistency';
   const isMissingInfo = alertData.type === 'missing_info';
+  const isGuideline = alertData.type === 'guideline'; // 2. Add isGuideline check
 
   const config = {
     critical: {
@@ -4436,6 +4482,15 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
       Icon: AlertTriangle,
       title: 'Incomplete Report',
       message: alertData.message,
+    },
+    // 3. Add this new 'guideline' object
+    guideline: {
+      bgColor: 'bg-blue-900/50 border-blue-500',
+      textColor: 'text-blue-200',
+      iconColor: 'text-blue-400',
+      Icon: Lightbulb, // Using Lightbulb icon
+      title: 'AI Guideline Suggestion',
+      message: alertData.message, // This will be the finding
     },
   };
 
@@ -4504,9 +4559,29 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
                 </button>
               </>
             )}
+            
+            {/* 4. Add this new button block for guidelines */}
+            {isGuideline && (
+              <>
+                <button
+                  onClick={onInsertGuideline} // This line was causing the error
+                  className="bg-blue-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-blue-700 transition text-sm flex items-center"
+                >
+                  <PlusCircle size={16} className="mr-1.5" /> Insert Recommendation
+                </button>
+                <button
+                  onClick={onAcknowledge}
+                  className="bg-slate-600 text-slate-100 font-bold py-1 px-3 rounded-lg hover:bg-slate-500 transition text-sm flex items-center"
+                >
+                  <XCircle size={16} className="mr-1.5" /> Ignore
+                </button>
+              </>
+            )}
+            
           </div>
         </div>
-        { (isCritical || isMissingInfo) && (
+        {/* 5. Update this final condition */}
+        { (isCritical || isMissingInfo || isGuideline) && (
           <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
             <XCircle size={22} />
           </button>
@@ -5163,9 +5238,9 @@ const App = () => {
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [suggestionType, setSuggestionType] = useState('');
   const [isParsing, setIsParsing] = useState(false);
-  const [voiceStatus, setVoiceStatus] = useState('idle');
-  const [isDictationSupported, setIsDictationSupported] = useState(true);
-  const [interimTranscript, setInterimTranscript] = useState('');
+  // const [voiceStatus, setVoiceStatus] = useState('idle');
+  // const [isDictationSupported, setIsDictationSupported] = useState(true);
+  // const [interimTranscript, setInterimTranscript] = useState('');
   const [macros, setMacros] = useState([]); // Macros will now be loaded from Firestore
   const [showMacroModal, setShowMacroModal] = useState(false);
   const [newMacroCommand, setNewMacroCommand] = useState('');
@@ -5220,7 +5295,7 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
   const inconsistencyCheckTimeoutRef = useRef(null);
   const recognitionRef = useRef(null);
   const searchButtonRef = useRef(null);
-  const voiceStatusRef = useRef(voiceStatus);
+  // const voiceStatusRef = useRef(voiceStatus);
   const dataExtractTimeoutRef = useRef(null);
   const proactiveAnalysisTimeoutRef = useRef(null);
   const localSearchInputRef = useRef(null);
@@ -5365,21 +5440,21 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
     searchResultsRef.current = { localSearchResults, allAiSearchResults, currentAiPage };
   });
 
-  useEffect(() => {
-    voiceStatusRef.current = voiceStatus;
-  }, [voiceStatus]);
+  // useEffect(() => {
+  //   voiceStatusRef.current = voiceStatus;
+  // }, [voiceStatus]);
 
  // --- DEBOUNCED CHECKS FOR EDITOR ---
-  const debouncedCriticalCheck = useCallback((text) => {
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (!awaitingRef.current && text.trim() !== '') {
-        checkForCriticalFindings(text);
-      } else if (!awaitingRef.current) {
-        setActiveAlert(null);
-      }
-    }, 1000);
-  }, []); 
+  // const debouncedCriticalCheck = useCallback((text) => {
+  //   if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+  //   debounceTimeoutRef.current = setTimeout(() => {
+  //     if (!awaitingRef.current && text.trim() !== '') {
+  //       checkForCriticalFindings(text);
+  //     } else if (!awaitingRef.current) {
+  //       setActiveAlert(null);
+  //     }
+  //   }, 1000);
+  // }, []); 
 
     const runInconsistencyCheck = useCallback(async (plainText) => {
     if (isAwaitingAlertAcknowledge) return;
@@ -5448,45 +5523,304 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
     }
   }, [isAwaitingAlertAcknowledge]);
 // In App.jsx, ensure this useCallback exists
-const debouncedInconsistencyCheck = useCallback((text) => {
-    if (inconsistencyCheckTimeoutRef.current) clearTimeout(inconsistencyCheckTimeoutRef.current);
-    inconsistencyCheckTimeoutRef.current = setTimeout(() => {
-    // Ensure you don't have isAwaitingAlertAcknowledge check here if it causes issues
-    if (text.trim().length > 50) { // Check only after substantial text
-        runInconsistencyCheck(text); // Ensure runInconsistencyCheck exists
-    } else {
-        // Optionally clear the alert if text is too short
-         setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
-    }
-    }, 2500); // Increased delay slightly
-}, [runInconsistencyCheck]); // Add runInconsistencyCheck as dependency if defined with useCallback
+// const debouncedInconsistencyCheck = useCallback((text) => {
+//     if (inconsistencyCheckTimeoutRef.current) clearTimeout(inconsistencyCheckTimeoutRef.current);
+//     inconsistencyCheckTimeoutRef.current = setTimeout(() => {
+//     // Ensure you don't have isAwaitingAlertAcknowledge check here if it causes issues
+//     if (text.trim().length > 50) { // Check only after substantial text
+//         runInconsistencyCheck(text); // Ensure runInconsistencyCheck exists
+//     } else {
+//         // Optionally clear the alert if text is too short
+//          setActiveAlert(prev => (prev?.type === 'inconsistency' ? null : prev));
+//     }
+//     }, 2500); // Increased delay slightly
+// }, [runInconsistencyCheck]); // Add runInconsistencyCheck as dependency if defined with useCallback
 
-  const debouncedExtractData = useCallback((text) => {
-    if (dataExtractTimeoutRef.current) clearTimeout(dataExtractTimeoutRef.current);
-    dataExtractTimeoutRef.current = setTimeout(() => {
-      if (text.trim().length > 20) {
-        extractStructuredData(text);
+  // const debouncedExtractData = useCallback((text) => {
+  //   if (dataExtractTimeoutRef.current) clearTimeout(dataExtractTimeoutRef.current);
+  //   dataExtractTimeoutRef.current = setTimeout(() => {
+  //     if (text.trim().length > 20) {
+  //       extractStructuredData(text);
+  //     } else {
+  //       setStructuredData({});
+  //     }
+  //   }, 1500);
+  // }, []);
+
+  // const debouncedProactiveAnalysis = useCallback((text) => {
+  //   if (proactiveAnalysisTimeoutRef.current) clearTimeout(proactiveAnalysisTimeoutRef.current);
+  //   proactiveAnalysisTimeoutRef.current = setTimeout(() => {
+  //     // FIX: Removed the '!awaitingRef.current' check here.
+  //     // Proactive analysis should run even if another alert is active.
+  //     if (isProactiveHelpEnabled && !isSearching && text.trim().length > 40) {
+  //       runProactiveAnalysis(text);
+  //     }
+  //     // REMOVED the else-if block that might have cleared other alerts incorrectly.
+  //   }, 3000);
+  //   // FIX: Added isAwaitingAlertAcknowledge to dependencies, although the check inside is removed,
+  //   // it's good practice if other logic depended on it.
+  // }, [isProactiveHelpEnabled, isSearching, isAwaitingAlertAcknowledge]); // Added isAwaitingAlertAcknowledge dependency
+  
+  
+
+   // --- EDITOR INITIALIZATION ---
+  // const handleEditorUpdate = useCallback(({ editor }) => {
+  //   if (isProgrammaticUpdate.current) {
+  //     isProgrammaticUpdate.current = false;
+  //     return;
+  //   }
+    
+  //   const text = editor.getText();
+  //   const html = editor.getHTML(); // <-- Get the HTML
+  //   setEditorContent(html); // <-- THIS IS THE FIX: Keep React state in sync
+
+  //   if (awaitingRef.current) {
+  //     return;
+  //   }
+
+  //   debouncedCriticalCheck(text);
+  //   debouncedInconsistencyCheck(text);
+  //   debouncedExtractData(text);
+  //   debouncedProactiveAnalysis(text);
+  // }, [debouncedCriticalCheck, debouncedInconsistencyCheck, debouncedExtractData, debouncedProactiveAnalysis]);
+
+  // --- DEBOUNCED CHECKS FOR EDITOR ---
+
+  const handleAiKnowledgeSearch = async (isProactive = false, queryOverride = '') => {
+      // if (isRestricted) {
+      //    toast.error("Please upgrade to a professional plan to use AI knowledge search.");
+      //    return;
+      // }
+      const query = isProactive ? queryOverride : baseSearchQuery;
+      if (!query) {
+          setError("Please enter a search term first.");
+          return;
+      }
+      setIsSearching(true);
+      setError(null);
+      // Clear other search results
+      setAllAiSearchResults([]);
+      setAllAiFullReports([]);
+      setLocalSearchResults([]);
+
+      const prompt = `
+        You are a master medical AI. Your sole task is to provide a knowledge lookup on a specific medical condition.
+        The user wants to know about: "${query}".
+        
+        Perform a lookup using authoritative sources (like Radiopaedia, PubMed, StatPearls) and return a single, valid JSON object with this EXACT schema:
+        {
+          "queryType": "knowledgeLookup",
+          "conditionName": "string (The name of the condition)",
+          "summary": "string (HTML-formatted explanation of the condition, its pathophysiology, and clinical significance)",
+          "keyImagingFeatures": ["string (HTML-formatted list item)", "string"],
+          "differentialDiagnosis": ["string", "string"],
+          "sources": [{ "name": "string", "url": "string" }]
+        }
+        
+        Do not generate report findings. Your only job is to provide factual, educational information based on the requested condition.
+      `;
+
+      try {
+          const payload = {
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+          };
+          const model = 'gemini-2.5-flash';
+          const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+          const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+          if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+          const result = await response.json();
+          if (result.candidates?.[0]?.content.parts?.[0]?.text) {
+              const textResult = result.candidates[0].content.parts[0].text;
+              try {
+                  const parsedResult = JSON.parse(textResult);
+                  if (parsedResult.queryType === 'knowledgeLookup') {
+                      setAiKnowledgeLookupResult(parsedResult);
+                  } else {
+                      setError("The AI returned an unexpected response type for a knowledge search.");
+                  }
+              } catch (jsonError) {
+                  console.error("JSON Parsing Error:", jsonError, "Raw Text:", textResult);
+                  setError("The AI returned a non-standard response for the knowledge search.");
+              }
+          } else {
+              throw new Error("Knowledge search failed.");
+          }
+      } catch (err) {
+          setError("Failed to perform knowledge search. " + err.message);
+      } finally {
+          setIsSearching(false);
+      }
+  };
+
+   // --- NEW: "Editor Guardian" Agent ---
+  // (This function MUST be defined *after* handleAiKnowledgeSearch)
+  const runEditorGuardianAgent = useCallback(async (editorText) => {
+    // This agent runs on every text change (debounced)
+    // It consolidates multiple checks into one API call for efficiency
+    
+    // 1. Get current states for the prompt
+    const findingsMatch = editorText.match(/FINDINGS:([\s\S]*)IMPRESSION:/i);
+    const impressionMatch = editorText.match(/IMPRESSION:([\s\S]*)/i);
+
+    const findingsTextForPrompt = (findingsMatch && findingsMatch[1]) ? findingsMatch[1].trim() : "N/A";
+    const impressionTextForPrompt = (impressionMatch && impressionMatch[1]) ? impressionMatch[1].trim() : "N/A";
+    const canCheckInconsistency = findingsMatch && impressionMatch;
+
+    const prompt = `
+      You are an expert "Editor Guardian" AI for a radiology reporting system.
+      Your task is to analyze the user's in-progress report text and return a
+      single JSON object with checks for critical findings, inconsistencies,
+      guideline adherence, structured data, and knowledge lookups.
+
+      Analyze this text (for critical, guideline, knowledge, and data checks):
+      ---
+      ${editorText}
+      ---
+      
+      Separately, here are the parsed sections for your consistency check.
+      You must ONLY perform this check if both sections are provided (not "N/A").
+      If sections are "N/A", return "null" for "inconsistency".
+      FINDINGS: ${findingsTextForPrompt}
+      IMPRESSION: ${impressionTextForPrompt}
+
+      ---
+      **IMPORTANT RULES:**
+      1. A single finding can trigger multiple checks. For example, 'Acute Cholecystitis' should trigger *both* a "criticalFinding" AND a "knowledgeLookupQuery".
+      2. '6mm pulmonary nodule' should trigger *both* a "guidelineSuggestion" AND a "knowledgeLookupQuery" (for 'Fleischner criteria').
+      ---
+
+      You MUST respond with a single, valid JSON object following this exact schema.
+      Return "null" for any key where no finding is detected.
+
+      {
+        "criticalFinding": {
+          "findingName": "string",
+          "reportMacro": "string",
+          "notificationTemplate": "string"
+        } | null,
+        "inconsistency": ${canCheckInconsistency ? `{
+          "message": "string (Explanation of the mismatch)",
+          "suggestedCorrection": "string (Text to add to impression)"
+        } | null` : `null`},
+        "guidelineSuggestion": {
+          "finding": "string (The finding that triggered this, e.g., '6mm ground glass opacity')",
+          "guidelineName": "string (e.g., 'Fleischner Criteria')",
+          "recommendationText": "string (The suggested follow-up, e.g., 'Follow-up CT in 6-12 months is recommended.')"
+        } | null,
+        "knowledgeLookupQuery": "string (A concise search term for a specific entity, e.g., 'Bosniak classification')" | null,
+        "structuredData": {
+          "Finding1": "Value1",
+          "Measurement2": "Value2"
+        } | null
+      }
+    `;
+
+    try {
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) {
+        throw new Error(`Guardian API Error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      if (!result.candidates?.[0]?.content.parts?.[0]?.text) {
+        console.warn("Guardian Agent returned empty or blocked response.");
+        return;
+      }
+      
+      const textResult = result.candidates[0].content.parts[0].text;
+      const parsed = JSON.parse(textResult);
+
+      // --- Process the Consolidated Response ---
+
+      // 1. Always update Structured Data (if not in restricted mode)
+      if (parsed.structuredData && !isRestricted) {
+        setStructuredData(parsed.structuredData);
       } else {
-        setStructuredData({});
+        setStructuredData({}); // Clear it if not present
       }
-    }, 1500);
-  }, []);
 
-  const debouncedProactiveAnalysis = useCallback((text) => {
-    if (proactiveAnalysisTimeoutRef.current) clearTimeout(proactiveAnalysisTimeoutRef.current);
-    proactiveAnalysisTimeoutRef.current = setTimeout(() => {
-      // FIX: Removed the '!awaitingRef.current' check here.
-      // Proactive analysis should run even if another alert is active.
-      if (isProactiveHelpEnabled && !isSearching && text.trim().length > 40) {
-        runProactiveAnalysis(text);
+      // 2. Always trigger Knowledge Lookup (if not restricted)
+      if (parsed.knowledgeLookupQuery && !isRestricted) {
+        console.log("Guardian: Knowledge Lookup triggered for:", parsed.knowledgeLookupQuery); // Added log
+        setBaseSearchQuery(parsed.knowledgeLookupQuery); 
+        handleAiKnowledgeSearch(true, parsed.knowledgeLookupQuery);
       }
-      // REMOVED the else-if block that might have cleared other alerts incorrectly.
-    }, 3000);
-    // FIX: Added isAwaitingAlertAcknowledge to dependencies, although the check inside is removed,
-    // it's good practice if other logic depended on it.
-  }, [isProactiveHelpEnabled, isSearching, isAwaitingAlertAcknowledge]); // Added isAwaitingAlertAcknowledge dependency
+
+      // 3. Handle Alerts (Only if no other alert is awaiting acknowledgement)
+      if (awaitingRef.current) {
+        console.log("Guardian: Alert found, but another alert is pending. Ignoring new alert.");
+        return;
+      }
+
+      if (parsed.criticalFinding) {
+        console.log("Guardian: Critical finding detected.");
+        setActiveAlert({ type: 'critical', data: parsed.criticalFinding });
+        setIsAwaitingAlertAcknowledge(true);
+      
+      } else if (parsed.inconsistency && canCheckInconsistency) {
+        console.log("Guardian: Inconsistency detected.");
+        setActiveAlert({ type: 'inconsistency', message: parsed.inconsistency.message });
+        setCorrectionSuggestion(parsed.inconsistency.suggestedCorrection);
+        setIsAwaitingAlertAcknowledge(true);
+      
+      } else if (parsed.guidelineSuggestion && !isRestricted) {
+        console.log("Guardian: Guideline suggestion detected.");
+        setActiveAlert({
+          type: 'guideline',
+          message: `Finding: ${parsed.guidelineSuggestion.finding} (${parsed.guidelineSuggestion.guidelineName})`,
+          data: { recommendationText: parsed.guidelineSuggestion.recommendationText } 
+        });
+        setIsAwaitingAlertAcknowledge(true); // Treat it like an alert
+
+      } else {
+        // If no alerts are found, clear any non-critical, non-pending alerts
+        setActiveAlert(null);
+        setCorrectionSuggestion(null);
+      }
+
+    } catch (err) {
+      console.error("Editor Guardian Agent failed:", err);
+      // Don't bother the user with background failures
+    }
+  }, [isRestricted, isSearching, awaitingRef.current, handleAiKnowledgeSearch]); // Add dependencies
+
   
-  
+ // --- DEBOUNCED CHECKS FOR EDITOR ---
+
+  // NEW: Single debounced function for the Editor Guardian Agent
+  const debouncedGuardianCheck = useCallback((text) => {
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    
+    // Set a single timer (e.g., 1.5 seconds)
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Don't run the full agent if text is empty
+      if (text.trim().length > 20) {
+        // Run the consolidated agent
+        runEditorGuardianAgent(text); 
+      } else {
+        // If text is cleared, clear structured data and alerts
+        setStructuredData({});
+        if (!awaitingRef.current) {
+          setActiveAlert(null);
+          setCorrectionSuggestion(null); // <-- THIS IS THE FIX
+        }
+      }
+    }, 1500); // 1.5 second debounce
+  }, [runEditorGuardianAgent, awaitingRef.current]); // Add runEditorGuardianAgent
+
    // --- EDITOR INITIALIZATION ---
   const handleEditorUpdate = useCallback(({ editor }) => {
     if (isProgrammaticUpdate.current) {
@@ -5495,18 +5829,13 @@ const debouncedInconsistencyCheck = useCallback((text) => {
     }
     
     const text = editor.getText();
-    const html = editor.getHTML(); // <-- Get the HTML
-    setEditorContent(html); // <-- THIS IS THE FIX: Keep React state in sync
+    const html = editor.getHTML();
+    setEditorContent(html); // Keep React state in sync
 
-    if (awaitingRef.current) {
-      return;
-    }
+    // Call the single, new debounced function
+    debouncedGuardianCheck(text);
 
-    debouncedCriticalCheck(text);
-    debouncedInconsistencyCheck(text);
-    debouncedExtractData(text);
-    debouncedProactiveAnalysis(text);
-  }, [debouncedCriticalCheck, debouncedInconsistencyCheck, debouncedExtractData, debouncedProactiveAnalysis]);
+  }, [debouncedGuardianCheck]); // Only one dependency now
 
   const editor = useEditor({
     extensions: [
@@ -5517,7 +5846,7 @@ const debouncedInconsistencyCheck = useCallback((text) => {
       }),
     ],
     onUpdate: handleEditorUpdate,
-  }, [handleEditorUpdate]);
+  });
 
   useEffect(() => {
     if (editor && editorContent && editor.getHTML() !== editorContent) {
@@ -5993,7 +6322,7 @@ const handleInsertMeasurements = (values, calculusData) => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-pro';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -6018,6 +6347,11 @@ const handleInsertMeasurements = (values, calculusData) => {
     }
     // No need to set isSearching here, handleAiKnowledgeSearch will do it.
   };
+
+
+ 
+
+
  
   // --- NEW FUNCTION: findMissingMeasurements ---
   const findMissingMeasurements = () => {
@@ -6128,188 +6462,267 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
     }
   };
 
+  // const executeFunctionCall = useCallback(async (functionCall) => {
+  //   const { name, args } = functionCall;
 
-  const getCorrectedTranscript = async (transcript) => {
-    const prompt = `You are an expert medical transcriptionist. Correct any spelling or grammatical errors in the following text, paying close attention to radiological and medical terminology. Return only the corrected text. Text to correct: '${transcript}'`;
-    try {
-      const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-      const model = 'gemini-2.5-flash';
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  //   console.log(`Executing function: ${name}`, args);
+  //   toast(<>Executing: <b>{name}</b></>, { icon: '🤖' });
 
-      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) {
-        console.error("API Error, falling back to original transcript");
-        return transcript; // Fallback
-      }
-      const result = await response.json();
-      const correctedText = result.candidates?.[0]?.content.parts?.[0]?.text;
-      return correctedText || transcript;
-    } catch (error) {
-      console.error("Failed to get corrected transcript:", error);
-      return transcript; // Fallback
-    }
-  };
+  //   switch (name) {
+  //     case "analyzeImages":
+  //       if (images.length > 0) {
+  //         analyzeImages();
+  //       } else {
+  //         toast.error("Please upload images first.");
+  //       }
+  //       break;
 
-  const handleToggleListening = useCallback(() => {
-    if (!recognitionRef.current) {
-      setError("Voice dictation is not supported by your browser.");
-      return;
-    }
-    const currentStatus = voiceStatusRef.current;
-    if (currentStatus !== 'idle') {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-    }
-  }, []);
+  //     case "handleAiKnowledgeSearch":
+  //       await handleAiKnowledgeSearch(true, args.query);
+  //       break;
 
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      const recognition = recognitionRef.current;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onstart = () => {
-        setVoiceStatus('listening');
-      };
-
-      recognition.onresult = async (event) => {
-        let finalTranscript = '';
-        let currentInterim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript.trim();
-          } else {
-            currentInterim += event.results[i][0].transcript;
-          }
-        }
-        setInterimTranscript(currentInterim);
-
-        if (finalTranscript) {
-          isProgrammaticUpdate.current = true;
-          await handleVoiceCommand(finalTranscript);
-          setInterimTranscript('');
-        }
-      };
-
-      recognition.onend = () => {
-        setVoiceStatus('idle');
-        setInterimTranscript('');
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        setError(`Speech recognition error: ${event.error}`);
-        setVoiceStatus('idle');
-      };
-    } else {
-      setIsDictationSupported(false);
-      setError("Voice dictation is not supported by your browser.");
-    }
-
-    return () => {
-      if(recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    }
-  }, []); // This empty array is the source of the stale state, but we fix it with the ref.
-
-  const handleVoiceCommand = async (command) => {
-    if (!editor || !command) return;
-    const commandLC = command.toLowerCase().trim();
-
-    const aiSearchKeyword = "look up";
-    const commandKeyword = "command";
-    const macroKeyword = "macro";
-
-    if (commandLC.startsWith(aiSearchKeyword)) {
-      const query = commandLC.substring(aiSearchKeyword.length).trim();
-      if (query) {
-        await handleAiKnowledgeSearch(true, query);
-      }
-      return; // Exit after handling
-    }
-
-    if (commandLC.startsWith(macroKeyword)) {
-      const macroPhrase = commandLC.substring(macroKeyword.length).trim().replace(/[.,?]/g, '');
-      const macro = macrosRef.current.find(m => macroPhrase === m.command.toLowerCase().trim().replace(/[.,?]/g, ''));
-      if (macro) {
-        isProgrammaticUpdate.current = true;
-        editor.chain().focus().insertContent(macro.text).run();
-      } else {
-        console.warn(`Macro not found for: "${macroPhrase}"`);
-      }
-      return;
-    }
-
-    if (commandLC.startsWith(commandKeyword)) {
-      const action = commandLC.substring(commandKeyword.length).trim().replace(/[.,?]/g, '');
-
-      if (action === "analyze images") {
-        analyzeImages();
-      } else if (action === "download report") {
-        const reportHtml = await generateFinalReport(); // Await the async function
-        if (reportHtml) {
-          downloadPdfReport(reportHtml);
-        }
-      } else if (action.startsWith("search for")) {
-        const searchTerm = action.substring("search for".length).trim();
-        setSearchQuery(searchTerm);
-        setTimeout(() => {
-          if(searchButtonRef.current) {
-            searchButtonRef.current.click();
-          }
-        }, 100);
-      } else if (action.startsWith("insert result")) {
-        const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
-        const resultNumStr = action.substring("insert result".length).trim();
-        const resultNum = numberWords[resultNumStr] || parseInt(resultNumStr, 10);
+  //     case "insertMacro":
+  //       const macroPhrase = args.macroName.toLowerCase().trim().replace(/[.,?]/g, '');
+  //       const macro = macrosRef.current.find(m => m.command.toLowerCase().trim().replace(/[.,?]/g, '') === macroPhrase);
         
-        const { localSearchResults, allAiSearchResults, currentAiPage } = searchResultsRef.current;
-        const combinedResults = [...localSearchResults, ...(allAiSearchResults[currentAiPage] || [])];
+  //       if (macro) {
+  //         isProgrammaticUpdate.current = true;
+  //         editor.chain().focus().insertContent(macro.text).run();
+  //         toast.success(`Inserted macro: ${macro.command}`);
+  //       } else {
+  //         toast.error(`Macro "${args.macroName}" not found.`);
+  //       }
+  //       break;
+
+  //     case "generateFinalReport":
+  //       await generateFinalReport();
+  //       break;
+
+  //     case "deleteLastSentence":
+  //       const content = editor.state.doc.textContent;
+  //       const sentences = content.trim().split(/(?<=[.?!])\s+/);
+  //       if (sentences.length > 0) {
+  //         const lastSentence = sentences[sentences.length - 1];
+  //         const startOfLastSentence = content.lastIndexOf(lastSentence);
+  //         if (startOfLastSentence !== -1) {
+  //           const endOfLastSentence = startOfLastSentence + lastSentence.length;
+  //           isProgrammaticUpdate.current = true;
+  //           editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
+  //         }
+  //       }
+  //       break;
+
+  //     default:
+  //       console.warn(`Unknown function call: ${name}`);
+  //   }
+  // }, [editor, images, macrosRef, analyzeImages, handleAiKnowledgeSearch, generateFinalReport]); // Add all dependencies
+
+  // // --- (NEW function for the hook's fallback) ---
+  // const insertPlainText = useCallback((text) => {
+  //   isProgrammaticUpdate.current = true;
+  //   editor.chain().focus().insertContent(text + ' ').run();
+  // }, [editor]); // Dependency is just the editor
+
+  // const { 
+  //   voiceStatus, 
+  //   interimTranscript, 
+  //   error: voiceError, // Renamed to avoid conflicts
+  //   isDictationSupported, 
+  //   handleToggleListening 
+  // } = useVoiceAssistant({
+  //   geminiTools,
+  //   onFunctionCall: executeFunctionCall,
+  //   onPlainText: insertPlainText
+  // });
+
+  // // Handle voice-specific errors (optional)
+  // useEffect(() => {
+  //   if (voiceError) {
+  //     setError(voiceError); // Or use toast.error(voiceError)
+  //   }
+  // }, [voiceError]);
+
+  // const getCorrectedTranscript = async (transcript) => {
+  //   const prompt = `You are an expert medical transcriptionist. Correct any spelling or grammatical errors in the following text, paying close attention to radiological and medical terminology. Return only the corrected text. Text to correct: '${transcript}'`;
+  //   try {
+  //     const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+  //     const model = 'gemini-2.5-flash';
+  //     const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
+  //     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  //     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  //     if (!response.ok) {
+  //       console.error("API Error, falling back to original transcript");
+  //       return transcript; // Fallback
+  //     }
+  //     const result = await response.json();
+  //     const correctedText = result.candidates?.[0]?.content.parts?.[0]?.text;
+  //     return correctedText || transcript;
+  //   } catch (error) {
+  //     console.error("Failed to get corrected transcript:", error);
+  //     return transcript; // Fallback
+  //   }
+  // };
+
+  // const handleToggleListening = useCallback(() => {
+  //   if (!recognitionRef.current) {
+  //     setError("Voice dictation is not supported by your browser.");
+  //     return;
+  //   }
+  //   const currentStatus = voiceStatusRef.current;
+  //   if (currentStatus !== 'idle') {
+  //     recognitionRef.current.stop();
+  //   } else {
+  //     recognitionRef.current.start();
+  //   }
+  // }, []);
+
+  // useEffect(() => {
+  //   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  //   if (SpeechRecognition) {
+  //     recognitionRef.current = new SpeechRecognition();
+  //     const recognition = recognitionRef.current;
+  //     recognition.continuous = true;
+  //     recognition.interimResults = true;
+
+  //     recognition.onstart = () => {
+  //       setVoiceStatus('listening');
+  //     };
+
+  //     recognition.onresult = async (event) => {
+  //       let finalTranscript = '';
+  //       let currentInterim = '';
+  //       for (let i = event.resultIndex; i < event.results.length; ++i) {
+  //         if (event.results[i].isFinal) {
+  //           finalTranscript += event.results[i][0].transcript.trim();
+  //         } else {
+  //           currentInterim += event.results[i][0].transcript;
+  //         }
+  //       }
+  //       setInterimTranscript(currentInterim);
+
+  //       if (finalTranscript) {
+  //         isProgrammaticUpdate.current = true;
+  //         await handleVoiceCommand(finalTranscript);
+  //         setInterimTranscript('');
+  //       }
+  //     };
+
+  //     recognition.onend = () => {
+  //       setVoiceStatus('idle');
+  //       setInterimTranscript('');
+  //     };
+
+  //     recognition.onerror = (event) => {
+  //       console.error("Speech recognition error", event.error);
+  //       setError(`Speech recognition error: ${event.error}`);
+  //       setVoiceStatus('idle');
+  //     };
+  //   } else {
+  //     setIsDictationSupported(false);
+  //     setError("Voice dictation is not supported by your browser.");
+  //   }
+
+  //   return () => {
+  //     if(recognitionRef.current) {
+  //       recognitionRef.current.stop();
+  //     }
+  //   }
+  // }, []); // This empty array is the source of the stale state, but we fix it with the ref.
+
+  // const handleVoiceCommand = async (command) => {
+  //   if (!editor || !command) return;
+  //   const commandLC = command.toLowerCase().trim();
+
+  //   const aiSearchKeyword = "look up";
+  //   const commandKeyword = "command";
+  //   const macroKeyword = "macro";
+
+  //   if (commandLC.startsWith(aiSearchKeyword)) {
+  //     const query = commandLC.substring(aiSearchKeyword.length).trim();
+  //     if (query) {
+  //       await handleAiKnowledgeSearch(true, query);
+  //     }
+  //     return; // Exit after handling
+  //   }
+
+  //   if (commandLC.startsWith(macroKeyword)) {
+  //     const macroPhrase = commandLC.substring(macroKeyword.length).trim().replace(/[.,?]/g, '');
+  //     const macro = macrosRef.current.find(m => macroPhrase === m.command.toLowerCase().trim().replace(/[.,?]/g, ''));
+  //     if (macro) {
+  //       isProgrammaticUpdate.current = true;
+  //       editor.chain().focus().insertContent(macro.text).run();
+  //     } else {
+  //       console.warn(`Macro not found for: "${macroPhrase}"`);
+  //     }
+  //     return;
+  //   }
+
+  //   if (commandLC.startsWith(commandKeyword)) {
+  //     const action = commandLC.substring(commandKeyword.length).trim().replace(/[.,?]/g, '');
+
+  //     if (action === "analyze images") {
+  //       analyzeImages();
+  //     } else if (action === "download report") {
+  //       const reportHtml = await generateFinalReport(); // Await the async function
+  //       if (reportHtml) {
+  //         downloadPdfReport(reportHtml);
+  //       }
+  //     } else if (action.startsWith("search for")) {
+  //       const searchTerm = action.substring("search for".length).trim();
+  //       setSearchQuery(searchTerm);
+  //       setTimeout(() => {
+  //         if(searchButtonRef.current) {
+  //           searchButtonRef.current.click();
+  //         }
+  //       }, 100);
+  //     } else if (action.startsWith("insert result")) {
+  //       const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
+  //       const resultNumStr = action.substring("insert result".length).trim();
+  //       const resultNum = numberWords[resultNumStr] || parseInt(resultNumStr, 10);
         
-        if (!isNaN(resultNum) && resultNum > 0 && resultNum <= combinedResults.length) {
-          isProgrammaticUpdate.current = true;
-          insertFindings(combinedResults[resultNum - 1]);
-        } else {
-          console.warn(`Invalid result number for insertion: ${resultNumStr}`);
-        }
-      }
-      else if (action.includes("delete last sentence")) {
-        const content = editor.state.doc.textContent;
-        const sentences = content.trim().split(/(?<=[.?!])\s+/);
-        if (sentences.length > 0) {
-          const lastSentence = sentences[sentences.length - 1];
-          const startOfLastSentence = content.lastIndexOf(lastSentence);
-          if (startOfLastSentence !== -1) {
-            const endOfLastSentence = startOfLastSentence + lastSentence.length;
-            isProgrammaticUpdate.current = true;
-            editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
-          }
-        }
-      } else if (action.includes("bold last sentence") || action.includes("bold the last sentence")) {
-        const content = editor.state.doc.textContent;
-        const sentences = content.trim().split(/(?<=[.?!])\s+/);
-          if (sentences.length > 0) {
-            const lastSentence = sentences[sentences.length - 1];
-            const startOfLastSentence = content.lastIndexOf(lastSentence);
-              if (startOfLastSentence !== -1) {
-                const endOfLastSentence = startOfLastSentence + lastSentence.length;
-                isProgrammaticUpdate.current = true;
-                editor.chain().focus().setTextSelection({ from: startOfLastSentence, to: endOfLastSentence }).toggleBold().run();
-              }
-          }
-      }
-      return;
-    }
+  //       const { localSearchResults, allAiSearchResults, currentAiPage } = searchResultsRef.current;
+  //       const combinedResults = [...localSearchResults, ...(allAiSearchResults[currentAiPage] || [])];
+        
+  //       if (!isNaN(resultNum) && resultNum > 0 && resultNum <= combinedResults.length) {
+  //         isProgrammaticUpdate.current = true;
+  //         insertFindings(combinedResults[resultNum - 1]);
+  //       } else {
+  //         console.warn(`Invalid result number for insertion: ${resultNumStr}`);
+  //       }
+  //     }
+  //     else if (action.includes("delete last sentence")) {
+  //       const content = editor.state.doc.textContent;
+  //       const sentences = content.trim().split(/(?<=[.?!])\s+/);
+  //       if (sentences.length > 0) {
+  //         const lastSentence = sentences[sentences.length - 1];
+  //         const startOfLastSentence = content.lastIndexOf(lastSentence);
+  //         if (startOfLastSentence !== -1) {
+  //           const endOfLastSentence = startOfLastSentence + lastSentence.length;
+  //           isProgrammaticUpdate.current = true;
+  //           editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
+  //         }
+  //       }
+  //     } else if (action.includes("bold last sentence") || action.includes("bold the last sentence")) {
+  //       const content = editor.state.doc.textContent;
+  //       const sentences = content.trim().split(/(?<=[.?!])\s+/);
+  //         if (sentences.length > 0) {
+  //           const lastSentence = sentences[sentences.length - 1];
+  //           const startOfLastSentence = content.lastIndexOf(lastSentence);
+  //             if (startOfLastSentence !== -1) {
+  //               const endOfLastSentence = startOfLastSentence + lastSentence.length;
+  //               isProgrammaticUpdate.current = true;
+  //               editor.chain().focus().setTextSelection({ from: startOfLastSentence, to: endOfLastSentence }).toggleBold().run();
+  //             }
+  //         }
+  //     }
+  //     return;
+  //   }
     
-    const correctedText = await getCorrectedTranscript(command);
-    isProgrammaticUpdate.current = true;
-    editor.chain().focus().insertContent(correctedText + ' ').run();
-  };
+  //   const correctedText = await getCorrectedTranscript(command);
+  //   isProgrammaticUpdate.current = true;
+  //   editor.chain().focus().insertContent(correctedText + ' ').run();
+  // };
 
   const fileToImageObject = (file) => {
     return new Promise((resolve, reject) => {
@@ -6698,49 +7111,76 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
   };
 
   
-  const handleSearch = () => {
-      if (!searchQuery) {
-          setError("Please enter a search term.");
-          return;
-      }
-      setError(null);
-      
-      const query = searchQuery.toLowerCase().trim();
-      const results = localFindings.filter(finding =>
-          finding.organ.toLowerCase().includes(query) ||
-          finding.findingName.toLowerCase().includes(query)
-      );
-      setLocalSearchResults(results);
+// In App.legacy.jsx, replace the old handleSearch function with this:
 
-      setAllAiSearchResults([]);
-      setCurrentAiPage(0);
-      setAllAiFullReports([]);
-      setCurrentReportPage(0);
-      setAiKnowledgeLookupResult(null);
-      
-      setBaseSearchQuery(searchQuery);
+  const handleLocalSearch = (query) => {
+    if (!query) {
+        setError("Please provide a search term.");
+        return;
+    }
+    setError(null);
+    
+    // --- THIS IS THE FIX ---
+    // 1. Set the states so the UI updates
+    setSearchQuery(query); 
+    setBaseSearchQuery(query); 
+    
+    // 2. Use the query to perform the search
+    const queryLC = query.toLowerCase().trim();
+    const results = localFindings.filter(finding =>
+        finding.organ.toLowerCase().includes(queryLC) ||
+        finding.findingName.toLowerCase().includes(queryLC)
+    );
+    setLocalSearchResults(results);
+
+    // 3. Reset other search types
+    setAllAiSearchResults([]);
+    setCurrentAiPage(0);
+    setAllAiFullReports([]);
+    setCurrentReportPage(0);
+    setAiKnowledgeLookupResult(null);
   };
   
-  const handleAiFindingsSearch = async (isMoreQuery = false) => {
-    // if (isRestricted) {
-    //    toast.error("Please upgrade to a professional plan to use AI search.");
-    //    return;
-    // }
-    if (!baseSearchQuery) {
+  // In App.legacy.jsx, replace the old handleAiFindingsSearch with this:
+
+  const handleAiFindingsSearch = async (queryOrIsMore, isMoreQueryFlag = false) => {
+    // if (isRestricted) { ... }
+
+    let queryToUse;
+    let isMoreQuery = false;
+
+    // --- THIS IS THE FIX ---
+    if (typeof queryOrIsMore === 'string') {
+      // 1. A new search query was passed (from voice or input)
+      queryToUse = queryOrIsMore;
+      setBaseSearchQuery(queryToUse); // Set this as the new base query
+      setSearchQuery(queryToUse); // Also update the search box text
+      isMoreQuery = false;
+    } else if (typeof queryOrIsMore === 'boolean' && queryOrIsMore === true) {
+      // 2. The "More" button was clicked (old logic)
+      queryToUse = `${baseSearchQuery} some more`;
+      isMoreQuery = true;
+    } else {
+      // 3. Fallback or initial search button click without query
+      queryToUse = baseSearchQuery;
+      isMoreQuery = isMoreQueryFlag; // Use the flag
+    }
+    
+    if (!queryToUse) {
       setError("Please perform a standard search first.");
       return;
     }
+    
     setIsSearching(true);
     setError(null);
     setAiKnowledgeLookupResult(null); // Clear knowledge results
 
-    const currentQuery = isMoreQuery ? `${baseSearchQuery} some more` : baseSearchQuery;
     const existingFindingNames = allAiSearchResults.flat().map(r => r.findingName);
     const existingReportText = allAiFullReports.map(r => r.fullReportText).join('\n\n---\n\n');
     const isReportContext = allAiFullReports.length > 0;
 
     const prompt = `
-      You are an AI assistant for radiologists, focused on generating report content. Analyze the user's search query: "${currentQuery}".
+      You are an AI assistant for radiologists, focused on generating report content. Analyze the user's search query: "${queryToUse}".
       Your task is to generate content for a medical report. Determine the query's intent from the following options:
       1.  A request to generate a **Full Report** from a descriptive sentence (e.g., "USG report for an ankle with mild thickening of ATFL").
       2.  A request for a list of **General Findings** related to an organ or system (e.g., "liver findings", "carotid disease").
@@ -6827,77 +7267,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       setIsSearching(false);
     }
   };
-
-  const handleAiKnowledgeSearch = async (isProactive = false, queryOverride = '') => {
-      // if (isRestricted) {
-      //    toast.error("Please upgrade to a professional plan to use AI knowledge search.");
-      //    return;
-      // }
-      const query = isProactive ? queryOverride : baseSearchQuery;
-      if (!query) {
-          setError("Please enter a search term first.");
-          return;
-      }
-      setIsSearching(true);
-      setError(null);
-      // Clear other search results
-      setAllAiSearchResults([]);
-      setAllAiFullReports([]);
-      setLocalSearchResults([]);
-
-      const prompt = `
-        You are a master medical AI. Your sole task is to provide a knowledge lookup on a specific medical condition.
-        The user wants to know about: "${query}".
-        
-        Perform a lookup using authoritative sources (like Radiopaedia, PubMed, StatPearls) and return a single, valid JSON object with this EXACT schema:
-        {
-          "queryType": "knowledgeLookup",
-          "conditionName": "string (The name of the condition)",
-          "summary": "string (HTML-formatted explanation of the condition, its pathophysiology, and clinical significance)",
-          "keyImagingFeatures": ["string (HTML-formatted list item)", "string"],
-          "differentialDiagnosis": ["string", "string"],
-          "sources": [{ "name": "string", "url": "string" }]
-        }
-        
-        Do not generate report findings. Your only job is to provide factual, educational information based on the requested condition.
-      `;
-
-      try {
-          const payload = {
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-          };
-          const model = 'gemini-2.5-flash';
-          const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
-          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-          const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-
-          if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-          const result = await response.json();
-          if (result.candidates?.[0]?.content.parts?.[0]?.text) {
-              const textResult = result.candidates[0].content.parts[0].text;
-              try {
-                  const parsedResult = JSON.parse(textResult);
-                  if (parsedResult.queryType === 'knowledgeLookup') {
-                      setAiKnowledgeLookupResult(parsedResult);
-                  } else {
-                      setError("The AI returned an unexpected response type for a knowledge search.");
-                  }
-              } catch (jsonError) {
-                  console.error("JSON Parsing Error:", jsonError, "Raw Text:", textResult);
-                  setError("The AI returned a non-standard response for the knowledge search.");
-              }
-          } else {
-              throw new Error("Knowledge search failed.");
-          }
-      } catch (err) {
-          setError("Failed to perform knowledge search. " + err.message);
-      } finally {
-          setIsSearching(false);
-      }
-  };
+  
 
 
   // --- UPDATED FUNCTION: checkForCriticalFindings ---
@@ -7822,6 +8192,113 @@ console.log("Generating report content..."); // Debug log
 
   // In App.jsx
 
+  // +++++++++++++++++ PASTE BLOCK 1 HERE +++++++++++++++++++
+  const executeFunctionCall = useCallback(async (functionCall) => {
+    const { name, args } = functionCall;
+
+    console.log(`Executing function: ${name}`, args);
+    toast(<>Executing: <b>{name}</b></>, { icon: '🤖' });
+
+    switch (name) {
+      case "askCopilot":
+        // 1. Send the question to the chat.
+        handleSendMessage(args.question);
+        // 2. Switch to the Co-pilot tab so the user sees the answer.
+        setActiveAiTab('copilot');
+        break;
+
+      case "analyzeImages":
+        if (images.length > 0) {
+          analyzeImages();
+        } else {
+          toast.error("Please upload images first.");
+        }
+        break;
+case "handleLocalSearch": // <--- NEW CASE
+        // This will trigger your local findings search
+        await handleLocalSearch(args.query); 
+        // Also ensure the "Search" tab is active if it's not already
+        setActiveAiTab('search');
+        break;
+
+      case "handleAiFindingsSearch": // <--- NEW CASE
+        // This will trigger your AI findings search
+        await handleAiFindingsSearch(args.query);
+        // Also ensure the "AI Findings" tab (or main search tab) is active
+        setActiveAiTab('search'); // Assuming AI findings is part of the 'search' tab
+        break;
+
+      case "handleAiKnowledgeSearch":
+        await handleAiKnowledgeSearch(true, args.query);
+        setActiveAiTab('knowledge')
+        break;
+
+      case "insertMacro":
+        const macroPhrase = args.macroName.toLowerCase().trim().replace(/[.,?]/g, '');
+        const macro = macrosRef.current.find(m => m.command.toLowerCase().trim().replace(/[.,?]/g, '') === macroPhrase);
+        
+        if (macro) {
+          isProgrammaticUpdate.current = true;
+          editor.chain().focus().insertContent(macro.text).run();
+          toast.success(`Inserted macro: ${macro.command}`);
+        } else {
+          toast.error(`Macro "${args.macroName}" not found.`);
+        }
+        break;
+
+      case "generateFinalReport":
+        await generateFinalReport();
+        break;
+
+      case "deleteLastSentence":
+        const content = editor.state.doc.textContent;
+        const sentences = content.trim().split(/(?<=[.?!])\s+/);
+        if (sentences.length > 0) {
+          const lastSentence = sentences[sentences.length - 1];
+          const startOfLastSentence = content.lastIndexOf(lastSentence);
+          if (startOfLastSentence !== -1) {
+            const endOfLastSentence = startOfLastSentence + lastSentence.length;
+            isProgrammaticUpdate.current = true;
+            editor.chain().focus().deleteRange({ from: startOfLastSentence, to: endOfLastSentence }).run();
+          }
+        }
+        break;
+
+      default:
+        console.warn(`Unknown function call: ${name}`);
+    }
+  }, [editor, images, macrosRef, analyzeImages, handleAiKnowledgeSearch, generateFinalReport, handleLocalSearch, handleAiFindingsSearch, setActiveAiTab]);
+
+  const insertPlainText = useCallback((text) => {
+    if (editor) { // Added a check for editor
+      isProgrammaticUpdate.current = true;
+      editor.chain().focus().insertContent(text + ' ').run();
+    }
+  }, [editor]);
+// +++++++++++++++++ END OF BLOCK 1 ++++++++++++++++++++++
+
+
+// +++++++++++++++++ PASTE BLOCK 2 HERE +++++++++++++++++++
+  const { 
+    voiceStatus, 
+    interimTranscript, 
+    error: voiceError, // Renamed to avoid conflicts
+    isDictationSupported, 
+    handleToggleListening 
+  } = useVoiceAssistant({
+    geminiTools,
+    onFunctionCall: executeFunctionCall,
+    onPlainText: insertPlainText
+  });
+
+  // Handle voice-specific errors (optional)
+  useEffect(() => {
+    if (voiceError) {
+      setError(voiceError); // Or use toast.error(voiceError)
+    }
+  }, [voiceError]);
+// +++++++++++++++++ END OF BLOCK 2 ++++++++++++++++++++++
+
 const shortcuts = {
     toggleMic: { label: 'Toggle Microphone', ctrlOrCmd: true, key: 'm', action: handleToggleListening },
     // ... other shortcuts that work ...
@@ -7928,6 +8405,8 @@ useEffect(() => {
     // Add other dependencies like setShowMacroModal, etc. if needed
 ]); // End of useEffect
 
+
+
   // --- CONDITIONAL RENDERING ---
   if (isAuthLoading) {
       return <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">Loading...</div>;
@@ -8024,7 +8503,14 @@ useEffect(() => {
     <div className="flex items-center space-x-2">
         {/* Hamburger remains for toggling sidebar on mobile if needed, or remove if sidebar is always hidden */}
         {/* <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="p-2 rounded-md hover:bg-slate-700 lg:hidden"><Menu size={20} /></button> */}
-        <BrainCircuit className="text-blue-500 h-6 w-6" />
+        
+        {/* <BrainCircuit className="text-blue-500 h-6 w-6" /> */}
+        {/* <LogoIcon className="text-blue-500 h-6 w-6" /> */}
+        <img 
+          src={appLogo} 
+          alt="aiRAD Logo" 
+          className="h-12 w-12" // Use the same size as the icon
+        />
         <h1 className="text-lg font-bold text-white hidden sm:block">aiRAD</h1>
     </div>
 
@@ -8049,9 +8535,30 @@ useEffect(() => {
         </div>
 
         {/* Mic Button (remains) */}
-        <button onClick={handleToggleListening} title="Toggle Voice Dictation" className={`p-1.5 rounded-md transition-colors ${voiceStatus === 'listening' ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:bg-slate-700 hover:text-white'}`}>
-            <Mic size={18} /> {/* Slightly smaller icon */}
+        <button
+          onClick={handleToggleListening}
+          disabled={!isDictationSupported}
+          title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
+           className={`p-1.5 rounded-md transition-colors ...
+              ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
+              ${voiceStatus === 'processing' ? 'bg-yellow-500 animate-spin' : ''}
+          `}
+        >
+          {/* Show different icon based on state */}
+          {voiceStatus === 'listening' && <Mic size={28} />}
+          {voiceStatus === 'processing' && <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+          {voiceStatus === 'idle' && <Mic size={28} />}
         </button>
+        
+        {/* Show interim transcript or processing status */}
+        {(voiceStatus === 'listening' || voiceStatus === 'processing') && (
+            <div className="mt-2 text-center text-xs bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg max-w-xs">
+                <p className="font-bold">
+                  {voiceStatus === 'listening' ? 'Listening...' : 'Processing...'}
+                </p>
+                {interimTranscript && <p className="mt-1 italic">{interimTranscript}</p>}
+            </div>
+        )}
 
         {/* AI Assistant Button (remains) */}
         <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white">
@@ -8338,23 +8845,52 @@ useEffect(() => {
             alertData={activeAlert}
             onAcknowledge={() => {
                 setActiveAlert(null);
-                // Make sure to reset isAwaitingAlertAcknowledge if you use it
-                // setIsAwaitingAlertAcknowledge(false); 
+                setIsAwaitingAlertAcknowledge(false); // Reset the lock
             }}
             onInsertMacro={() => {
                 if (editor && activeAlert?.type === 'critical' && activeAlert.data?.reportMacro) {
-                    isProgrammaticUpdate.current = true; // Still needed if inserting content directly
+                    isProgrammaticUpdate.current = true;
                     editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run();
+                    setEditorContent(editor.getHTML()); // Sync state
                     toast.success("Critical finding macro inserted.");
                 }
                 setActiveAlert(null);
-                // setIsAwaitingAlertAcknowledge(false);
+                setIsAwaitingAlertAcknowledge(false);
             }}
-            // onPrepareNotification={() => { /* Your existing logic */ }}
-            onFix={handleFixInconsistency} // Ensure handleFixInconsistency exists
-            // onProceed={() => { /* Your existing logic */ }}
+            onPrepareNotification={() => {
+                if (activeAlert?.type === 'critical' && activeAlert.data?.notificationTemplate) {
+                    copyToClipboard(activeAlert.data.notificationTemplate, "Notification text copied!");
+                }
+                setActiveAlert(null);
+                setIsAwaitingAlertAcknowledge(false);
+            }}
+            onFix={handleFixInconsistency}
+            onProceed={() => {
+                setActiveAlert(null);
+                setIsAwaitingAlertAcknowledge(false); // Reset lock
+                generateFinalReport(true); // Re-run the function, forcing it
+            }}
+            // --- THIS IS THE PROP THAT WAS MISSING ---
+            onInsertGuideline={() => {
+                if (editor && activeAlert?.type === 'guideline' && activeAlert.data?.recommendationText) {
+                    isProgrammaticUpdate.current = true;
+                    // Insert the recommendation text, e.g., in a new paragraph
+                    editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run();
+                    setEditorContent(editor.getHTML()); // Sync state
+                    toast.success("Guideline recommendation inserted.");
+                }
+                setActiveAlert(null);
+                setIsAwaitingAlertAcknowledge(false);
+            }}
+            // --- END OF FIX ---
         />
-                <MenuBar editor={editor} />
+               <MenuBar 
+  editor={editor}
+  voiceStatus={voiceStatus}
+  isDictationSupported={isDictationSupported}
+  handleToggleListening={handleToggleListening}
+  interimTranscript={interimTranscript}
+/>
                 {/* ======================================================= */}
         {/* ======== ADD SUGGESTION BUTTONS HERE ================ */}
         {/* ======================================================= */}
@@ -8411,136 +8947,142 @@ useEffect(() => {
 
       {/* --- Search Tab --- */}
       {activeAiTab === 'search' && (
-            // Use flex-col to structure search tab content vertically
-            <div className="flex flex-col h-full space-y-4">
-                {/* Search Input & Local Button */}
-                <div className="flex-shrink-0 flex items-center space-x-2 p-1 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <input
-                        ref={localSearchInputRef}
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                        placeholder="Search local or AI..."
-                        className="w-full bg-transparent p-2 rounded-md text-sm focus:outline-none placeholder-slate-500"
-                    />
-                    <button
-                        onClick={handleSearch}
-                        className="p-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white"
-                        title="Search Local Findings"
-                    >
-                        <Search size={18}/>
-                    </button>
+    // Use flex-col to structure search tab content vertically
+    <div className="flex flex-col h-full space-y-4">
+        {/* Search Input & Local Button */}
+        <div className="flex-shrink-0 flex items-center space-x-2 p-1 bg-slate-800/50 rounded-lg border border-slate-700">
+            <input
+                ref={localSearchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                // --- FIX 1: Pass the 'searchQuery' state ---
+                onKeyDown={e => e.key === 'Enter' && handleLocalSearch(searchQuery)}
+                placeholder="Search local or AI..."
+                className="w-full bg-transparent p-2 rounded-md text-sm focus:outline-none placeholder-slate-500"
+            />
+            <button
+                // --- FIX 2: Pass the 'searchQuery' state ---
+                onClick={() => handleLocalSearch(searchQuery)}
+                className="p-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white"
+                title="Search Local Findings"
+            >
+                <Search size={18}/>
+            </button>
+        </div>
+
+        {/* AI Search Buttons */}
+        <div className="flex-shrink-0 grid grid-cols-2 gap-2">
+            <button
+                // --- FIX 3: Pass the 'searchQuery' state ---
+                onClick={() => handleAiFindingsSearch(searchQuery)}
+                // --- FIX 4: Disable based on 'searchQuery', not 'baseSearchQuery' ---
+                disabled={isSearching || !searchQuery}
+                className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+            >
+                {isSearching && !aiKnowledgeLookupResult && !allAiFullReports.length ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Search size={14}/>}
+                <span>AI Findings</span>
+            </button>
+            <button
+                // --- FIX 5: Pass 'false' and the 'searchQuery' state ---
+                onClick={() => handleAiKnowledgeSearch(false, searchQuery)}
+                // --- FIX 6: Disable based on 'searchQuery' ---
+                disabled={isSearching || !searchQuery}
+                className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+            >
+                {isSearching && aiKnowledgeLookupResult ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BookOpen size={14}/>}
+                <span>AI Knowledge</span>
+            </button>
+        </div>
+
+        {/* Search Results Area (Scrollable) */}
+       <div className="flex-grow overflow-y-auto min-h-[150px] space-y-4 pr-1">
+            {isSearching && <SearchResultSkeleton />}
+
+            {/* --- UPDATED LOCAL RESULTS DISPLAY --- */}
+            {!isSearching && localSearchResults.length > 0 && (
+                <div className="space-y-3"> {/* Increased spacing */}
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase">Local Findings</h3>
+                    {localSearchResults.map((result, index) => (
+                        <div key={`local-${index}`} className="p-3 bg-slate-800 rounded-md border border-slate-700/50 relative space-y-1.5"> {/* Added space-y */}
+                              <span className="absolute top-1 right-1 bg-slate-600 text-slate-200 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{index + 1}</span>
+                            <h4 className="font-semibold text-sm text-gray-100 pr-6">{result.findingName}</h4>
+                            {/* Display Organ, Findings, Impression */}
+                            <p className="text-xs text-gray-400"><span className="font-medium text-gray-300">Organ:</span> {result.organ}</p>
+                            {!result.isFullReport && (
+                                <>
+                                    <p className="text-xs text-gray-300 break-words"><span className="font-medium text-gray-400 block">Findings:</span> {result.findings}</p>
+                                    <p className="text-xs text-gray-300 break-words"><span className="font-medium text-gray-400 block">Impression:</span> {result.impression}</p>
+                                </>
+                            )}
+                            {result.isFullReport && (<p className="text-xs text-gray-400 italic">Full Report Template</p>)}
+                            <button
+                                onClick={() => insertFindings(result)}
+                                className="mt-2 text-xs bg-blue-600/30 text-blue-300 font-semibold py-1 px-2 rounded-md hover:bg-blue-600/50 transition flex items-center"
+                            >
+                                <Plus size={14} className="mr-1" /> Insert
+                            </button>
+                        </div>
+                    ))}
                 </div>
+            )}
 
-                {/* AI Search Buttons */}
-                <div className="flex-shrink-0 grid grid-cols-2 gap-2">
-                    <button
-                        onClick={() => handleAiFindingsSearch()}
-                        disabled={isSearching || !baseSearchQuery}
-                        className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
-                    >
-                        {isSearching && !aiKnowledgeLookupResult && !allAiFullReports.length ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Search size={14}/>}
-                        <span>AI Findings</span>
-                    </button>
-                    <button
-                        onClick={() => handleAiKnowledgeSearch()}
-                        disabled={isSearching || !baseSearchQuery}
-                        className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
-                    >
-                        {isSearching && aiKnowledgeLookupResult ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BookOpen size={14}/>}
-                        <span>AI Knowledge</span>
-                    </button>
-                </div>
-
-                {/* Search Results Area (Scrollable) */}
-               <div className="flex-grow overflow-y-auto min-h-[150px] space-y-4 pr-1">
-                    {isSearching && <SearchResultSkeleton />}
-
-                    {/* --- UPDATED LOCAL RESULTS DISPLAY --- */}
-                    {!isSearching && localSearchResults.length > 0 && (
-                        <div className="space-y-3"> {/* Increased spacing */}
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase">Local Findings</h3>
-                            {localSearchResults.map((result, index) => (
-                                <div key={`local-${index}`} className="p-3 bg-slate-800 rounded-md border border-slate-700/50 relative space-y-1.5"> {/* Added space-y */}
-                                     <span className="absolute top-1 right-1 bg-slate-600 text-slate-200 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{index + 1}</span>
-                                    <h4 className="font-semibold text-sm text-gray-100 pr-6">{result.findingName}</h4>
-                                    {/* Display Organ, Findings, Impression */}
-                                    <p className="text-xs text-gray-400"><span className="font-medium text-gray-300">Organ:</span> {result.organ}</p>
-                                    {!result.isFullReport && (
-                                        <>
-                                            <p className="text-xs text-gray-300 break-words"><span className="font-medium text-gray-400 block">Findings:</span> {result.findings}</p>
-                                            <p className="text-xs text-gray-300 break-words"><span className="font-medium text-gray-400 block">Impression:</span> {result.impression}</p>
-                                        </>
-                                    )}
-                                    {result.isFullReport && (<p className="text-xs text-gray-400 italic">Full Report Template</p>)}
-                                    <button
-                                        onClick={() => insertFindings(result)}
-                                        className="mt-2 text-xs bg-blue-600/30 text-blue-300 font-semibold py-1 px-2 rounded-md hover:bg-blue-600/50 transition flex items-center"
-                                    >
-                                        <Plus size={14} className="mr-1" /> Insert
-                                    </button>
+            {/* AI Full Report Results */}
+            {!isSearching && allAiFullReports.length > 0 && (
+               <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase">AI Drafted Reports</h3>
+                    <div className="p-3 bg-indigo-900/30 rounded-md border border-indigo-700 space-y-2">
+                        {allAiFullReports[currentReportPage] && (
+                            <>
+                                {/* --- DIV NOW SHOWS FULL CONTENT --- */}
+                                <div className="text-xs prose prose-sm prose-invert max-w-none">
+                                    <div dangerouslySetInnerHTML={{__html: allAiFullReports[currentReportPage].fullReportText}}/>
+                                    {/* --- GRADIENT FADE DIV REMOVED --- */}
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                <button
+                                    onClick={() => insertFindings(allAiFullReports[currentReportPage])}
+                                    className="w-full mt-1 text-xs bg-indigo-600/50 text-indigo-200 font-semibold py-1 px-2 rounded-md hover:bg-indigo-600/70 transition flex items-center justify-center"
+                                >
+                                    <Plus size={14} className="mr-1" /> Insert This Version
+                                </button>
+                            </>
+                        )}
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                        <button onClick={handlePreviousReport} disabled={currentReportPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5"/> Prev</button>
+                        <span className="text-slate-400">Ver {currentReportPage + 1} / {allAiFullReports.length}</span>
+                        <button onClick={handleNextReport} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">Next <ChevronRight size={14} className="ml-0.5"/></button>
+                    </div>
+                </div>
+            )}
 
-                    {/* AI Full Report Results */}
-                    {!isSearching && allAiFullReports.length > 0 && (
-                       <div className="space-y-2">
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase">AI Drafted Reports</h3>
-                            <div className="p-3 bg-indigo-900/30 rounded-md border border-indigo-700 space-y-2">
-                                {allAiFullReports[currentReportPage] && (
-                                    <>
-                                        {/* --- DIV NOW SHOWS FULL CONTENT --- */}
-                                        <div className="text-xs prose prose-sm prose-invert max-w-none">
-                                            <div dangerouslySetInnerHTML={{__html: allAiFullReports[currentReportPage].fullReportText}}/>
-                                            {/* --- GRADIENT FADE DIV REMOVED --- */}
-                                        </div>
-                                        <button
-                                            onClick={() => insertFindings(allAiFullReports[currentReportPage])}
-                                            className="w-full mt-1 text-xs bg-indigo-600/50 text-indigo-200 font-semibold py-1 px-2 rounded-md hover:bg-indigo-600/70 transition flex items-center justify-center"
-                                        >
-                                            <Plus size={14} className="mr-1" /> Insert This Version
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                            <div className="flex justify-between items-center text-xs">
-                                <button onClick={handlePreviousReport} disabled={currentReportPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5"/> Prev</button>
-                                <span className="text-slate-400">Ver {currentReportPage + 1} / {allAiFullReports.length}</span>
-                                <button onClick={handleNextReport} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">Next <ChevronRight size={14} className="ml-0.5"/></button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* AI Findings Results */}
-                    {!isSearching && allAiSearchResults.length > 0 && !allAiFullReports.length && (
-                        <div className="space-y-3"> {/* Increased spacing */}
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase">AI Findings</h3>
-                            {allAiSearchResults[currentAiPage]?.map((result, index) => (
-                               <div key={`ai-${currentAiPage}-${index}`} className="p-3 bg-purple-900/30 rounded-md border border-purple-700 relative space-y-1.5"> {/* Added space-y */}
-                                   <span className="absolute top-1 right-1 bg-purple-600 text-purple-100 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{localSearchResults.length + index + 1}</span>
-                                   <h4 className="font-semibold text-sm text-purple-100 pr-6">{result.findingName}</h4>
-                                   {/* Display Organ, Findings, Impression */}
-                                   <p className="text-xs text-purple-300"><span className="font-medium text-purple-200">Organ:</span> {result.organ}</p>
-                                   <p className="text-xs text-purple-200 break-words"><span className="font-medium text-purple-300 block">Findings:</span> {result.findings}</p>
-                                   <p className="text-xs text-purple-200 break-words"><span className="font-medium text-purple-300 block">Impression:</span> {result.impression}</p>
-                                    <button
-                                       onClick={() => insertFindings(result)}
-                                       className="mt-2 text-xs bg-purple-600/50 text-purple-200 font-semibold py-1 px-2 rounded-md hover:bg-purple-600/70 transition flex items-center"
-                                   >
-                                       <Plus size={14} className="mr-1" /> Insert
-                                   </button>
-                               </div>
-                            ))}
-                            <div className="flex justify-between items-center text-xs mt-2">
-                                <button onClick={handlePreviousPage} disabled={currentAiPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5"/> Prev</button>
-                                <span className="text-slate-400">Page {currentAiPage + 1} / {allAiSearchResults.length}</span>
-                                <button onClick={handleNextPage} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">More <ChevronRight size={14} className="ml-0.5"/></button>
-                            </div>
-                        </div>
-                    )}
+            {/* AI Findings Results */}
+            {!isSearching && allAiSearchResults.length > 0 && !allAiFullReports.length && (
+                <div className="space-y-3"> {/* Increased spacing */}
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase">AI Findings</h3>
+                    {allAiSearchResults[currentAiPage]?.map((result, index) => (
+                       <div key={`ai-${currentAiPage}-${index}`} className="p-3 bg-purple-900/30 rounded-md border border-purple-700 relative space-y-1.5"> {/* Added space-y */}
+                           <span className="absolute top-1 right-1 bg-purple-600 text-purple-100 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{localSearchResults.length + index + 1}</span>
+                           <h4 className="font-semibold text-sm text-purple-100 pr-6">{result.findingName}</h4>
+                           {/* Display Organ, Findings, Impression */}
+                           <p className="text-xs text-purple-300"><span className="font-medium text-purple-200">Organ:</span> {result.organ}</p>
+                           <p className="text-xs text-purple-200 break-words"><span className="font-medium text-purple-300 block">Findings:</span> {result.findings}</p>
+                           <p className="text-xs text-purple-200 break-words"><span className="font-medium text-purple-300 block">Impression:</span> {result.impression}</p>
+                            <button
+                               onClick={() => insertFindings(result)}
+                               className="mt-2 text-xs bg-purple-600/50 text-purple-200 font-semibold py-1 px-2 rounded-md hover:bg-purple-600/70 transition flex items-center"
+                           >
+                               <Plus size={14} className="mr-1" /> Insert
+                           </button>
+                       </div>
+                    ))}
+                    <div className="flex justify-between items-center text-xs mt-2">
+                        <button onClick={handlePreviousPage} disabled={currentAiPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5"/> Prev</button>
+                        <span className="text-slate-400">Page {currentAiPage + 1} / {allAiSearchResults.length}</span>
+                        <button onClick={handleNextPage} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">More <ChevronRight size={14} className="ml-0.5"/></button>
+                    </div>
+                </div>
+            )}
 
                     {/* No Results Message */}
                     {!isSearching && localSearchResults.length === 0 && allAiSearchResults.length === 0 && allAiFullReports.length === 0 && !aiKnowledgeLookupResult && baseSearchQuery && (
