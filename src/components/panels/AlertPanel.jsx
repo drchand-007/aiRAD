@@ -142,74 +142,168 @@
 //   );
 // }
 
-import React from 'react';
-import { AlertTriangle, PlusCircle, Copy, CheckCircle, XCircle, ChevronLeft } from 'lucide-react';
+// import React from 'react';
+// import { AlertTriangle, PlusCircle, Copy, CheckCircle, XCircle, ChevronLeft } from 'lucide-react';
 
-export default function AlertPanel({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed }) {
+// export default function AlertPanel({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed }) {
+//   if (!alertData) return null;
+//   const isCritical = alertData.type === 'critical';
+//   const isFixable = alertData.type === 'inconsistency';
+//   const isMissingInfo = alertData.type === 'missing_info';
+
+//   const config = {
+//     critical: { bgColor:'bg-red-50', borderColor:'border-red-500', textColor:'text-red-800', iconColor:'text-red-500', Icon: AlertTriangle,
+//       message:'Please review and take appropriate action immediately.' },
+//     inconsistency: { bgColor:'bg-yellow-50', borderColor:'border-yellow-500', textColor:'text-yellow-800', iconColor:'text-yellow-500', Icon: AlertTriangle,
+//       title:'Inconsistency Detected', message: alertData.message },
+//     missing_info: { bgColor:'bg-orange-50', borderColor:'border-orange-500', textColor:'text-orange-800', iconColor:'text-orange-500', Icon: AlertTriangle,
+//       title:'Incomplete Report', message: alertData.message },
+//   };
+
+//   const currentConfig = config[alertData.type];
+//   if (!currentConfig) return null;
+//   const title = isCritical ? `Critical Finding Detected: ${alertData.data?.findingName}` : currentConfig.title;
+
+//   return (
+//     <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.borderColor} ${currentConfig.textColor} p-4 rounded-lg shadow-md mb-4`} role="alert">
+//       <div className="flex items-start">
+//         <div className="py-1"><currentConfig.Icon className={`h-6 w-6 ${currentConfig.iconColor} mr-4`} /></div>
+//         <div className="flex-grow">
+//           <p className="font-bold">{title}</p>
+//           <p className="text-sm">{currentConfig.message}</p>
+//           <div className="mt-3 flex flex-wrap gap-2">
+//             {isCritical && (
+//               <>
+//                 <button onClick={onInsertMacro} className="bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition text-sm flex items-center">
+//                   <PlusCircle size={16} className="mr-1.5" /> Add to Report
+//                 </button>
+//                 <button onClick={onPrepareNotification} className="bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition text-sm flex items-center">
+//                   <Copy size={16} className="mr-1.5" /> Prepare Notification
+//                 </button>
+//               </>
+//             )}
+//             {isFixable && (
+//               <>
+//                 <button onClick={onFix} className="bg-green-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-700 transition text-sm flex items-center">
+//                   <CheckCircle size={16} className="mr-1.5" /> Fix Issue
+//                 </button>
+//                 <button onClick={onAcknowledge} className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center">
+//                   <XCircle size={16} className="mr-1.5" /> Ignore
+//                 </button>
+//               </>
+//             )}
+//             {isMissingInfo && (
+//               <>
+//                 <button onClick={onProceed} className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center">
+//                   <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
+//                 </button>
+//                 <button onClick={onAcknowledge} className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center">
+//                   <ChevronLeft size={16} className="mr-1.5" /> Go Back
+//                 </button>
+//               </>
+//             )}
+//           </div>
+//         </div>
+//         {(isCritical || isMissingInfo) && (
+//           <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor}`}>
+//             <XCircle size={22} />
+//           </button>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+// --- UNIFIED COMPONENT: AlertPanel (UNCHANGED) ---
+const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => { // 1. Add onInsertGuideline prop
   if (!alertData) return null;
+
   const isCritical = alertData.type === 'critical';
   const isFixable = alertData.type === 'inconsistency';
   const isMissingInfo = alertData.type === 'missing_info';
+  const isGuideline = alertData.type === 'guideline'; // 2. Add isGuideline check
 
   const config = {
-    critical: { bgColor:'bg-red-50', borderColor:'border-red-500', textColor:'text-red-800', iconColor:'text-red-500', Icon: AlertTriangle,
-      message:'Please review and take appropriate action immediately.' },
-    inconsistency: { bgColor:'bg-yellow-50', borderColor:'border-yellow-500', textColor:'text-yellow-800', iconColor:'text-yellow-500', Icon: AlertTriangle,
-      title:'Inconsistency Detected', message: alertData.message },
-    missing_info: { bgColor:'bg-orange-50', borderColor:'border-orange-500', textColor:'text-orange-800', iconColor:'text-orange-500', Icon: AlertTriangle,
-      title:'Incomplete Report', message: alertData.message },
+    critical: {
+      bgColor: 'bg-red-900/50 border-red-500',
+      textColor: 'text-red-200',
+      iconColor: 'text-red-400',
+      Icon: AlertTriangle,
+      message: 'Please review and take appropriate action immediately.',
+    },
+    inconsistency: {
+      bgColor: 'bg-yellow-900/50 border-yellow-500',
+      textColor: 'text-yellow-200',
+      iconColor: 'text-yellow-400',
+      Icon: AlertTriangle,
+      title: 'Inconsistency Detected',
+      message: alertData.message,
+    },
+    missing_info: {
+      bgColor: 'bg-orange-900/50 border-orange-500',
+      textColor: 'text-orange-200',
+      iconColor: 'text-orange-400',
+      Icon: AlertTriangle,
+      title: 'Incomplete Report',
+      message: alertData.message,
+    },
+    // 3. Add this new 'guideline' object
+    guideline: {
+      bgColor: 'bg-blue-900/50 border-blue-500',
+      textColor: 'text-blue-200',
+      iconColor: 'text-blue-400',
+      Icon: Lightbulb, // Using Lightbulb icon
+      title: 'AI Guideline Suggestion',
+      message: alertData.message, // This will be the finding
+    },
   };
 
   const currentConfig = config[alertData.type];
   if (!currentConfig) return null;
-  const title = isCritical ? `Critical Finding Detected: ${alertData.data?.findingName}` : currentConfig.title;
+
+  const title = isCritical
+    ? `Critical Finding Detected: ${alertData.data?.findingName}`
+    : currentConfig.title;
 
   return (
-    <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.borderColor} ${currentConfig.textColor} p-4 rounded-lg shadow-md mb-4`} role="alert">
+    <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.textColor} p-4 rounded-lg shadow-md mb-4`} role="alert">
       <div className="flex items-start">
-        <div className="py-1"><currentConfig.Icon className={`h-6 w-6 ${currentConfig.iconColor} mr-4`} /></div>
+        <div className="py-1">
+          <currentConfig.Icon className={`h-6 w-6 ${currentConfig.iconColor} mr-4`} />
+        </div>
         <div className="flex-grow">
           <p className="font-bold">{title}</p>
           <p className="text-sm">{currentConfig.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {isCritical && (
+            {/* ... (critical, inconsistency, missing_info sections are unchanged) ... */}
+
+            {/* 4. Add this new button block for guidelines */}
+            {isGuideline && (
               <>
-                <button onClick={onInsertMacro} className="bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition text-sm flex items-center">
-                  <PlusCircle size={16} className="mr-1.5" /> Add to Report
+                <button
+                  onClick={onInsertGuideline}
+                  className="bg-blue-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-blue-700 transition text-sm flex items-center"
+                >
+                  <PlusCircle size={16} className="mr-1.5" /> Insert Recommendation
                 </button>
-                <button onClick={onPrepareNotification} className="bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition text-sm flex items-center">
-                  <Copy size={16} className="mr-1.5" /> Prepare Notification
-                </button>
-              </>
-            )}
-            {isFixable && (
-              <>
-                <button onClick={onFix} className="bg-green-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-700 transition text-sm flex items-center">
-                  <CheckCircle size={16} className="mr-1.5" /> Fix Issue
-                </button>
-                <button onClick={onAcknowledge} className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center">
+                <button
+                  onClick={onAcknowledge}
+                  className="bg-slate-600 text-slate-100 font-bold py-1 px-3 rounded-lg hover:bg-slate-500 transition text-sm flex items-center"
+                >
                   <XCircle size={16} className="mr-1.5" /> Ignore
                 </button>
               </>
             )}
-            {isMissingInfo && (
-              <>
-                <button onClick={onProceed} className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center">
-                  <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
-                </button>
-                <button onClick={onAcknowledge} className="bg-gray-200 text-gray-800 font-bold py-1 px-3 rounded-lg hover:bg-gray-300 transition text-sm flex items-center">
-                  <ChevronLeft size={16} className="mr-1.5" /> Go Back
-                </button>
-              </>
-            )}
+            
           </div>
         </div>
-        {(isCritical || isMissingInfo) && (
-          <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor}`}>
+        {/* 5. Update this final condition */}
+        { (isCritical || isMissingInfo || isGuideline) && (
+          <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
             <XCircle size={22} />
           </button>
         )}
       </div>
     </div>
   );
-}
+};
