@@ -1,4 +1,4 @@
-import { db, auth } from "./_utils/firebaseAdmin";
+import { db, auth } from "./_utils/firebaseAdmin.js";
 import Razorpay from "razorpay";
 
 // Initialize Razorpay
