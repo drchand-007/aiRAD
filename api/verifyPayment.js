@@ -1,4 +1,4 @@
-import { db, auth } from "./_utils/firebaseAdmin";
+import { db, auth } from "./_utils/firebaseAdmin.js";
 import crypto from "crypto";
 
 export default async function handler(req, res) {
@@ -44,4 +44,5 @@ export default async function handler(req, res) {
     console.error("Error in /api/verifyPayment:", error);
     res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
+
 }
