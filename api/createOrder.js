@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     const options = {
       amount: amount,
       currency: "INR",
-      receipt: `receipt_user_${uid}_${Date.now()}`,
+      receipt: `receipt_user_${uid}_${Date.now().toString(36)}`, // <-- THIS IS THE FIX
     };
 
     const order = await razorpay.orders.create(options);
