@@ -1,5 +1,5 @@
 
-export const localFindings = [
+export const RAW_FINDINGS  = [
 
   {
     "id": "normal-abdomen-pelvis-1",
@@ -106,7 +106,13 @@ export const localFindings = [
     "organ": "PROSTATE",
     "findings": "The prostate is enlarged Borderline Prostatomegaly.",
     "impression": "Grade I Prostatomegaly."
-  },  
+  },
+   {
+      "findingName": "Prostatomegaly",
+      "organ": "PROSTATE",
+      "findings": "The prostate is enlarged with an estimated weight of [X] g. Echotexture is heterogeneous.",
+      "impression": "Grade [I/II] prostatomegaly."
+    },  
   {
     "findingName": "Normal APPENDIX",
     "organ": "OTHERS",
@@ -2237,7 +2243,7 @@ export const localFindings = [
     "findings": "INHOMOGENOUS FUNDIC ECHOTEXTURE FAVOURS POSSIBILITY OF FUNDIC ADENOMYOSIS.",
     "impression": ""
   },
-    {
+  {
       "findingName": "Ascites",
       "organ": "PERITONEUM",
       "findings": "A [minimal/moderate/large] amount of anechoic free fluid is noted in the abdomen and pelvis.",
@@ -2563,3 +2569,17 @@ export const localFindings = [
     }
 
 ];
+
+export const localFindings = (RAW_FINDINGS || []).map((f) => ({
+  ...f,
+  conditionName: f.conditionName || f.findingName || f.name || 'Untitled',
+  synonyms: Array.from(
+    new Set(
+      [f.findingName, f.organ,f.conditionName]
+        .filter(Boolean)
+        .map((s) => String(s))
+    )
+  ),
+}));
+
+export default localFindings;

@@ -6187,7 +6187,7 @@ const handleInsertMeasurements = (values, calculusData) => {
           setUserRole(userRole);
 
           if (userRole === 'basic') {
-            const reportLimit = 1000;
+            const reportLimit = 5;
             const reportCount = userData.reportCount || 0;
             const lastReportDate = userData.lastReportDate?.toDate();
             const currentMonth = new Date().getMonth();
@@ -6818,7 +6818,10 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
   
 
    const analyzeImages = async () => {
-        console.log('AnalyzeImages....1859')
+       if (isRestricted) {
+      toast.error("Please upgrade to Pro for AI image analysis.");
+      return; // Stop the function
+    }
 
     if (images.length === 0) {
       setError("Please upload one or more images first.");
@@ -7109,6 +7112,108 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       setAiAnalysisStatus('');
     }
   };
+
+  // Inside your App component in App.legacy.jsx
+
+const handleUpgrade = async () => {
+  toast.loading("Initializing payment...");
+
+  try {
+    // 1. Get the Firebase Auth Token
+    if (!auth.currentUser) {
+      toast.error("You must be logged in to upgrade.");
+      return;
+    }
+    const token = await auth.currentUser.getIdToken();
+
+    // 2. CALL YOUR VERCEL API to create an order
+    const response = await fetch('/api/createOrder', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, // Send the token
+      },
+      body: JSON.stringify({ amount: 50000 }), // e.g., 50000 = ₹500.00
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Failed to create order.");
+    }
+
+    const order = await response.json();
+
+    // 3. DEFINE OPTIONS for the Razorpay modal
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Your *public* Key ID
+      amount: order.amount,
+      currency: order.currency,
+      name: "aiRAD Reporting",
+      description: "Pro Subscription",
+      order_id: order.id,
+
+      // 4. DEFINE THE HANDLER (This runs on success)
+      handler: async (response) => {
+        toast.loading("Verifying payment...");
+        try {
+          // 5. Get a FRESH token (important!)
+          const newToken = await auth.currentUser.getIdToken(true);
+
+          // 6. CALL YOUR VERCEL API to verify the payment
+          const verifyResponse = await fetch('/api/verifyPayment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${newToken}`,
+            },
+            body: JSON.stringify({
+              order_id: response.razorpay_order_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            }),
+          });
+
+          if (!verifyResponse.ok) {
+            const err = await verifyResponse.json();
+            throw new Error(err.error || "Verification failed.");
+          }
+
+          toast.dismiss();
+          toast.success("Upgrade successful! Welcome to Pro.");
+          // Your app's `onAuthStateChanged` listener will automatically
+          // see the new "pro" role on the next refresh/token change.
+
+        } catch (error) {
+          console.error("Payment verification failed:", error);
+          toast.dismiss();
+          toast.error(`Verification failed: ${error.message}`);
+        }
+      },
+      prefill: {
+        email: auth.currentUser.email,
+      },
+      theme: {
+        color: "#3399cc",
+      },
+    };
+
+    // 7. OPEN THE RAZORPAY CHECKOUT MODAL
+    const rzp = new window.Razorpay(options);
+    rzp.on("payment.failed", (response) => {
+      toast.dismiss();
+      toast.error("Payment failed. Please try again.");
+      console.error("Razorpay failure:", response.error);
+    });
+
+    toast.dismiss();
+    rzp.open();
+
+  } catch (error) {
+    console.error("Order creation failed:", error);
+    toast.dismiss();
+    toast.error(`Error: ${error.message}`);
+  }
+};
 
   
 // In App.legacy.jsx, replace the old handleSearch function with this:
@@ -8600,6 +8705,18 @@ useEffect(() => {
         </button>
     </div>
 </header>
+{isRestricted && (
+            <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded-lg text-center">
+                You've reached your free limit.
+                <button
+                    onClick={handleUpgrade}
+                    className="font-bold underline ml-2"
+                >
+                    Upgrade to Professional
+                </button>
+                for unlimited reports and AI features.
+            </div>
+        )}
 
       {/* ============== MAIN CONTENT ============== */}
 <main className="flex-grow flex flex-col lg:flex-row overflow-hidden"> {/* Use overflow-hidden */}
@@ -8776,13 +8893,13 @@ useEffect(() => {
         />
     </SidePanel>
     
-                <button onClick={analyzeImages} disabled={isAiLoading || images.length === 0} className="w-full mt-2 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition flex items-center justify-center disabled:bg-indigo-800 text-sm">
+                <button onClick={analyzeImages} disabled={isAiLoading || images.length === 0 || isRestricted } className="w-full mt-2 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition flex items-center justify-center disabled:bg-indigo-800 text-sm">
                     {isAiLoading ? "Analyzing..." : <><BrainCircuit size={16} className="mr-2"/>Analyze Images</>}
                 </button>
                 
             </SidePanel>
 
-           
+
 
        {/* Image Modal for DICOM & Raster navigation */}
        <ImageModal
