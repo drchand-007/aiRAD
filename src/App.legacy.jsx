@@ -7145,7 +7145,7 @@ const handleUpgrade = async () => {
 
     // 3. DEFINE OPTIONS for the Razorpay modal
     const options = {
-      key: import.meta.env.RAZORPAY_KEY_ID, // Your *public* Key ID
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Your *public* Key ID
       amount: order.amount,
       currency: order.currency,
       name: "aiRAD Reporting",
