@@ -6204,7 +6204,7 @@ const handleInsertMeasurements = (values, calculusData) => {
 
             if (userRole === 'basic') {
               // Check for report limits (your existing logic)
-              const reportLimit = 1000;
+              const reportLimit = 5;
               const reportCount = userData.reportCount || 0;
               const lastReportDate = userData.lastReportDate?.toDate();
               const currentMonth = new Date().getMonth();
