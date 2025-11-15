@@ -6173,57 +6173,94 @@ const handleInsertMeasurements = (values, calculusData) => {
              }
         }
     };
+
+
   // --- AUTHENTICATION LISTENER & FREEMIUM CHECK ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let databaseUnsubscribe = null; // This will hold our database listener
+
+    // This first listener only watches for LOGIN or LOGOUT
+    const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setIsAuthLoading(true);
+
+      // If a user was logged in, we must unsubscribe from their old doc
+      if (databaseUnsubscribe) {
+        databaseUnsubscribe();
+      }
+
       if (currentUser) {
-        setUser(currentUser);
+        // --- 1. USER IS LOGGED IN ---
+        setUser(currentUser); // Set the user object
+
+        // Now, set up a LIVE listener for this user's document
         const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
 
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          const userRole = userData.role || 'basic';
-          setUserRole(userRole);
+        databaseUnsubscribe = onSnapshot(userDocRef, async (userDocSnap) => {
+          if (userDocSnap.exists()) {
+            // --- 2. User document exists, READ THE DATA ---
+            const userData = userDocSnap.data();
+            const userRole = userData.role || 'basic';
+            setUserRole(userRole);
 
-          if (userRole === 'basic') {
-            const reportLimit = 5;
-            const reportCount = userData.reportCount || 0;
-            const lastReportDate = userData.lastReportDate?.toDate();
-            const currentMonth = new Date().getMonth();
+            if (userRole === 'basic') {
+              // Check for report limits (your existing logic)
+              const reportLimit = 1000;
+              const reportCount = userData.reportCount || 0;
+              const lastReportDate = userData.lastReportDate?.toDate();
+              const currentMonth = new Date().getMonth();
 
-            if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
-              // Reset count for the new month
-              await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
-              setIsRestricted(false);
-            } else if (reportCount >= reportLimit) {
-              setIsRestricted(true);
+              if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
+                // It's a new month, reset their count
+                setIsRestricted(false);
+                await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
+              } else if (reportCount >= reportLimit) {
+                setIsRestricted(true); // They are over the limit
+              } else {
+                setIsRestricted(false); // They are under the limit
+              }
             } else {
+              // --- 3. USER IS "pro" ---
               setIsRestricted(false);
             }
           } else {
-            setIsRestricted(false); // Professional users are never restricted
+            // --- 4. NEW USER ---
+            // The document doesn't exist, so let's create it
+            await setDoc(userDocRef, {
+              email: currentUser.email,
+              role: 'basic',
+              reportCount: 0,
+              lastReportDate: serverTimestamp(),
+            });
+            setUserRole('basic');
+            setIsRestricted(false); // They are new, so they are not restricted yet
           }
-        } else {
-          // New user, set default values
-          await setDoc(userDocRef, {
-            email: currentUser.email,
-            role: 'basic',
-            reportCount: 0,
-            lastReportDate: serverTimestamp(),
-          });
-          setUserRole('basic');
-          setIsRestricted(false);
-        }
+          setIsAuthLoading(false); // Done loading
+        }, (error) => {
+          // Handle listener error
+          console.error("Error listening to user document:", error);
+          toast.error("Error syncing user profile.");
+          setIsAuthLoading(false);
+        });
+
       } else {
+        // --- 5. USER IS LOGGED OUT ---
         setUser(null);
         setUserRole('basic');
         setIsRestricted(false);
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     });
-    return () => unsubscribe();
-  }, [user]);
+
+    // Cleanup function for the auth listener
+    return () => {
+      authUnsubscribe();
+      if (databaseUnsubscribe) {
+        databaseUnsubscribe(); // Also clean up the DB listener
+      }
+    };
+  }, []); // <-- Empty array is CRITICAL. This effect runs once on mount.
+
+// --- (End of the replacement block) ---
 
 // // Load the initial template once the editor is ready
 //   useEffect(() => {
