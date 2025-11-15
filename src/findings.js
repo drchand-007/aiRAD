@@ -2237,12 +2237,12 @@ export const localFindings = [
     "findings": "INHOMOGENOUS FUNDIC ECHOTEXTURE FAVOURS POSSIBILITY OF FUNDIC ADENOMYOSIS.",
     "impression": ""
   },
-  {
-    "findingName": "ASCITES",
-    "organ": "OTHERS",
-    "findings": "ASCITES.",
-    "impression": ""
-  },
+    {
+      "findingName": "Ascites",
+      "organ": "PERITONEUM",
+      "findings": "A [minimal/moderate/large] amount of anechoic free fluid is noted in the abdomen and pelvis.",
+      "impression": "[Minimal/moderate/severe] ascites."
+    },
   {
     "findingName": "PLEURAL EFFUSION",
     "organ": "OTHERS",
@@ -2356,6 +2356,210 @@ export const localFindings = [
     "organ": "USG",
     "findings": "Excessive normal calibre gaseous bowel loops are seen all over the abdomen",
     "impression": ""
-  }
+  },
+  {
+      "findingName": "Cirrhosis",
+      "organ": "LIVER",
+      "findings": "Liver is shrunken in size with a nodular surface contour and coarse, heterogeneous echotexture. Features of portal hypertension such as splenomegaly and ascites may be present.",
+      "impression": "Features suggestive of cirrhosis."
+    },
+    {
+      "findingName": "Portal Hypertension",
+      "organ": "LIVER",
+      "findings": "The main portal vein diameter is increased (>13 mm). Splenomegaly and ascites are noted. Spleno-renal or gastro-renal collaterals may be visible on color Doppler.",
+      "impression": "Features of portal hypertension."
+    },
+    {
+      "findingName": "Ectopic Pregnancy",
+      "organ": "ADNEXA",
+      "findings": "An extrauterine gestational sac is identified in the [right/left] adnexa, separate from the ovary. A yolk sac and/or fetal pole may be seen. Free fluid may be present in the pouch of Douglas.",
+      "impression": "Ectopic pregnancy in the [right/left] adnexa."
+    },
+    {
+      "findingName": "Pelvic Inflammatory Disease (PID)",
+      "organ": "FALLOPIAN TUBE",
+      "findings": "Thickened, fluid-filled fallopian tubes (pyosalpinx) are noted with surrounding hyperemia ('cogwheel sign'). Ovaries may appear enlarged and polycystic. Complex free fluid may be present in the pelvis.",
+      "impression": "Features suggestive of Pelvic Inflammatory Disease (PID)."
+    },
+    {
+      "findingName": "Bowel Obstruction",
+      "organ": "BOWEL",
+      "findings": "Multiple dilated, fluid-filled loops of small bowel (diameter > 2.5 cm) are noted with increased peristalsis or a to-and-fro motion of contents. A transition point may be identified.",
+      "impression": "Features suggestive of small bowel obstruction."
+    },
+    {
+      "findingName": "Fatty Liver (Hepatosteatosis)",
+      "organ": "LIVER",
+      "findings": "Liver is normal in size with a diffuse increase in echogenicity and coarse echotexture. There is impaired visualization of the diaphragm and intra-hepatic vessel walls.",
+      "impression": "Grade [I/II/III] fatty liver (hepatic steatosis)."
+    },
+    {
+      "findingName": "Mesenteric Lymphadenitis",
+      "organ": "MESENTERY",
+      "findings": "Multiple mildly enlarged mesenteric lymph nodes are seen in the right iliac fossa, largest measuring [X] mm, with surrounding inflammatory changes.",
+      "impression": "Mesenteric lymphadenitis."
+    },
+    {
+      "findingName": "Hepatomegaly",
+      "organ": "LIVER",
+      "findings": "Liver is enlarged in size, measuring [X] cm span, with normal echotexture.",
+      "impression": "Hepatomegaly."
+    },
+    {
+      "findingName": "Renal Calculus",
+      "organ": "KIDNEY",
+      "findings": "A calculus measuring [X] mm is noted in the [upper/mid/lower] pole calyx of the [right/left] kidney with posterior acoustic shadowing.",
+      "impression": "[Right/Left] renal calculus."
+    },
+    {
+      "findingName": "Renal Cortical Cyst",
+      "organ": "KIDNEY",
+      "findings": "A simple anechoic cyst measuring [X] × [Y] mm is noted in the [upper/mid/lower] pole cortex of the [right/left] kidney.",
+      "impression": "[Right/Left] renal simple cortical cyst."
+    },
+    {
+      "findingName": "Simple Ovarian Cyst",
+      "organ": "OVARY",
+      "findings": "A simple, anechoic, thin-walled cystic lesion measuring [X] x [Y] cm is noted in the [right/left] ovary.",
+      "impression": "[Right/Left] simple ovarian cyst."
+    },
+    {
+      "findingName": "Polycystic Ovarian Morphology (PCOM)",
+      "organ": "OVARIES",
+      "findings": "Both ovaries are enlarged with multiple peripheral small follicles and central echogenic stroma.",
+      "impression": "Bilateral polycystic ovarian morphology."
+    },
+    {
+      "findingName": "Gallbladder Sludge",
+      "organ": "GALL BLADDER",
+      "findings": "Low-level mobile echoes without acoustic shadowing are seen layering in the dependent portion of the gallbladder.",
+      "impression": "Gallbladder sludge."
+    },
+    {
+      "findingName": "Cholelithiasis",
+      "organ": "GALL BLADDER",
+      "findings": "Multiple mobile echogenic foci with posterior acoustic shadowing are noted within the gallbladder lumen, the largest measuring [X] mm.",
+      "impression": "Cholelithiasis."
+    },
+    {
+      "findingName": "Prostatomegaly",
+      "organ": "PROSTATE",
+      "findings": "The prostate is enlarged with an estimated weight of [X] g. Echotexture is heterogeneous.",
+      "impression": "Grade [I/II] prostatomegaly."
+    },
+    {
+      "findingName": "Acute Appendicitis",
+      "organ": "APPENDIX",
+      "findings": "A non-compressible, blind-ending, aperistaltic tubular structure is seen in the right iliac fossa, measuring ≥6 mm in diameter, with surrounding fat stranding.",
+      "impression": "Features suggestive of acute appendicitis."
+    },
+    {
+      "findingName": "Umbilical Hernia",
+      "organ": "ABDOMINAL WALL",
+      "findings": "A defect of [X] mm is noted in the umbilical region with herniating omentum/bowel loops.",
+      "impression": "Umbilical hernia."
+    },
+    {
+      "findingName": "Inguinal Hernia",
+      "organ": "ABDOMINAL WALL",
+      "findings": "A defect is noted in the [right/left] inguinal canal with herniating omentum/bowel loops, [superior/inferior] to the inferior epigastric vessels.",
+      "impression": "[Direct/Indirect] [right/left] inguinal hernia."
+    },
+    {
+      "findingName": "Cirrhosis",
+      "organ": "LIVER",
+      "findings": "Liver is shrunken in size with a nodular surface contour and coarse, heterogeneous echotexture. Features of portal hypertension may be present.",
+      "impression": "Features suggestive of cirrhosis."
+    },
+    {
+      "findingName": "Hepatic Cyst",
+      "organ": "LIVER",
+      "findings": "A simple anechoic cyst measuring [X] × [Y] cm is noted in the [lobe/segment] of the liver.",
+      "impression": "Simple hepatic cyst."
+    },
+    {
+      "findingName": "Hemangioma",
+      "organ": "LIVER",
+      "findings": "A well-defined hyperechoic lesion measuring [X] × [Y] cm is noted in the right lobe of the liver.",
+      "impression": "Likely hemangioma."
+    },
+    {
+      "findingName": "Acute Cholecystitis",
+      "organ": "GALL BLADDER",
+      "findings": "The gallbladder wall is thickened (>3 mm) and edematous, with pericholecystic fluid and a positive sonographic Murphy’s sign.",
+      "impression": "Features suggestive of acute cholecystitis."
+    },
+    {
+      "findingName": "Hydroureteronephrosis",
+      "organ": "KIDNEY AND URETER",
+      "findings": "The [right/left] pelvicalyceal system and ureter are dilated, secondary to [cause].",
+      "impression": "[Right/Left] hydroureteronephrosis."
+    },
+    {
+      "findingName": "Cystitis",
+      "organ": "URINARY BLADDER",
+      "findings": "The urinary bladder wall is diffusely thickened (≥5 mm) with internal echogenic debris.",
+      "impression": "Cystitis. Suggested urine routine correlation."
+    },
+    {
+      "findingName": "Uterine Fibroid (Leiomyoma)",
+      "organ": "UTERUS",
+      "findings": "A well-defined hypoechoic lesion measuring [X] × [Y] cm is noted in the [location] myometrium with posterior acoustic shadowing.",
+      "impression": "[Location] uterine fibroid."
+    },
+    {
+      "findingName": "Adenomyosis",
+      "organ": "UTERUS",
+      "findings": "The uterus is bulky and globular with heterogeneous myometrial echotexture and an indistinct endo-myometrial junction.",
+      "impression": "Features suggestive of uterine adenomyosis."
+    },
+    {
+      "findingName": "Ovarian Hemorrhagic Cyst",
+      "organ": "OVARY",
+      "findings": "A complex cystic lesion in the [right/left] ovary shows internal fine reticular echoes (fishnet pattern) with no internal vascularity.",
+      "impression": "[Right/Left] ovarian hemorrhagic cyst."
+    },
+    {
+      "findingName": "Hydrosalpinx",
+      "organ": "FALLOPIAN TUBE",
+      "findings": "A dilated, tortuous, fluid-filled tubular structure is noted in the [right/left] adnexa, separate from the ovary.",
+      "impression": "[Right/Left] hydrosalpinx."
+    },
+    {
+      "findingName": "Hydrocele",
+      "organ": "SCROTUM",
+      "findings": "An anechoic fluid collection is seen surrounding the [right/left] testis within the tunica vaginalis.",
+      "impression": "[Right/Left] hydrocele."
+    },
+    {
+      "findingName": "Epididymo-orchitis",
+      "organ": "TESTIS AND EPIDIDYMIS",
+      "findings": "Combined enlargement, heterogeneous echotexture, and hypervascularity of the [right/left] testis and epididymis.",
+      "impression": "[Right/Left] epididymo-orchitis."
+    },
+    {
+      "findingName": "Splenomegaly",
+      "organ": "SPLEEN",
+      "findings": "The spleen measures [X] cm in its longitudinal axis (normal <12 cm). The echotexture is homogenous.",
+      "impression": "Splenomegaly."
+    },
+    {
+      "findingName": "Pancreatic Pseudocyst",
+      "organ": "PANCREAS",
+      "findings": "A well-defined anechoic cystic collection with a thick wall and posterior enhancement measuring [X] cm is noted adjacent to the pancreatic [head/body/tail].",
+      "impression": "Pancreatic pseudocyst."
+    },
+    {
+      "findingName": "Bowel Obstruction",
+      "organ": "BOWEL",
+      "findings": "Multiple dilated, fluid-filled loops of small bowel (diameter > 2.5 cm) are noted with increased or to-and-fro peristalsis.",
+      "impression": "Features suggestive of small bowel obstruction."
+    },
+    {
+      "findingName": "Deep Vein Thrombosis (DVT)",
+      "organ": "VESSELS",
+      "findings": "The [femoral/popliteal] vein is non-compressible with intraluminal echogenic thrombus and absent flow on color Doppler.",
+      "impression": "Acute deep vein thrombosis (DVT)."
+    }
 
 ];
