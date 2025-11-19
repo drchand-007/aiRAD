@@ -2566,6 +2566,384 @@ export const RAW_FINDINGS  = [
       "organ": "VESSELS",
       "findings": "The [femoral/popliteal] vein is non-compressible with intraluminal echogenic thrombus and absent flow on color Doppler.",
       "impression": "Acute deep vein thrombosis (DVT)."
+    },
+    {
+      "findingName": "Anembryonic Pregnancy",
+      "organ": "UTERUS",
+      "findings": "An intrauterine gestational sac is identified with a mean sac diameter of ≥25 mm without evidence of an embryo on transvaginal ultrasound.",
+      "impression": "Findings consistent with an anembryonic pregnancy (empty gestational sac)."
+    },
+    {
+      "findingName": "Embryonic Demise",
+      "organ": "UTERUS",
+      "findings": "An embryo with a crown-rump length (CRL) of ≥7 mm is identified without cardiac activity.",
+      "impression": "Findings consistent with embryonic demise (missed abortion)."
+    },
+    {
+      "findingName": "Embryonic Bradycardia",
+      "organ": "FETAL HEART",
+      "findings": "The fetal heart rate is <100 bpm before 7 weeks gestation, which is low for gestational age.",
+      "impression": "Embryonic bradycardia, associated with a high risk of demise."
+    },
+    {
+      "findingName": "Subchorionic Hemorrhage",
+      "organ": "UTERUS",
+      "findings": "A crescent-shaped, hypoechoic collection is noted between the uterine wall and the chorion.",
+      "impression": "Subchorionic hemorrhage."
+    },
+    {
+      "findingName": "Ectopic Pregnancy",
+      "organ": "ADNEXA",
+      "findings": "An extrauterine gestational sac is identified in the adnexa, with a characteristic \"tubal ring\" sign.",
+      "impression": "Findings consistent with an ectopic pregnancy."
+    },
+    {
+      "findingName": "Increased Nuchal Translucency",
+      "organ": "FETAL NECK",
+      "findings": "The anechoic space at the posterior fetal neck measures >3.0 mm, which is increased for the gestational age.",
+      "impression": "Increased nuchal translucency, a marker for aneuploidy."
+    },
+    {
+      "findingName": "Fetal Growth Restriction (FGR)",
+      "organ": "FETUS",
+      "findings": "Fetal biometry calculates an estimated fetal weight (EFW) and/or abdominal circumference (AC) below the 10th percentile for gestational age.",
+      "impression": "Fetal growth restriction."
+    },
+    {
+      "findingName": "Ventriculomegaly",
+      "organ": "FETAL BRAIN",
+      "findings": "The atrial diameter of the lateral ventricle measures >10 mm.",
+      "impression": "[Mild/Moderate/Severe] ventriculomegaly."
+    },
+    {
+      "findingName": "Dandy-Walker Malformation",
+      "organ": "FETAL BRAIN",
+      "findings": "Cystic dilation of the fourth ventricle, agenesis of the cerebellar vermis, and an enlarged posterior fossa are noted.",
+      "impression": "Findings consistent with Dandy-Walker malformation."
+    },
+    {
+      "findingName": "Agenesis of the Corpus Callosum",
+      "organ": "FETAL BRAIN",
+      "findings": "There is absence of the cavum septi pellucidi, colpocephaly (\"teardrop\" shaped lateral ventricles), and parallel orientation of the lateral ventricles.",
+      "impression": "Findings suggestive of agenesis of the corpus callosum."
+    },
+    {
+      "findingName": "Thickened Nuchal Fold",
+      "organ": "FETAL NECK",
+      "findings": "The soft tissue thickness at the posterior fetal neck measures ≥6 mm.",
+      "impression": "Thickened nuchal fold, a marker for aneuploidy."
+    },
+    {
+      "findingName": "Cystic Hygroma",
+      "organ": "FETAL NECK",
+      "findings": "A multiseptated fluid-filled mass is identified in the posterior neck.",
+      "impression": "Cystic hygroma."
+    },
+    {
+      "findingName": "Spina Bifida",
+      "organ": "FETAL SPINE",
+      "findings": "Splaying of the posterior vertebral ossification centers is noted, with an associated dorsal cystic mass. Intracranial findings include the \"lemon\" sign and \"banana\" sign.",
+      "impression": "Open neural tube defect consistent with spina bifida."
+    },
+    {
+      "findingName": "Echogenic Intracardiac Focus",
+      "organ": "FETAL HEART",
+      "findings": "A small, bright focus is noted in the [left] ventricle at the level of the papillary muscle.",
+      "impression": "Echogenic intracardiac focus, a weak aneuploidy marker."
+    },
+    {
+      "findingName": "Congenital Diaphragmatic Hernia",
+      "organ": "FETAL THORAX",
+      "findings": "Abdominal contents, such as the stomach bubble and bowel loops, are herniated into the thoracic cavity causing mediastinal shift.",
+      "impression": "Congenital diaphragmatic hernia."
+    },
+    {
+      "findingName": "Omphalocele",
+      "organ": "FETAL ABDOMINAL WALL",
+      "findings": "A midline abdominal wall defect is present with herniation of abdominal contents into the base of the umbilical cord, covered by a membrane.",
+      "impression": "Omphalocele."
+    },
+    {
+      "findingName": "Gastroschisis",
+      "organ": "FETAL ABDOMINAL WALL",
+      "findings": "A paraumbilical abdominal wall defect is noted with free-floating herniated bowel loops, not covered by a membrane.",
+      "impression": "Gastroschisis."
+    },
+    {
+      "findingName": "Duodenal Atresia",
+      "organ": "FETAL ABDOMEN",
+      "findings": "A \"double bubble\" sign is noted, representing a dilated, fluid-filled stomach and proximal duodenum.",
+      "impression": "Findings highly suspicious for duodenal atresia."
+    },
+    {
+      "findingName": "Echogenic Bowel",
+      "organ": "FETAL ABDOMEN",
+      "findings": "A segment of fetal bowel demonstrates echogenicity similar to or greater than adjacent bone.",
+      "impression": "Echogenic bowel."
+    },
+    {
+      "findingName": "Renal Pyelectasis",
+      "organ": "FETAL KIDNEY",
+      "findings": "The anteroposterior renal pelvic diameter measures ≥4 mm in the second trimester.",
+      "impression": "[Unilateral/Bilateral] renal pyelectasis."
+    },
+    {
+      "findingName": "Single Umbilical Artery",
+      "organ": "UMBILICAL CORD",
+      "findings": "Transverse view of the umbilical cord demonstrates two vessels (one artery, one vein) instead of the normal three.",
+      "impression": "Single umbilical artery."
+    },
+    {
+      "findingName": "Placenta Previa",
+      "organ": "PLACENTA",
+      "findings": "The placenta completely covers the internal cervical os.",
+      "impression": "Complete placenta previa."
+    },
+    {
+      "findingName": "Placenta Accreta Spectrum",
+      "organ": "PLACENTA",
+      "findings": "Sonographic signs include loss of the retroplacental clear zone and multiple placental lacunae with turbulent flow on color Doppler.",
+      "impression": "Features suspicious for placenta accreta spectrum."
+    },
+    {
+      "findingName": "Oligohydramnios",
+      "organ": "AMNIOTIC FLUID",
+      "findings": "The amniotic fluid index (AFI) is <5 cm, or the single deepest vertical pocket (SDP) is <2 cm.",
+      "impression": "Oligohydramnios."
+    },
+    {
+      "findingName": "Polyhydramnios",
+      "organ": "AMNIOTIC FLUID",
+      "findings": "The amniotic fluid index (AFI) is >24 cm, or the single deepest vertical pocket (SDP) is >8 cm.",
+      "impression": "Polyhydramnios."
+    },
+    {
+      "findingName": "Absent Umbilical Artery End-Diastolic Flow",
+      "organ": "UMBILICAL ARTERY",
+      "findings": "Doppler interrogation of the umbilical artery demonstrates absent blood flow during diastole.",
+      "impression": "Absent end-diastolic flow, indicating severe placental dysfunction."
+    },
+    {
+      "findingName": "Reversed Umbilical Artery End-Diastolic Flow",
+      "organ": "UMBILICAL ARTERY",
+      "findings": "Doppler interrogation of the umbilical artery demonstrates reversed blood flow during diastole.",
+      "impression": "Reversed end-diastolic flow, indicating severe fetal compromise."
+    },
+    {
+      "findingName": "Brain Sparing Physiology",
+      "organ": "FETAL CEREBRAL CIRCULATION",
+      "findings": "Doppler evaluation shows a decreased Pulsatility Index (PI) in the middle cerebral artery (MCA) and an increased PI in the umbilical artery, resulting in a low cerebroplacental ratio.",
+      "impression": "Evidence of brain-sparing physiology, consistent with fetal hypoxia."
+    },
+    {
+      "findingName": "Holoprosencephaly (Alobar)",
+      "organ": "FETAL BRAIN",
+      "findings": "A single midline monoventricle is identified with fused thalami and absence of the falx cerebri, corpus callosum, and cavum septi pellucidi. Associated facial anomalies such as cyclopia or proboscis may be present.",
+      "impression": "Findings are diagnostic of alobar holoprosencephaly."
+    },
+    {
+      "findingName": "Hydranencephaly",
+      "organ": "FETAL BRAIN",
+      "findings": "There is near-complete absence of the cerebral hemispheres, which are replaced by a large cerebrospinal fluid-filled sac. The thalami are preserved and not fused, and the falx cerebri is typically present.",
+      "impression": "Findings consistent with hydranencephaly."
+    },
+    {
+      "findingName": "Encephalocele",
+      "organ": "FETAL SKULL",
+      "findings": "A bony defect in the calvarium, most commonly occipital, is identified with herniation of intracranial contents (meninges, CSF, and/or brain tissue) through the defect.",
+      "impression": "Encephalocele."
+    },
+    {
+      "findingName": "Choroid Plexus Cyst",
+      "organ": "FETAL BRAIN",
+      "findings": "A simple, anechoic, round or oval cyst is identified within the choroid plexus of the lateral ventricle.",
+      "impression": "[Unilateral/Bilateral/Isolated] choroid plexus cyst(s), a soft marker for aneuploidy."
+    },
+    {
+      "findingName": "Absent/Hypoplastic Nasal Bone",
+      "organ": "FETAL FACE",
+      "findings": "On a midsagittal view of the fetal profile, the nasal bone is either not visualized or measures below the 2.5th percentile for gestational age.",
+      "impression": "Absent/hypoplastic nasal bone, a strong marker for Trisomy 21."
+    },
+    {
+      "findingName": "Cleft Lip and Palate",
+      "organ": "FETAL FACE",
+      "findings": "A hypoechoic defect is noted in the fetal upper lip on coronal views. Axial views demonstrate a defect extending through the alveolar ridge and hard palate.",
+      "impression": "[Unilateral/Bilateral/Midline] cleft lip with associated cleft palate."
+    },
+    {
+      "findingName": "Micrognathia",
+      "organ": "FETAL FACE",
+      "findings": "Subjective assessment on a midsagittal profile view reveals a recessed chin (retrognathia). The inferior facial angle and/or jaw index are reduced.",
+      "impression": "Micrognathia."
+    },
+    {
+      "findingName": "Hypoplastic Left Heart Syndrome",
+      "organ": "FETAL HEART",
+      "findings": "The four-chamber view demonstrates a diminutive or absent left ventricle with poor contractility. The mitral and/or aortic valves are atretic or stenotic. Color Doppler shows retrograde flow in the aortic arch.",
+      "impression": "Findings consistent with Hypoplastic Left Heart Syndrome."
+    },
+    {
+      "findingName": "Tetralogy of Fallot",
+      "organ": "FETAL HEART",
+      "findings": "A malalignment ventricular septal defect (VSD) is present with an overriding aorta seen on the five-chamber view. The main pulmonary artery may appear small. The four-chamber view is often normal.",
+      "impression": "Findings suggestive of Tetralogy of Fallot."
+    },
+    {
+      "findingName": "Congenital Pulmonary Airway Malformation (CPAM)",
+      "organ": "FETAL LUNG",
+      "findings": "A well-defined, echogenic, multicystic or solid mass is identified within the fetal lung parenchyma, which may cause mediastinal shift and hydrops.",
+      "impression": "Echogenic lung mass consistent with a Congenital Pulmonary Airway Malformation (CPAM)."
+    },
+    {
+      "findingName": "Pleural Effusion (Hydrothorax)",
+      "organ": "FETAL THORAX",
+      "findings": "An anechoic fluid collection is seen surrounding one or both lungs, outlining the lung lobes and potentially causing pulmonary hypoplasia.",
+      "impression": "[Unilateral/Bilateral] pleural effusion (hydrothorax)."
+    },
+    {
+      "findingName": "Multicystic Dysplastic Kidney (MCDK)",
+      "organ": "FETAL KIDNEY",
+      "findings": "The affected kidney is replaced by multiple, non-communicating cysts of varying sizes with intervening echogenic stroma. No normal renal parenchyma is identified.",
+      "impression": "Findings consistent with [unilateral/bilateral] multicystic dysplastic kidney."
+    },
+    {
+      "findingName": "Posterior Urethral Valves (PUV)",
+      "organ": "FETAL URINARY TRACT",
+      "findings": "Marked dilation of the fetal bladder and proximal urethra creates a \"keyhole sign\". There is bilateral hydroureteronephrosis and a thickened bladder wall. Severe oligohydramnios is typically present.",
+      "impression": "Findings highly suggestive of bladder outlet obstruction, likely due to posterior urethral valves."
+    },
+    {
+      "findingName": "Clubfoot (Talipes Equinovarus)",
+      "organ": "FETAL EXTREMITY",
+      "findings": "There is persistent abnormal adduction and inversion of the foot, where the sole is directed medially and the tibia/fibula are visualized in the same plane as the metatarsals.",
+      "impression": "[Unilateral/Bilateral] clubfoot (talipes equinovarus)."
+    },
+    {
+      "findingName": "Sacrococcygeal Teratoma",
+      "organ": "FETAL PELVIS",
+      "findings": "A large, complex mass is seen arising from the sacrococcygeal region. It can be solid, cystic, or mixed, with calcifications, and often demonstrates significant external and internal vascularity on color Doppler.",
+      "impression": "Mass consistent with a sacrococcygeal teratoma."
+    },
+    {
+      "findingName": "Hydrops Fetalis",
+      "organ": "FETUS",
+      "findings": "There is evidence of excessive fluid accumulation in at least two fetal compartments, such as skin edema (>5 mm), ascites, pleural effusion, or pericardial effusion. Placentomegaly and polyhydramnios are often associated.",
+      "impression": "Hydrops fetalis."
+    },
+    {
+      "findingName": "Velamentous Cord Insertion",
+      "organ": "UMBILICAL CORD",
+      "findings": "Color Doppler demonstrates the umbilical cord vessels inserting into the chorioamniotic membranes rather than the placental mass, with the vessels traversing the membranes unsupported by Wharton's jelly before reaching the placental edge.",
+      "impression": "Velamentous cord insertion."
+    },
+    {
+      "findingName": "Vasa Previa",
+      "organ": "UMBILICAL CORD",
+      "findings": "Fetal vessels are identified running within the membranes across or in close proximity (<2 cm) to the internal cervical os, confirmed with color and pulsed Doppler on transvaginal imaging.",
+      "impression": "Vasa previa."
+    },
+    {
+      "findingName": "Short Cervix",
+      "organ": "CERVIX",
+      "findings": "On transvaginal ultrasound, the closed endocervical length measures <25 mm before 24 weeks of gestation.",
+      "impression": "Short cervix, a significant risk factor for preterm birth."
+    },
+    {
+      "findingName": "Cervical Funneling",
+      "organ": "CERVIX",
+      "findings": "Protrusion of the amniotic membranes into the internal cervical os, creating a 'U' or 'V' shape on sagittal transvaginal view.",
+      "impression": "Cervical funneling, indicative of cervical insufficiency."
+    },
+    {
+      "findingName": "Succenturiate Lobe",
+      "organ": "PLACENTA",
+      "findings": "One or more accessory placental lobes are identified separate from the main placental disc. Color Doppler may demonstrate connecting vessels between the lobes.",
+      "impression": "Succenturiate placental lobe."
+    },
+    {
+      "findingName": "Placental Chorioangioma",
+      "organ": "PLACENTA",
+      "findings": "A well-circumscribed, hypoechoic mass is seen within the placenta, often near the cord insertion site, demonstrating prominent internal vascular flow on color Doppler.",
+      "impression": "Placental mass consistent with chorioangioma."
+    },
+    {
+      "findingName": "Twin-to-Twin Transfusion Syndrome (TTTS)",
+      "organ": "MULTIPLE GESTATION",
+      "findings": "In a monochorionic twin pregnancy, there is a combination of oligohydramnios (single deepest pocket <2 cm) in the donor twin's sac and polyhydramnios (single deepest pocket >8 cm) in the recipient's sac.",
+      "impression": "Findings consistent with Twin-to-Twin Transfusion Syndrome (TTTS), Quintero Stage [I-V]."
+    },
+    {
+      "findingName": "Amniotic Band Syndrome",
+      "organ": "AMNION",
+      "findings": "Thin, echogenic bands are seen within the amniotic fluid, causing entrapment or constriction of fetal parts, resulting in amputation, constriction rings, or craniofacial defects.",
+      "impression": "Amniotic bands with associated fetal anomalies, consistent with amniotic band syndrome."
+    },
+    {
+      "findingName": "Uterine Leiomyoma in Pregnancy",
+      "organ": "UTERUS",
+      "findings": "A well-circumscribed, hypoechoic, solid mass is identified within the myometrium. Its size, location (submucosal, intramural, subserosal), and relationship to the placenta and cervix are noted.",
+      "impression": "Uterine leiomyoma(ta)."
+    },
+    {
+      "findingName": "Corpus Luteum Cyst",
+      "organ": "OVARY",
+      "findings": "A thick-walled adnexal cystic structure is identified, often containing internal echoes from hemorrhage and exhibiting a characteristic circumferential vascularity (\"ring of fire\") on color Doppler.",
+      "impression": "Corpus luteum cyst, a normal physiologic finding in early pregnancy."
+    },
+    {
+      "findingName": "Mild Carotid Stenosis",
+      "organ": "CAROTID ARTERY",
+      "findings": "Atherosclerotic plaque is visualized in the [location, e.g., proximal internal carotid artery], causing an estimated <50% stenosis. Peak Systolic Velocity (PSV) is <125 cm/s and the ICA/CCA PSV ratio is <2.0.",
+      "impression": "Mild (<50%) stenosis of the [location] due to atherosclerotic plaque."
+    },
+    {
+      "findingName": "Moderate Carotid Stenosis",
+      "organ": "CAROTID ARTERY",
+      "findings": "Atherosclerotic plaque at the [location, e.g., carotid bulb] causes an estimated 50-69% stenosis. Doppler interrogation reveals a Peak Systolic Velocity (PSV) of 125-230 cm/s and an End-Diastolic Velocity (EDV) of 40-100 cm/s. The ICA/CCA PSV ratio is 2.0-4.0. Color Doppler demonstrates aliasing and post-stenotic turbulence.",
+      "impression": "Moderate (50-69%) stenosis of the [location] due to atherosclerotic plaque."
+    },
+    {
+      "findingName": "Severe Carotid Stenosis",
+      "organ": "CAROTID ARTERY",
+      "findings": "Atherosclerotic plaque at the [location, e.g., origin of the internal carotid artery] causes an estimated ≥70% stenosis. Doppler interrogation reveals a Peak Systolic Velocity (PSV) >230 cm/s and an End-Diastolic Velocity (EDV) >100 cm/s. The ICA/CCA PSV ratio is >4.0. Significant spectral broadening and post-stenotic turbulence are present.",
+      "impression": "Severe (≥70%) stenosis of the [location] due to atherosclerotic plaque."
+    },
+    {
+      "findingName": "Carotid Artery Occlusion",
+      "organ": "CAROTID ARTERY",
+      "findings": "No flow is detected within the lumen of the [location, e.g., internal carotid artery] on color, power, or spectral Doppler interrogation. The lumen is filled with echogenic material. A pre-occlusive 'thump' is noted in the distal common carotid artery.",
+      "impression": "Total occlusion of the [location, e.g., internal carotid artery]."
+    },
+    {
+      "findingName": "Carotid Artery Dissection",
+      "organ": "CAROTID ARTERY",
+      "findings": "A mobile intimal flap is visualized within the [location] lumen, creating a double lumen. Color Doppler demonstrates flow within both the true and false lumens, potentially with associated intramural hematoma.",
+      "impression": "Dissection of the [location, e.g., internal carotid artery]."
+    },
+    {
+      "findingName": "Fibromuscular Dysplasia",
+      "organ": "CAROTID ARTERY",
+      "findings": "In the mid-to-distal internal carotid artery, there is turbulent flow and color aliasing without visible atherosclerotic plaque. Spectral Doppler shows abruptly elevated velocities in multiple segments.",
+      "impression": "Doppler findings in the mid-distal internal carotid artery are suspicious for fibromuscular dysplasia (FMD)."
+    },
+    {
+      "findingName": "Carotid Body Tumor",
+      "organ": "CAROTID ARTERY BIFURCATION",
+      "findings": "A solid, hypoechoic, hypervascular mass is identified at the carotid bifurcation, splaying the internal and external carotid arteries. Spectral analysis reveals low-resistance arterial waveforms within the mass.",
+      "impression": "Hypervascular mass at the carotid bifurcation, characteristic of a carotid body tumor (paraganglioma)."
+    },
+    {
+      "findingName": "Carotid Vasculitis",
+      "organ": "CAROTID ARTERY",
+      "findings": "Long-segment, circumferential, homogeneous, hypoechoic thickening of the [location, e.g., common carotid artery] wall is noted ('macaroni sign'), causing luminal narrowing and elevated Doppler velocities.",
+      "impression": "Findings are suggestive of large-vessel vasculitis."
+    },
+    {
+      "findingName": "Subclavian Steal Syndrome",
+      "organ": "VERTEBRAL ARTERY",
+      "findings": "Flow in the [left/right] vertebral artery is retrograde (reversed) throughout the cardiac cycle. This is indicative of a hemodynamically significant stenosis or occlusion of the ipsilateral subclavian artery proximal to the vertebral origin.",
+      "impression": "Complete subclavian steal syndrome involving the [left/right] vertebral artery."
     }
 
 ];

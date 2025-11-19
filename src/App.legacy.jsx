@@ -4218,6 +4218,7 @@ import { geminiTools } from './api/geminiTools.js'; // Import the tools
 import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the new hook
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
+// import Groq from groq;
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
 
@@ -5497,7 +5498,7 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-3-pro-preview';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -5625,7 +5626,7 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: { responseMimeType: "application/json" }
           };
-          const model = 'gemini-2.5-flash';
+          const model = 'gemini-3-pro-preview';
           const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -8219,6 +8220,19 @@ console.log("Generating report content..."); // Debug log
   }
 };
 
+  // --- NEW FUNCTION: Insert Macro Directly ---
+  const handleInsertMacro = (text) => {
+    if (!editor) return;
+    isProgrammaticUpdate.current = true;
+    // Insert content and add a space after
+    editor.chain().focus().insertContent(text + ' ').run();
+    // Sync state
+    setEditorContent(editor.getHTML());
+    // Close modal and notify
+    setShowMacroModal(false);
+    toast.success("Macro inserted into editor");
+  };
+
   // --- NEW FUNCTION: handleInsertMeasurement ---
   const handleInsertMeasurement = (finding, value) => {
       if (!editor) return;
@@ -9459,7 +9473,7 @@ useEffect(() => {
             </div>
         </div>
       )}
-        {showMacroModal && (
+        {/* {showMacroModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
               <div className="p-6 border-b flex justify-between items-center">
@@ -9507,6 +9521,80 @@ useEffect(() => {
                         </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )} */}
+        {showMacroModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h3 className="text-2xl font-bold text-gray-800">Manage Voice Macros</h3>
+                <button className="text-2xl font-bold text-gray-800 hover:bg-gray-300 transition rounded-full p-1" onClick={() => setShowMacroModal(false)}><XCircle /></button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-grow space-y-4 gray-1000">
+                <div>
+                  <h4 className="font-bold text-gray-800 ">Add New Macro</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Voice Command (e.g., 'normal abdomen')"
+                      value={newMacroCommand}
+                      onChange={(e) => setNewMacroCommand(e.target.value)}
+                      className="w-full p-2 border rounded-lg bg-gray-100 hover:bg-gray-200 transition text-gray-800"
+                    />
+                    <textarea
+                      placeholder="Text to insert"
+                      value={newMacroText}
+                      onChange={(e) => setNewMacroText(e.target.value)}
+                      className="w-full p-2 border rounded-lg md:col-span-2 bg-gray-100 hover:bg-gray-200 transition text-gray-800"
+                      rows="3"
+                    ></textarea>
+                  </div>
+                  <button
+                    onClick={handleAddMacro}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Add Macro
+                  </button>
+                </div>
+                <hr className="border-gray-300" />
+                <div>
+                  <h4 className="font-bold text-gray-800 mb-2">Existing Macros</h4>
+                  <div className="space-y-2">
+                    {macros.map((macro) => (
+                      <div key={macro.id} className="flex justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-200"> {/* Updated padding & border for better look */}
+                        <div className="flex-grow mr-4 overflow-hidden"> {/* Added container for text to handle truncation */}
+                          <p className="font-semibold text-sm text-gray-900 truncate">{macro.command}</p> {/* Use text-gray-900 for visibility */}
+                          <p className="text-sm text-gray-600 truncate">{macro.text}</p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 flex-shrink-0"> {/* Container for buttons */}
+                          {/* --- NEW BUTTON: Insert Macro --- */}
+                          <button 
+                            onClick={() => handleInsertMacro(macro.text)} 
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 p-2 rounded-full transition-colors"
+                            title="Insert into editor"
+                          >
+                            <PlusCircle size={20} />
+                          </button>
+
+                          {/* Existing Delete Button (Updated styling slightly for consistency) */}
+                          <button 
+                            onClick={() => handleDeleteMacro(macro.id)} 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-100 p-2 rounded-full transition-colors"
+                            title="Delete macro"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {macros.length === 0 && (
+                        <p className="text-gray-500 italic text-center py-4">No macros added yet.</p>
+                    )}
                   </div>
                 </div>
               </div>
