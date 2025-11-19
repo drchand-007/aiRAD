@@ -233,7 +233,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
             <FileText size={24} className="mr-3 text-blue-500" />
             Manage Custom Templates
           </h3>
-          <button onClick={onClose}><XCircle /></button>
+          <button className="text-2xl font-bold text-gray-800 hover:bg-gray-300 transition rounded-full p-1" onClick={onClose}><XCircle /></button>
         </div>
         <div className="p-6 overflow-y-auto flex-grow grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Add New Template Form */}
