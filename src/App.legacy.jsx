@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { 
     Upload, FileText, Clipboard, Settings, BrainCircuit, User, Calendar, Stethoscope, XCircle, 
     FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, 
-    Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, 
-    ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, 
-    ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2 // Added Wand2 icon
+    Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List,UnderlineIcon, 
+    ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, FileIcon ,
+    ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2, // Added Wand2 icon
+    Underline
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -159,12 +160,14 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
 
 // --- REDESIGNED COMPONENT: SidePanel ---
 const SidePanel = ({ title, icon: Icon, children }) => (
-  <div className="space-y-4">
-    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center">
-      {Icon && <Icon size={14} className="mr-2" />}
-      {title}
-    </h2>
-    <div className="p-4 bg-slate-800/50 rounded-lg space-y-4">
+  <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden mb-4 shadow-sm">
+    <div className="bg-slate-950/50 px-3 py-2 border-b border-slate-800 flex items-center">
+      {Icon && <Icon size={14} className="mr-2 text-blue-500" />}
+      <h2 className="text-xs font-bold text-blue-400 uppercase tracking-wide">
+        {title}
+      </h2>
+    </div>
+    <div className="p-3 space-y-3">
         {children}
     </div>
   </div>
@@ -174,115 +177,85 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 
 // --- REDESIGNED COMPONENT: MenuBar ---
 
-const MenuBar = ({ 
-  editor, 
-  voiceStatus, 
-  isDictationSupported, 
-  handleToggleListening,
-  interimTranscript 
-}) => {
+const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
   if (!editor) return null;
-  
   return (
-    // Make the menubar a flex container with space-between
-    <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900 border-b border-slate-700 rounded-t-lg">
-      
-      {/* Group for Tiptap buttons */}
+    <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900 border-b border-slate-800">
       <div className="flex items-center space-x-1">
-        {['bold', 'italic', 'paragraph', 'bulletList', 'orderedList'].map(type => {
-          const icons = { bold: Bold, italic: Italic, paragraph: Pilcrow, bulletList: List, orderedList: ListOrdered };
+        {['bold', 'italic','underline', 'paragraph', 'bulletList', 'orderedList'].map(type => {
+          const icons = { bold: Bold, italic: Italic,underline:UnderlineIcon , paragraph: Pilcrow, bulletList: List, orderedList: ListOrdered };
           const actions = {
             bold: () => editor.chain().focus().toggleBold().run(),
             italic: () => editor.chain().focus().toggleItalic().run(),
+             underline: () => editor.chain().focus().toggleUnderline().run(),
             paragraph: () => editor.chain().focus().setParagraph().run(),
             bulletList: () => editor.chain().focus().toggleBulletList().run(),
             orderedList: () => editor.chain().focus().toggleOrderedList().run(),
           };
           const Icon = icons[type];
           return (
-            <button
-              key={type}
-              onClick={actions[type]}
-              className={`p-2 rounded ${editor.isActive(type) ? 'bg-slate-700 text-white' : 'text-gray-400 hover:bg-slate-700 hover:text-white'}`}
-              title={type.charAt(0).toUpperCase() + type.slice(1)}
-            >
-              <Icon size={16} />
+            <button key={type} onClick={actions[type]} className={`p-1.5 rounded ${editor.isActive(type) ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <Icon size={14} />
             </button>
           );
         })}
       </div>
-
-      {/* Group for Voice Assistant */}
-      <div className="flex items-center space-x-3">
-        {/* Show interim transcript if listening */}
+      <div className="flex items-center space-x-2">
         {(voiceStatus === 'listening' || voiceStatus === 'processing') && interimTranscript && (
-          <p className="text-sm text-gray-400 italic hidden md:block">
-            {interimTranscript}
-          </p>
+          <p className="text-xs text-blue-400 italic hidden md:block max-w-[150px] truncate">{interimTranscript}</p>
         )}
-        
-        {/* The Voice Button */}
-        <button
-          onClick={handleToggleListening}
-          disabled={!isDictationSupported}
-          title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
-          className={`w-10 h-10 rounded-full text-white flex items-center justify-center transition-all
-              ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
-              ${voiceStatus === 'processing' ? 'bg-yellow-500 animate-spin' : ''}
-              disabled:bg-slate-700 disabled:cursor-not-allowed
-          `}
-        >
-          {voiceStatus === 'listening' && <Mic size={20} />}
-          {voiceStatus === 'processing' && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-          {voiceStatus === 'idle' && <Mic size={20} />}
+        <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+          {voiceStatus === 'processing' ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Mic size={16} />}
         </button>
       </div>
-
     </div>
   );
 };
 
 // --- UNIFIED COMPONENT: AlertPanel (UNCHANGED) ---
-const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => { // 1. ADD onInsertGuideline HERE
+const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => {
   if (!alertData) return null;
 
   const isCritical = alertData.type === 'critical';
   const isFixable = alertData.type === 'inconsistency';
   const isMissingInfo = alertData.type === 'missing_info';
-  const isGuideline = alertData.type === 'guideline'; // 2. Add isGuideline check
+  const isGuideline = alertData.type === 'guideline';
 
   const config = {
     critical: {
-      bgColor: 'bg-red-900/50 border-red-500',
-      textColor: 'text-red-200',
-      iconColor: 'text-red-400',
+      bgColor: 'bg-red-900', 
+      borderColor: 'border-red-600',
+      textColor: 'text-white',
+      iconColor: 'text-red-200',
       Icon: AlertTriangle,
       message: 'Please review and take appropriate action immediately.',
     },
     inconsistency: {
-      bgColor: 'bg-yellow-900/50 border-yellow-500',
-      textColor: 'text-yellow-200',
-      iconColor: 'text-yellow-400',
+      bgColor: 'bg-yellow-900',
+      borderColor: 'border-yellow-600',
+      textColor: 'text-white',
+      iconColor: 'text-yellow-200',
       Icon: AlertTriangle,
       title: 'Inconsistency Detected',
       message: alertData.message,
     },
     missing_info: {
-      bgColor: 'bg-orange-900/50 border-orange-500',
-      textColor: 'text-orange-200',
-      iconColor: 'text-orange-400',
+      bgColor: 'bg-orange-900',
+      borderColor: 'border-orange-600',
+      textColor: 'text-white',
+      iconColor: 'text-orange-200',
       Icon: AlertTriangle,
       title: 'Incomplete Report',
       message: alertData.message,
     },
-    // 3. Add this new 'guideline' object
     guideline: {
-      bgColor: 'bg-blue-900/50 border-blue-500',
-      textColor: 'text-blue-200',
-      iconColor: 'text-blue-400',
-      Icon: Lightbulb, // Using Lightbulb icon
+      bgColor: 'bg-blue-900',
+      borderColor: 'border-blue-600',
+      textColor: 'text-white',
+      iconColor: 'text-blue-200',
+      Icon: Lightbulb,
       title: 'AI Guideline Suggestion',
-      message: alertData.message, // This will be the finding
+      message: alertData.message,
     },
   };
 
@@ -294,90 +267,45 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
     : currentConfig.title;
 
   return (
-    <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.textColor} p-4 rounded-lg shadow-md mb-4`} role="alert">
+    <div className={`${currentConfig.bgColor} border-l-4 ${currentConfig.borderColor} ${currentConfig.textColor} p-4 rounded shadow-md mb-2 animate-in slide-in-from-top-2`} role="alert">
       <div className="flex items-start">
         <div className="py-1">
-          <currentConfig.Icon className={`h-6 w-6 ${currentConfig.iconColor} mr-4`} />
+          <currentConfig.Icon className={`h-5 w-5 ${currentConfig.iconColor} mr-3`} />
         </div>
         <div className="flex-grow">
-          <p className="font-bold">{title}</p>
-          <p className="text-sm">{currentConfig.message}</p>
+          <p className="font-bold text-sm">{title}</p>
+          <p className="text-xs opacity-90 mt-1">{currentConfig.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {isCritical && (
               <>
-                <button
-                  onClick={onInsertMacro}
-                  className="bg-red-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition text-sm flex items-center"
-                >
-                  <PlusCircle size={16} className="mr-1.5" /> Add to Report
+                <button onClick={onInsertMacro} className="bg-red-700 text-white font-bold py-1 px-2 rounded text-xs hover:bg-red-600 transition border border-red-500">
+                  Add to Report
                 </button>
-                <button
-                  onClick={onPrepareNotification}
-                  className="bg-yellow-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-600 transition text-sm flex items-center"
-                >
-                  <Copy size={16} className="mr-1.5" /> Prepare Notification
+                <button onClick={onPrepareNotification} className="bg-red-800 text-white font-bold py-1 px-2 rounded text-xs hover:bg-red-700 transition border border-red-500">
+                  Notify
                 </button>
               </>
             )}
             {isFixable && (
-              <>
-                <button
-                  onClick={onFix}
-                  className="bg-green-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-700 transition text-sm flex items-center"
-                >
-                  <CheckCircle size={16} className="mr-1.5" /> Fix Issue
+              <button onClick={onFix} className="bg-yellow-700 text-white font-bold py-1 px-2 rounded text-xs hover:bg-yellow-600 transition border border-yellow-500">
+                Fix Issue
+              </button>
+            )}
+            {isGuideline && (
+               <button onClick={onInsertGuideline} className="bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs hover:bg-blue-600 transition border border-blue-500">
+                  Apply Recommendation
                 </button>
-                <button
-                  onClick={onAcknowledge}
-                  className="bg-slate-600 text-slate-100 font-bold py-1 px-3 rounded-lg hover:bg-slate-500 transition text-sm flex items-center"
-                >
-                  <XCircle size={16} className="mr-1.5" /> Ignore
-                </button>
-              </>
             )}
             {isMissingInfo && (
-              <>
-                <button
-                  onClick={onProceed}
-                  className="bg-orange-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-orange-700 transition text-sm flex items-center"
-                >
-                  <CheckCircle size={16} className="mr-1.5" /> Proceed Anyway
+               <button onClick={onProceed} className="bg-orange-700 text-white font-bold py-1 px-2 rounded text-xs hover:bg-orange-600 transition border border-orange-500">
+                  Proceed Anyway
                 </button>
-                <button
-                  onClick={onAcknowledge}
-                  className="bg-slate-600 text-slate-100 font-bold py-1 px-3 rounded-lg hover:bg-slate-500 transition text-sm flex items-center"
-                >
-                  <ChevronLeft size={16} className="mr-1.5" /> Go Back
-                </button>
-              </>
             )}
-            
-            {/* 4. Add this new button block for guidelines */}
-            {isGuideline && (
-              <>
-                <button
-                  onClick={onInsertGuideline} // This line was causing the error
-                  className="bg-blue-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-blue-700 transition text-sm flex items-center"
-                >
-                  <PlusCircle size={16} className="mr-1.5" /> Insert Recommendation
-                </button>
-                <button
-                  onClick={onAcknowledge}
-                  className="bg-slate-600 text-slate-100 font-bold py-1 px-3 rounded-lg hover:bg-slate-500 transition text-sm flex items-center"
-                >
-                  <XCircle size={16} className="mr-1.5" /> Ignore
-                </button>
-              </>
-            )}
-            
+            <button onClick={onAcknowledge} className="bg-black/30 text-white font-bold py-1 px-2 rounded text-xs hover:bg-black/50 transition">
+              Dismiss
+            </button>
           </div>
         </div>
-        {/* 5. Update this final condition */}
-        { (isCritical || isMissingInfo || isGuideline) && (
-          <button onClick={onAcknowledge} className={`ml-4 ${currentConfig.iconColor} hover:${currentConfig.textColor}`}>
-            <XCircle size={22} />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -1145,10 +1073,10 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
   const [mobileView, setMobileView] = useState('workspace'); // For mobile tab navigation
 const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-
-
-
   const [modalIndex, setModalIndex] = useState(null);
+
+  const [assistantMode, setAssistantMode] = useState('correction'); // 'correction', 'template', 'simplify', 'rephrase'
+const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', 'concise', 'verbose'
 
   const showNext = () => setModalIndex((prev) => Math.min(prev + 1, images.length - 1));
   const showPrev = () => setModalIndex((prev) => Math.max(prev - 1, 0));
@@ -1440,64 +1368,54 @@ const [showHistoryModal, setShowHistoryModal] = useState(false);
       }
   };
 
-   // --- NEW: "Editor Guardian" Agent ---
+   /// --- UPDATED GUARDIAN AGENT (Removed strict Javascript Regex) ---
   const runEditorGuardianAgent = useCallback(async (editorText) => {
-
+    // We do NOT split findings/impression here via Regex anymore.
+    // We send the whole text to the AI and let it figure out the sections.
     
-    // 1. Get current states for the prompt
-    const findingsMatch = editorText.match(/FINDINGS:([\s\S]*)IMPRESSION:/i);
-    const impressionMatch = editorText.match(/IMPRESSION:([\s\S]*)/i);
-
-    const findingsTextForPrompt = (findingsMatch && findingsMatch[1]) ? findingsMatch[1].trim() : "N/A";
-    const impressionTextForPrompt = (impressionMatch && impressionMatch[1]) ? impressionMatch[1].trim() : "N/A";
-    const canCheckInconsistency = findingsMatch && impressionMatch;
-
     const prompt = `
-      You are an expert "Editor Guardian" AI for a radiology reporting system.
-      Your task is to analyze the user's in-progress report text and return a
-      single JSON object with checks for critical findings, inconsistencies,
-      guideline adherence, structured data, and knowledge lookups.
-
-      Analyze this text (for critical, guideline, knowledge, and data checks):
+      You are a Senior Quality Assurance Radiologist. Your job is to prevent medical errors in radiology reports.
+      
+      Analyze the text below. It contains a "FINDINGS" section (observations) and an "IMPRESSION" section (conclusions).
+      
+      Input Text:
       ---
       ${editorText}
       ---
       
-      Separately, here are the parsed sections for your consistency check.
-      You must ONLY perform this check if both sections are provided (not "N/A").
-      If sections are "N/A", return "null" for "inconsistency".
-      FINDINGS: ${findingsTextForPrompt}
-      IMPRESSION: ${impressionTextForPrompt}
-
-      ---
-      **IMPORTANT RULES:**
-      1. A single finding can trigger multiple checks. For example, 'Acute Cholecystitis' should trigger *both* a "criticalFinding" AND a "knowledgeLookupQuery".
-      2. '6mm pulmonary nodule' should trigger *both* a "guidelineSuggestion" AND a "knowledgeLookupQuery" (for 'Fleischner criteria').
-      ---
-
-      You MUST respond with a single, valid JSON object following this exact schema.
-      Return "null" for any key where no finding is detected.
-
+      **CRITICAL ANALYSIS PROTOCOL:**
+      1. **Consistency Check (The "Safety Net"):**
+         - Compare FINDINGS vs. IMPRESSION.
+         - **Laterality Check:** If FINDINGS say "Right kidney cyst" but IMPRESSION says "Left" or just "renal cyst" (ambiguous), flag it immediately.
+         - **Measurement Check:** If FINDINGS say "5mm nodule" but IMPRESSION says "5cm mass", flag the discrepancy.Or 
+         - Example Error: "Spleen is normal in size 15.1cm". (Correction: Spleen is enlarged/splenomegaly).
+           - Example Error: "Aorta is normal measuring 5.5cm". (Correction: Aneurysmal).
+         - **Omission Check:** If a "mass", "fracture", "thrombosis", or "acute" condition is in FINDINGS but missing from IMPRESSION, flag it.
+      
+      2. **Critical Finding Detection (The "Red Flag"):**
+         - Identify actionable/emergent findings (e.g., Pneumothorax, Aortic Dissection, Free Air, Acute Appendicitis, Intracranial Hemorrhage).
+      
+      3. **Guideline Adherence (The "Consultant"):**
+         - If specific pathology is noted (e.g., Thyroid Nodule, Pulmonary Nodule, Adnexal Cyst, Renal Cyst), suggest the relevant guideline (TI-RADS, Fleischner, O-RADS, Bosniak).
+      
+      You MUST respond with a single, valid JSON object:
       {
         "criticalFinding": {
-          "findingName": "string",
-          "reportMacro": "string",
-          "notificationTemplate": "string"
+          "findingName": "string (e.g., 'Right Tension Pneumothorax')",
+          "reportMacro": "string (Standardized phrasing: 'CRITICAL FINDING: Large right tension pneumothorax...')",
+          "notificationTemplate": "string (SMS/Pager format: 'URGENT: Pt [ID] has ...')"
         } | null,
-        "inconsistency": ${canCheckInconsistency ? `{
-          "message": "string (Explanation of the mismatch)",
-          "suggestedCorrection": "string (Text to add to impression)"
-        } | null` : `null`},
+        "inconsistency": {
+          "message": "string (e.g., 'Lateral Discrepancy: Findings mention RIGHT kidney, Impression mentions LEFT.')",
+          "suggestedCorrection": "string (The text to fix the error)"
+        } | null,
         "guidelineSuggestion": {
-          "finding": "string (The finding that triggered this, e.g., '6mm ground glass opacity')",
-          "guidelineName": "string (e.g., 'Fleischner Criteria')",
-          "recommendationText": "string (The suggested follow-up, e.g., 'Follow-up CT in 6-12 months is recommended.')"
+          "finding": "string (e.g. '1.2cm solid thyroid nodule')",
+          "guidelineName": "string (e.g. 'ACR TI-RADS')",
+          "recommendationText": "string (e.g. 'TI-RADS 4. Recommendation: FNA if > 1.5cm...')"
         } | null,
-        "knowledgeLookupQuery": "string (A concise search term for a specific entity, e.g., 'Bosniak classification')" | null,
-        "structuredData": {
-          "Finding1": "Value1",
-          "Measurement2": "Value2"
-        } | null
+        "knowledgeLookupQuery": "string" | null,
+        "structuredData": { "Key": "Value" } | null
       }
     `;
 
@@ -1511,120 +1429,80 @@ const [showHistoryModal, setShowHistoryModal] = useState(false);
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) {
-        throw new Error(`Guardian API Error: ${response.status}`);
-      }
+      if (!response.ok) return;
       
       const result = await response.json();
-      if (!result.candidates?.[0]?.content.parts?.[0]?.text) {
-        console.warn("Guardian Agent returned empty or blocked response.");
-        return;
-      }
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+      if (!textResult) return;
       
-      const textResult = result.candidates[0].content.parts[0].text;
       const parsed = JSON.parse(textResult);
 
-      // --- Process the Consolidated Response ---
-
-      // 1. Always update Structured Data (if not in restricted mode)
-      if (parsed.structuredData && !isRestricted) {
-        setStructuredData(parsed.structuredData);
-      } else {
-        setStructuredData({}); // Clear it if not present
-      }
-
-      // 2. Always trigger Knowledge Lookup (if not restricted)
+      // Process Response
+      if (parsed.structuredData && !isRestricted) setStructuredData(parsed.structuredData);
       if (parsed.knowledgeLookupQuery && !isRestricted) {
-        console.log("Guardian: Knowledge Lookup triggered for:", parsed.knowledgeLookupQuery); // Added log
         setBaseSearchQuery(parsed.knowledgeLookupQuery); 
-        handleAiKnowledgeSearch(true, parsed.knowledgeLookupQuery);
+        // Optional: Auto-trigger search? Maybe too distracting.
       }
 
-      // 3. Handle Alerts (Only if no other alert is awaiting acknowledgement)
-      if (awaitingRef.current) {
-        console.log("Guardian: Alert found, but another alert is pending. Ignoring new alert.");
-        return;
-      }
+      // Handle Alerts (Priority: Critical > Inconsistency > Guideline)
+      if (awaitingRef.current) return; // Don't overwrite existing alert
 
       if (parsed.criticalFinding) {
-        console.log("Guardian: Critical finding detected.");
         setActiveAlert({ type: 'critical', data: parsed.criticalFinding });
         setIsAwaitingAlertAcknowledge(true);
       
-      } else if (parsed.inconsistency && canCheckInconsistency) {
-        console.log("Guardian: Inconsistency detected.");
+      } else if (parsed.inconsistency) {
         setActiveAlert({ type: 'inconsistency', message: parsed.inconsistency.message });
         setCorrectionSuggestion(parsed.inconsistency.suggestedCorrection);
         setIsAwaitingAlertAcknowledge(true);
       
       } else if (parsed.guidelineSuggestion && !isRestricted) {
-        console.log("Guardian: Guideline suggestion detected.");
         setActiveAlert({
           type: 'guideline',
           message: `Finding: ${parsed.guidelineSuggestion.finding} (${parsed.guidelineSuggestion.guidelineName})`,
           data: { recommendationText: parsed.guidelineSuggestion.recommendationText } 
         });
-        setIsAwaitingAlertAcknowledge(true); // Treat it like an alert
-
-      } else {
-        // If no alerts are found, clear any non-critical, non-pending alerts
-        setActiveAlert(null);
-        setCorrectionSuggestion(null);
+        setIsAwaitingAlertAcknowledge(true);
       }
 
     } catch (err) {
-      console.error("Editor Guardian Agent failed:", err);
-      // Don't bother the user with background failures
+      console.error("Guardian Agent failed:", err);
     }
-  }, [isRestricted, isSearching, awaitingRef.current, handleAiKnowledgeSearch]); // Add dependencies
+  }, [isRestricted]);
 
   
  // --- DEBOUNCED CHECKS FOR EDITOR ---
 
-  // NEW: Single debounced function for the Editor Guardian Agent
   const debouncedGuardianCheck = useCallback((text) => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    
-    // Set a single timer (e.g., 1.5 seconds)
     debounceTimeoutRef.current = setTimeout(() => {
-      // Don't run the full agent if text is empty
       if (text.trim().length > 20) {
-        // Run the consolidated agent
         runEditorGuardianAgent(text); 
       } else {
-        // If text is cleared, clear structured data and alerts
         setStructuredData({});
         if (!awaitingRef.current) {
           setActiveAlert(null);
-          setCorrectionSuggestion(null); // <-- THIS IS THE FIX
+          setCorrectionSuggestion(null);
         }
       }
-    }, 1500); // 1.5 second debounce
-  }, [runEditorGuardianAgent, awaitingRef.current]); // Add runEditorGuardianAgent
+    }, 2000); // 2 second debounce to allow typing to finish
+  }, [runEditorGuardianAgent]);
 
-   // --- EDITOR INITIALIZATION ---
   const handleEditorUpdate = useCallback(({ editor }) => {
     if (isProgrammaticUpdate.current) {
       isProgrammaticUpdate.current = false;
       return;
     }
-    
     const text = editor.getText();
     const html = editor.getHTML();
-    setEditorContent(html); // Keep React state in sync
-
-    // Call the single, new debounced function
+    setEditorContent(html);
     debouncedGuardianCheck(text);
-
-  }, [debouncedGuardianCheck]); // Only one dependency now
+  }, [debouncedGuardianCheck]);
 
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({
-        placeholder: 'Start dictating or paste findings here…',
-        emptyEditorClass: 'is-editor-empty',
-      }),
+      Placeholder.configure({ placeholder: 'Start dictating or paste findings here…', emptyEditorClass: 'is-editor-empty' }),
     ],
     onUpdate: handleEditorUpdate,
   });
@@ -1632,7 +1510,7 @@ const [showHistoryModal, setShowHistoryModal] = useState(false);
   useEffect(() => {
     if (editor && editorContent && editor.getHTML() !== editorContent) {
       isProgrammaticUpdate.current = true;
-      editor.commands.setContent(editorContent, false); // "false" prevents re-parsing, can be smoother
+      editor.commands.setContent(editorContent, false);
     }
   }, [editorContent, editor]);
 
@@ -2106,18 +1984,67 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
   };
 
 
-  const fileToImageObject = (file) => {
+ const fileToImageObject = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64 = reader.result.split(',')[1];
+        const result = reader.result;
+        const base64 = result.split(',')[1];
         const src = URL.createObjectURL(file);
-        resolve({ src, base64, name: file.name, type: file.type, file }); // Store original file for dicom loader
+        resolve({ src, base64, name: file.name, type: file.type, file }); 
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   }
+
+  // --- PASTE EVENT HANDLER ---
+  useEffect(() => {
+    const handlePaste = async (e) => {
+      // Access clipboard data
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        // Accept images or PDF files
+        if (items[i].kind === 'file') {
+          const file = items[i].getAsFile();
+          if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+            files.push(file);
+          }
+        }
+      }
+
+      // If we found valid files, handle them and STOP the editor from seeing the paste
+      if (files.length > 0) {
+        e.preventDefault(); // Stop default browser paste
+        e.stopPropagation(); // Stop event from bubbling
+        
+        toast.loading("Processing pasted files...");
+        try {
+          const newImageObjects = await Promise.all(files.map(file => fileToImageObject(file)));
+          setImages(prev => [...prev, ...newImageObjects]);
+          if (newImageObjects.length > 0 && !selectedImage) {
+             setSelectedImage(newImageObjects[0]);
+          }
+          toast.dismiss();
+          toast.success("Files pasted successfully!");
+        } catch (error) {
+          console.error("Paste processing error:", error);
+          toast.dismiss();
+          toast.error("Failed to process pasted files.");
+        }
+      }
+    };
+
+    // *** CRITICAL FIX: Pass 'true' as the third argument ***
+    // This enables 'useCapture', catching the event BEFORE the Tiptap editor does.
+    window.addEventListener('paste', handlePaste, true);
+    
+    return () => window.removeEventListener('paste', handlePaste, true);
+  }, [selectedImage]);
+  
   
     const onDrop = useCallback(async (acceptedFiles, _, event) => {
     let filesToProcess = [...acceptedFiles];
@@ -2943,32 +2870,44 @@ const handleUpgrade = async () => {
   
 // In App.legacy.jsx, replace the old handleSearch function with this:
 
+  // --- SEARCH LOGIC ---
   const handleLocalSearch = (query) => {
-    if (!query) {
-        setError("Please provide a search term.");
+    // Use the passed query or fall back to the state
+    const searchTerm = query !== undefined ? query : searchQuery;
+    
+    if (!searchTerm || !searchTerm.trim()) {
+        setLocalSearchResults([]);
+        setBaseSearchQuery('');
         return;
     }
-    setError(null);
     
-    // --- THIS IS THE FIX ---
-    // 1. Set the states so the UI updates
-    setSearchQuery(query); 
-    setBaseSearchQuery(query); 
+    setSearchQuery(searchTerm);
+    setBaseSearchQuery(searchTerm);
     
-    // 2. Use the query to perform the search
-    const queryLC = query.toLowerCase().trim();
-    const results = localFindings.filter(finding =>
-        finding.organ.toLowerCase().includes(queryLC) ||
-        finding.findingName.toLowerCase().includes(queryLC)
-    );
-    setLocalSearchResults(results);
-
-    // 3. Reset other search types
+    // Clear AI results to focus on local search results
     setAllAiSearchResults([]);
-    setCurrentAiPage(0);
     setAllAiFullReports([]);
-    setCurrentReportPage(0);
     setAiKnowledgeLookupResult(null);
+
+    // Safety check: Ensure localFindings exists
+    if (!localFindings || !Array.isArray(localFindings)) {
+        console.warn("localFindings is missing or not an array");
+        return;
+    }
+
+    const queryLC = searchTerm.toLowerCase().trim();
+    
+    // --- FIX: Search in ALL fields (Name, Organ, Findings, Impression) ---
+    const results = localFindings.filter(finding => {
+        const nameMatch = finding.findingName && finding.findingName.toLowerCase().includes(queryLC);
+        const organMatch = finding.organ && finding.organ.toLowerCase().includes(queryLC);
+        const bodyMatch = finding.findings && finding.findings.toLowerCase().includes(queryLC);
+        const impressionMatch = finding.impression && finding.impression.toLowerCase().includes(queryLC);
+        
+        return nameMatch || organMatch || bodyMatch || impressionMatch;
+    });
+    
+    setLocalSearchResults(results);
   };
   
   // In App.legacy.jsx, replace the old handleAiFindingsSearch with this:
@@ -3447,31 +3386,32 @@ const handleUpgrade = async () => {
     setIsAwaitingAlertAcknowledge(false);
   };
 
-const handleSendMessage = async (message) => {
+  const handleSendMessage = async (message) => {
     if (isRestricted) {
       toast.error("Please upgrade to a professional plan for conversational follow-ups.");
       return;
     }
     
     const newUserMessage = { sender: 'user', text: message };
-    const updatedHistory = [...conversationHistory, newUserMessage];
-    setConversationHistory(updatedHistory);
+    
+    // Update UI immediately with user message
+    setConversationHistory(prev => [...prev, newUserMessage]);
     setIsAiReplying(true);
 
-    const reportText = editor ? editor.getText() : 'No report has been generated yet.';
+    // CRITICAL FIX: Send HTML, not Text, so AI preserves formatting/structure
+    const reportText = editor ? editor.getHTML() : 'No report has been generated yet.';
     
-    // Convert history to a simple string format for the prompt
-    const historyString = updatedHistory.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n');
+    // Construct history including the new message for the AI context
+    const currentHistory = [...conversationHistory, newUserMessage];
+    // Limit to last 15 messages to keep context focused and efficient
+    const historyString = currentHistory.slice(-15).map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n');
 
     const prompt = `
-      You are a radiology AI co-pilot in an ongoing conversation with a doctor. Continue the conversation based on the provided context.
+      You are a smart Radiology AI Co-pilot. You have direct access to the doctor's report editor.
+      
+      **Role:** Assist the radiologist by answering questions or modifying the report directly based on their instructions.
 
-      **Initial Clinical Context:**
-      ---
-      ${clinicalContext || 'None'}
-      ---
-
-      **Current Draft Report:**
+      **Current Report Content (HTML):**
       ---
       ${reportText}
       ---
@@ -3481,11 +3421,35 @@ const handleSendMessage = async (message) => {
       ${historyString}
       ---
 
-      Based on all the above context and the user's last message, provide a concise and helpful response. If the user asks you to modify the report, you can suggest the exact text to add or change. If the user provides the clarification you asked for earlier, re-attempt the analysis and provide the full report content in your response.
+      **User Request:** "${message}"
+
+      **Instructions:**
+      1. Analyze the Request.
+      2. Determine the best **Editor Action**:
+         - **"append"**: Use ONLY if the new text belongs at the very end of the document (e.g., adding a footer, a new section at the bottom).
+         - **"replace"**: Use this for **inserting** text into the middle of the report (e.g., adding a finding to 'Soft Tissues') or modifying existing text.
+         - **"none"**: For general questions/chat.
+
+      3. **CRITICAL RULES FOR "replace":**
+         - You must return the **COMPLETE** report HTML.
+         - **DO NOT** summarize, truncate, or remove any existing sections (like Patient Info, Technique, other findings) unless explicitly asked to delete them.
+         - You are an **EDITOR**, not a summarizer. Keep 99% of the report identical, only injecting the specific requested change into the appropriate section.
+         - Maintain all existing HTML tags (<strong>, <br>, <h3>) exactly as they are.
+
+      **Response Format (JSON Only):**
+      {
+        "reply": "string (Conversational response, e.g., 'I've added the ganglion cyst findings to the Soft Tissue section.')",
+        "editorAction": "none" | "append" | "replace", 
+        "contentToInsert": "string (The HTML content. If 'replace', this MUST be the FULL report HTML with the changes. If 'append', just the new text.)"
+      }
     `;
 
     try {
-      const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+      const payload = { 
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" } // Force JSON response
+      };
+      
       const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -3494,11 +3458,40 @@ const handleSendMessage = async (message) => {
       if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
       const result = await response.json();
-      const aiResponseText = result.candidates?.[0]?.content.parts?.[0]?.text;
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
 
-      if (aiResponseText) {
-        const newAiMessage = { sender: 'ai', text: aiResponseText };
+      if (textResult) {
+        let parsedResponse;
+        try {
+            parsedResponse = JSON.parse(textResult);
+        } catch (e) {
+            // Fallback in case AI returns raw text (rare with responseMimeType set)
+            console.warn("AI returned raw text instead of JSON");
+            parsedResponse = { reply: textResult, editorAction: 'none' };
+        }
+
+        const newAiMessage = { sender: 'ai', text: parsedResponse.reply };
         setConversationHistory(prev => [...prev, newAiMessage]);
+
+        // --- INTERACTIVE EDITOR LOGIC ---
+        if (parsedResponse.editorAction !== 'none' && parsedResponse.contentToInsert && editor) {
+            isProgrammaticUpdate.current = true; // Prevent loop
+            
+            if (parsedResponse.editorAction === 'append') {
+                // Insert content at current cursor position (or end if loose)
+                editor.chain().focus().insertContent(` ${parsedResponse.contentToInsert}`).run();
+                toast.success("Co-pilot added to report", { icon: '✍️' });
+            } 
+            else if (parsedResponse.editorAction === 'replace') {
+                // Replace entire content
+                editor.commands.setContent(parsedResponse.contentToInsert);
+                toast.success("Co-pilot updated the report", { icon: '🔄' });
+            }
+            // Sync React state
+            setEditorContent(editor.getHTML());
+        }
+        // --------------------------------
+
       } else {
         throw new Error("No response from AI assistant.");
       }
@@ -3511,30 +3504,36 @@ const handleSendMessage = async (message) => {
   };
 
   const handleCorrectReport = async () => {
-
     if (!assistantQuery) {
-      setError("Please paste a report in the text box to correct it.");
-      return;
+        setError("Please paste a report in the text box to correct it.");
+        return;
     }
     setIsLoading(true);
     setError(null);
 
+    // Context injection for precision
+    const patientContext = `Patient Age: ${patientAge}, Gender Context: ${patientName}`;
+
     const prompt = `
-      You are an expert radiologist and medical editor. Your task is to analyze the provided medical report for completeness and accuracy.
+      You are a Senior Attending Radiologist and expert Medical Editor. 
+      Your task is to review the following radiology report for accuracy, consistency, and style.
 
-      1.  **Review the FINDINGS section** to identify all significant radiological findings.
-      2.  **Compare these findings with the IMPRESSION section.**
-      3.  **Identify any inconsistencies or omissions.** If a significant finding mentioned in the report body is missing from the impression, you must add it. For example, if the findings mention "mild diffuse increase in echotexture with fat fraction 11.3%," the impression should be updated to include a conclusion like "Grade I fatty liver."
-      4.  **Proofread** the entire report for any grammatical or structural errors.
-      5.  **Return the fully corrected and complete report** as a single, professional HTML string. Maintain the original structure.
+      **Input Context:**
+      ${patientContext}
+      
+      **Strict Protocol:**
+      1.  **Consistency Check:** Cross-reference FINDINGS with IMPRESSION. Ensure every significant finding in the body is accounted for in the impression.
+      2.  **Terminology Standardization:** Use standard radiological lexicon (e.g., use "hyperechoic" instead of "bright", "anechoic" instead of "black"). 
+      3.  **Guideline Adherence:** If nodules or cysts are mentioned, ensure descriptions align with standard reporting guidelines (e.g., Fleischner Society for lungs, TI-RADS for thyroid, O-RADS for ovaries) if applicable based on the text.
+      4.  **Error Correction:** Fix typos, grammar, and lateral discrepancies (e.g., describing left kidney but concluding right kidney).
+      5.  **Output Format:** Return ONLY the corrected report as a professional HTML string. Do not include markdown blocks or conversational text.
 
-      If the report is already accurate and complete, return it as-is without any confirmation message.
-
-      Report to Analyze and Correct:
+      **Draft to Correct:**
       ---
       ${assistantQuery}
       ---
     `;
+
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
         const model = 'gemini-2.5-flash';
@@ -3549,39 +3548,49 @@ const handleSendMessage = async (message) => {
 
         if (textResult && editor) {
             isProgrammaticUpdate.current = true;
-            editor.commands.setContent(textResult);
-            setEditorContent(textResult); // <-- THIS LINE IS ADDED
-            toast.success("Report correction complete!");
+            // Strip markdown code blocks if AI adds them
+            const cleanHtml = textResult.replace(/```html/g, '').replace(/```/g, '');
+            editor.commands.setContent(cleanHtml);
+            setEditorContent(cleanHtml);
+            toast.success("Report corrected & standardized!");
+            setShowAssistantModal(false); // Auto-close on success
         } else {
             throw new Error("No response from AI assistant.");
         }
     } catch (err) {
-        setError("AI correction request failed: " + err.message);
+        setError("Correction failed: " + err.message);
     } finally {
-      
         setIsLoading(false);
     }
-  };
+};
 
   const handleGenerateTemplate = async () => {
-
     if (!assistantQuery) {
-      setError("Please enter a topic to generate a template.");
-      return;
+        setError("Please enter a topic/modality to generate a template.");
+        return;
     }
     setIsLoading(true);
     setError(null);
 
-    const prompt = `
-      You are an expert radiologist. Generate a comprehensive, professionally formatted report template for the following topic.
-      The template should be detailed, including all standard sections, common findings, and placeholders where necessary.
-      The output MUST be a single string of properly formatted HTML.
+    // Context injection: A 70yo needs different template defaults (e.g., Prostate size) than a 20yo
+    const contextStr = `Patient: ${patientAge} years old, Name: ${patientName} (Determine gender from name if not explicit). Modality: ${modality}.`;
 
-      Topic:
-      ---
+    const prompt = `
+      Act as an expert Radiologist. Generate a comprehensive, high-quality HTML report template for: "${assistantQuery}".
+      
+      **Context:**
+      ${contextStr}
+
+      **Requirements:**
+      1.  **Anatomy Specificity:** Include sections relevant to the specific age and gender provided in the context (e.g., if Male, include Prostate section; if Female, Uterus/Ovaries).
+      2.  **Standard Normals:** Pre-fill with "normal" findings but use placeholders (e.g., "__ cm") for measurements.
+      3.  **Formatting:** Use <h3> for headers (FINDINGS, IMPRESSION) and <p><strong>ORGAN:</strong> ...</p> for body text.
+      4.  **Output:** Return ONLY the raw HTML string.
+
+      Template Topic:
       ${assistantQuery}
-      ---
     `;
+
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
         const model = 'gemini-2.5-flash';
@@ -3596,18 +3605,69 @@ const handleSendMessage = async (message) => {
 
         if (textResult && editor) {
             isProgrammaticUpdate.current = true;
-            editor.commands.setContent(textResult);
-            setEditorContent(textResult); // <-- THIS LINE IS ADDED
-            toast.success("Template generated successfully!");
+            const cleanHtml = textResult.replace(/```html/g, '').replace(/```/g, '');
+            editor.commands.setContent(cleanHtml);
+            setEditorContent(cleanHtml);
+            toast.success("Smart Template generated!");
+            setShowAssistantModal(false);
         } else {
-            throw new Error("No response from AI assistant.");
+            throw new Error("No response.");
         }
     } catch (err) {
-        setError("AI template generation failed: " + err.message);
+        setError("Template generation failed: " + err.message);
     } finally {
         setIsLoading(false);
     }
-  };
+};
+
+// 4. ADD THIS NEW FUNCTION: Patient Friendly Summary
+const handleSimplifyReport = async () => {
+    // If input box is empty, try to use the editor content
+    const textToSimplify = assistantQuery || editor?.getText();
+
+    if (!textToSimplify) {
+        setError("Please enter text or ensure the editor has content.");
+        return;
+    }
+    setIsLoading(true);
+    setError(null);
+
+    const prompt = `
+      You are a compassionate medical communicator. 
+      Translate the following technical radiology report into a "Patient-Friendly Summary".
+      
+      Rules:
+      1. Use simple, non-medical language (e.g., "Hepatomegaly" -> "Enlarged liver").
+      2. Explain what the findings mean in plain English.
+      3. Maintain a reassuring but accurate tone.
+      4. Format as a bulleted list.
+
+      Technical Text:
+      ${textToSimplify}
+    `;
+
+    try {
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+        const model = 'gemini-2.5-flash';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+        const result = await response.json();
+        const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+        if (textResult) {
+            setAssistantQuery(textResult); // Show result in the box
+            toast.success("Summary generated!");
+        }
+    } catch (err) {
+        setError("Simplification failed: " + err.message);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
   
 
@@ -4236,485 +4296,185 @@ useEffect(() => {
   };
 
   // --- The new render method ---
-  return (
-<div className="bg-slate-900 text-gray-300 font-sans flex flex-col h-screen overflow-hidden">
+   return (
+    <div className="fixed inset-0 bg-slate-950 text-gray-300 font-sans flex flex-col overflow-hidden">
       <style>{`
-    .tiptap {
-        flex-grow: 1;
-        padding: 0.75rem;
-        overflow-y: auto;
-    }
-    .tiptap:focus { 
-        outline: none; 
-    }
-    .tiptap p.is-editor-empty:first-child::before {
-      color: #6b7280; /* text-gray-500 */
-      content: attr(data-placeholder);
-      float: left;
-      height: 0;
-      pointer-events: none;
-    }
-    .tiptap h3, .tiptap strong { 
-        color: #e5e7eb; /* text-gray-200 */
-    }
+        .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
+        .tiptap p.is-editor-empty:first-child::before { color: #64748b; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
+        .tiptap h3, .tiptap strong { color: #e2e8f0; }
+        .tiptap ul, .tiptap ol { padding-left: 1.2rem; }
+        .tiptap ul { list-style-type: disc; }
+        .tiptap ol { list-style-type: decimal; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+      `}</style>
 
-    /* --- ADD THESE STYLES BACK --- */
-    .tiptap ul, .tiptap ol {
-        padding-left: 1.75rem; /* Indents the list */
-        margin-top: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .tiptap ul {
-        list-style-type: disc; /* Makes bullet points visible */
-    }
-    .tiptap ol {
-        list-style-type: decimal; /* Makes numbers visible */
-    }
-    .tiptap li p {
-        margin: 0; /* Fixes extra space between list items */
-    }
-    
-`}</style>
-
-      {/* ============== HEADER ============== */}
-{/* // In App.jsx, replace the <header> block */}
-
-<header className="flex-shrink-0 bg-slate-950/70 backdrop-blur-sm border-b border-slate-700/50 p-2 flex items-center justify-between z-20 h-14">
-    {/* Left Side: Hamburger & Logo */}
-    <div className="flex items-center space-x-2">
-        {/* Hamburger remains for toggling sidebar on mobile if needed, or remove if sidebar is always hidden */}
-        {/* <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="p-2 rounded-md hover:bg-slate-700 lg:hidden"><Menu size={20} /></button> */}
-        
-        {/* <BrainCircuit className="text-blue-500 h-6 w-6" /> */}
-        {/* <LogoIcon className="text-blue-500 h-6 w-6" /> */}
-        <img 
-          src={appLogo} 
-          alt="aiRAD Logo" 
-          className="h-12 w-12" // Use the same size as the icon
-        />
-        <h1 className="text-lg font-bold text-white hidden sm:block">aiRAD</h1>
-    </div>
-
-    {/* Right Side: Icons & Buttons */}
-    <div className="flex items-center space-x-2 sm:space-x-3"> {/* Adjusted spacing */}
-        {/* Proactive Toggle (remains) */}
-        <div className="flex items-center"> {/* Removed border/padding */}
-            <label htmlFor="proactive-toggle" className="flex items-center cursor-pointer" title="Toggle Proactive AI Suggestions">
-                <div className="relative">
-                    <input
-                        type="checkbox"
-                        id="proactive-toggle"
-                        className="sr-only"
-                        checked={isProactiveHelpEnabled}
-                        onChange={() => setIsProactiveHelpEnabled(!isProactiveHelpEnabled)}
-                    />
-                    <div className={`block ${isProactiveHelpEnabled ? 'bg-blue-600' : 'bg-slate-600'} w-9 h-5 rounded-full transition`}></div> {/* Slightly smaller toggle */}
-                    <div className={`dot absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform ${isProactiveHelpEnabled ? 'translate-x-4' : ''}`}></div>
-                </div>
-                <Lightbulb size={18} className={`ml-1.5 ${isProactiveHelpEnabled ? 'text-yellow-400' : 'text-gray-500'}`} />
-            </label>
+      {/* HEADER */}
+      <header className="h-14 flex-shrink-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 z-50 relative shadow-sm">
+        <div className="flex items-center space-x-3">
+            <img src={appLogo} alt="Logo" className="h-8 w-8 rounded shadow-sm" />
+            <h1 className="text-lg font-bold text-slate-100 hidden sm:block tracking-tight">aiRAD</h1>
         </div>
 
-        {/* Mic Button (remains) */}
-        <button
-          onClick={handleToggleListening}
-          disabled={!isDictationSupported}
-          title={isDictationSupported ? "Toggle Voice Dictation" : "Dictation not supported"}
-           className={`p-1.5 rounded-md transition-colors ...
-              ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-700'}
-              ${voiceStatus === 'processing' ? 'bg-yellow-500 animate-spin' : ''}
-          `}
-        >
-          {/* Show different icon based on state */}
-          {voiceStatus === 'listening' && <Mic size={28} />}
-          {voiceStatus === 'processing' && <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-          {voiceStatus === 'idle' && <Mic size={28} />}
-        </button>
-        
-        {/* Show interim transcript or processing status */}
-        {(voiceStatus === 'listening' || voiceStatus === 'processing') && (
-            <div className="mt-2 text-center text-xs bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg max-w-xs">
-                <p className="font-bold">
-                  {voiceStatus === 'listening' ? 'Listening...' : 'Processing...'}
-                </p>
-                {interimTranscript && <p className="mt-1 italic">{interimTranscript}</p>}
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
+            <div className="flex items-center flex-shrink-0" title="AI Co-pilot">
+                <label htmlFor="proactive-toggle" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                        <input type="checkbox" id="proactive-toggle" className="sr-only" checked={isProactiveHelpEnabled} onChange={() => setIsProactiveHelpEnabled(!isProactiveHelpEnabled)} />
+                        <div className={`block ${isProactiveHelpEnabled ? 'bg-blue-600' : 'bg-slate-700'} w-8 h-4 rounded-full transition-colors`}></div>
+                        <div className={`dot absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${isProactiveHelpEnabled ? 'translate-x-4' : ''}`}></div>
+                    </div>
+                    <Lightbulb size={16} className={`ml-1.5 ${isProactiveHelpEnabled ? 'text-yellow-400' : 'text-slate-600'}`} />
+                </label>
             </div>
-        )}
-
-        {/* AI Assistant Button (remains) */}
-        <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white">
-            <Wand2 size={18} /> {/* Slightly smaller icon */}
-        </button>
-
-         {/* Data Summary Button (remains) */}
-        <button onClick={() => setShowDataModal(true)} title="Show Extracted Data" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white">
-             <ListPlus size={18} /> {/* Slightly smaller icon */}
-        </button>
-
-
-        {/* --- HIDDEN ON MOBILE --- */}
-        {/* Manage Templates Button - Hidden on small screens */}
-       
-
-        {/* Shortcuts Button - Hidden on small screens */}
-        <button onClick={() => setShowShortcutsModal(true)} title="Shortcuts" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white hidden sm:flex"> {/* Added hidden sm:flex */}
-            <Zap size={18} />
-        </button>
-        {/* --- END HIDDEN ON MOBILE --- */}
-
-
-        {/* Separator - Hidden on small screens */}
-        <div className="h-6 w-px bg-slate-700 hidden sm:block" />
-
-        {/* Macros Button (remains) */}
-        <button onClick={() => setShowMacroModal(true)} title="Voice Macros" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white">
-            <MessageSquare size={18} /> {/* Slightly smaller icon */}
-        </button>
-
-        <button onClick={() => setShowTemplateModal(true)} title="Manage Templates" className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white sm:flex"> {/* Added hidden sm:flex */}
-            <FileText size={18} />
-        </button>
-        
-        {/* Sign Out Button (remains) */}
-        <button onClick={handleSignOut} className="p-1.5 rounded-md hover:bg-slate-700 text-gray-400 hover:text-white" title="Sign Out">
-            <LogOut size={18} /> {/* Slightly smaller icon */}
-        </button>
-    </div>
-</header>
-{isRestricted && (
-            <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded-lg text-center">
-                You've reached your free limit.
-                <button
-                    onClick={handleUpgrade}
-                    className="font-bold underline ml-2"
-                >
-                    Upgrade to Professional
-                </button>
-                for unlimited reports and AI features.
+            <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full flex-shrink-0 transition-all ${voiceStatus === 'listening' ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+              {voiceStatus === 'listening' ? <Mic size={18} /> : <Mic size={18} />}
+            </button>
+            <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0"><Wand2 size={18} /></button>
+            <button onClick={() => setShowDataModal(true)} title="Extracted Data" className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0"><ListPlus size={18} /></button>
+            <div className="flex items-center space-x-1 flex-shrink-0">
+                <button onClick={() => setShowShortcutsModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><Zap size={18} /></button>
+                <button onClick={() => setShowMacroModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><MessageSquare size={18} /></button>
+                <button onClick={() => setShowTemplateModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><FileText size={18} /></button>
             </div>
-        )}
-
-      {/* ============== MAIN CONTENT ============== */}
-<main className="flex-grow flex flex-col lg:flex-row overflow-hidden"> {/* Use overflow-hidden */}
-
-        {/* --- LEFT SIDEBAR: Context & Case Info --- */}
-     <aside className={`bg-slate-950/50 w-full lg:w-96 flex-shrink-0 lg:overflow-y-auto lg:h-auto
-                              ${mobileView === 'case' ? 'flex flex-col overflow-y-auto' : 'hidden'} lg:flex`}
-                     // Apply calculated height only on mobile when this view is active
-                     style={mobileView === 'case' ? { height: 'calc(100vh - 7.5rem)' } : {}} > {/* 3.5rem header + 4rem footer */}
-
-                   {/* ADD this inner div */}
-    <div className="p-4 space-y-4">
-
-    {/* ... content of the left sidebar ... */}
-            {/* <SidePanel title="Patient & Exam" icon={User}>
-                <div className="grid grid-cols-2 gap-3"> */}
-                    {/* Simplified inputs for the new design */}
-                    {/* <label className="font-semibold text-gray-600 flex items-center mb-2"><User size={18} className="mr-2"/>Pt. Name</label>
-                    <input type="text" placeholder="Patient Name" value={patientName} onChange={e => setPatientName(e.target.value)} className="col-span-2 bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                    <label className="font-semibold text-gray-600 flex items-center mb-2"><User size={18} className="mr-2"/>Pt. ID</label>
-                    <input type="text" placeholder="Patient ID" value={patientId} onChange={e => setPatientId(e.target.value)} className="bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm" />
-                    <label className="font-semibold text-gray-600 flex items-center mb-2"><User size={18} className="mr-2"/>Ref. Physician</label>
-                    <input type="text" placeholder="Physician Name" value={referringPhysician} onChange={e => setReferringPhysician(e.target.value)} className="col-span-2 bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                    <label className="font-semibold text-gray-600 flex items-center mb-2"><Calendar size={18} className="mr-2"/>Pt. Age</label>
-                    <input type="number" placeholder="Age" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm" />
-                     <label className="font-semibold text-gray-600 flex items-center mb-2"><Calendar size={18} className="mr-2"/>Exam Date</label>
-                    <input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="col-span-2 bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm" />
-                </div>
-            </SidePanel> */}
-            {/* // In App.jsx, find the left sidebar <aside> and replace the SidePanel with this: */}
-
-<SidePanel title="Patient & Exam" icon={User}>
-    <div className="space-y-3">
-        <div>
-            <label htmlFor="patientName" className="text-xs font-medium text-gray-400 mb-1 block">Patient Name</label>
-            <input 
-                id="patientName" 
-                type="text" 
-                placeholder="Patient Name" 
-                value={patientName} 
-                onChange={e => setPatientName(e.target.value)} 
-                className="w-full bg-slate-700/50 border border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500" 
-            />
+            <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
         </div>
-        <div>
-            <label htmlFor="patientId" className="text-xs font-medium text-gray-400 mb-1 block">Patient ID</label>
-            <input 
-                id="patientId" 
-                type="text" 
-                placeholder="Patient ID" 
-                value={patientId} 
-                onChange={e => setPatientId(e.target.value)} 
-                className="w-full bg-slate-700/50 border border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500" 
-            />
-        </div>
-        <div className="grid grid-cols-2 gap-3"> {/* Use grid for side-by-side */}
-            <div>
-                <label htmlFor="patientAge" className="text-xs font-medium text-gray-400 mb-1 block">Age</label>
-                <input 
-                    id="patientAge" 
-                    type="number" 
-                    placeholder="Age" 
-                    value={patientAge} 
-                    onChange={e => setPatientAge(e.target.value)} 
-                    className="w-full bg-slate-700/50 border border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500" 
-                />
-            </div>
-            <div>
-                <label htmlFor="examDate" className="text-xs font-medium text-gray-400 mb-1 block">Exam Date</label>
-                <input 
-                    id="examDate" 
-                    type="date" 
-                    value={examDate} 
-                    onChange={e => setExamDate(e.target.value)} 
-                    className="w-full bg-slate-700/50 border border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500" 
-                />
-            </div>
-        </div>
-        {/* ======================================================= */}
-        {/* ============ REFERRING PHYSICIAN FIELD ADDED ============ */}
-        {/* ======================================================= */}
-        <div>
-            <label htmlFor="referringPhysician" className="text-xs font-medium text-gray-400 mb-1 block">Referring Physician</label>
-            <input 
-                id="referringPhysician" 
-                type="text" 
-                placeholder="Referring Physician" 
-                value={referringPhysician} 
-                onChange={e => setReferringPhysician(e.target.value)} 
-                className="w-full bg-slate-700/50 border border-slate-600 p-2 rounded-md text-sm focus:ring-1 focus:ring-blue-500" 
-            />
-        </div>
-    </div>
-</SidePanel>
-            {/* =================================================================== */}
-    {/* ========= ADD THIS NEW SIDEPANEL FOR TEMPLATE SELECTION ========= */}
-    {/* =================================================================== */}
-    <SidePanel title="Report Template" icon={FileText}>
-        <div className="space-y-3">
-            <div>
-                <label className="text-xs font-medium text-white mb-1 block">Modality</label>
-                <select value={modality} onChange={e => {
-                            const newModality = e.target.value;
-                            const newTemplate = Object.keys(allTemplates[newModality])[0];
-                            const newContent = allTemplates[newModality][newTemplate] || '';
-                            setModality(newModality);
-                            setTemplate(newTemplate);
-                            // Directly update editor AND state
-                            isProgrammaticUpdate.current = true;
-                            if (editor) editor.commands.setContent(newContent);
-                            setEditorContent(newContent);
-                        }}  className="w-full bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm-white focus:ring-1 focus:ring-blue-500"
-                >
-                            {Object.keys(allTemplates).map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                
-            </div>
-            <div>
-                <label className="text-sm font-medium text-white mb-1 block">Template</label>
-                <select value={template} onChange={e => {
-                            const newTemplate = e.target.value;
-                            const newContent = allTemplates[modality][newTemplate] || '';
-                            setTemplate(newTemplate);
-                            // Directly update editor AND state
-                            isProgrammaticUpdate.current = true;
-                            if (editor) editor.commands.setContent(newContent);
-                            setEditorContent(newContent);
-                        }}  className="w-full bg-slate-700/50 border-slate-600 p-2 rounded-md text-sm-white focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
-                            {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-            </div>
-        </div>
-    </SidePanel>
+      </header>
 
-    {/* =================================================================== */}
-    {/* ============ ADD THE MEASUREMENTS PANEL CONDITIONALLY ============= */}
-    {/* =================================================================== */}
-    {modality === 'Ultrasound' && (
-        <MeasurementsPanel
-            measurements={dynamicMeasurements}
-            organs={templateOrgans}
-            onInsert={handleInsertMeasurements}
-           CollapsibleSidePanel={CollapsibleSidePanel} // <-- Pass the component as a prop here
-           
-        />
-    )}
-            
-            <SidePanel title="AI Image Analysis" icon={Upload}>
-                <div {...getRootProps()} className={`p-4 border-2 border-dashed rounded-lg text-center cursor-pointer ${isDragActive ? 'border-blue-500 bg-blue-900/20' : 'border-slate-600'}`}>
-                    <input {...getInputProps()} />
-                    <p className="text-gray-400 text-sm">{isDragActive ? 'Drop files here...' : 'Drag, drop, or click'}</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                    {images.map((img, index) => (
-                        <div key={index} className="relative group flex-shrink-0 cursor-pointer" onClick={() =>openModal(index)}>
-                            <img src={img.src} alt={`Scan ${index+1}`} className={`w-full h-16 object-cover rounded-md shadow-md transition-all border-2 ${selectedImage === img ? 'border-blue-500' : 'border-transparent'}`} />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button onClick={(e) => { e.stopPropagation(); removeImage(index); }} className="text-white hover:text-red-400 p-1"><Trash2 size={16} /></button>
-                            </div>
+      {isRestricted && (
+        <div className="bg-yellow-900/30 border-b border-yellow-500/20 text-yellow-200 text-xs py-1 text-center flex-shrink-0">
+            Free limit reached. <button onClick={handleUpgrade} className="underline font-bold hover:text-white">Upgrade to Pro</button>
+        </div>
+      )}
+
+      {/* MAIN LAYOUT */}
+      <main className="flex-1 flex overflow-hidden min-h-0 relative">
+
+        {/* LEFT SIDEBAR */}
+        <aside className={`w-full lg:w-72 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                <SidePanel title="Patient & Exam" icon={User}>
+                    <div className="space-y-2.5">
+                        <div><label className="text-[10px] uppercase font-bold text-slate-500">Patient Name</label><input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
+                        <div><label className="text-[10px] uppercase font-bold text-slate-500">Patient ID</label><input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div><label className="text-[10px] uppercase font-bold text-slate-500">Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
+                            <div><label className="text-[10px] uppercase font-bold text-slate-500">Date</label><input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
                         </div>
-                    ))}
-                </div>
-                 {/* ======================================================= */}
-    {/* ========= ADD CLINICAL CONTEXT PANEL HERE =========== */}
-    {/* ======================================================= */}
-    <SidePanel title="Clinical Context" icon={Clipboard}>
-        <textarea
-            id="clinical-context"
-            value={clinicalContext}
-            onChange={e => setClinicalContext(e.target.value)}
-            rows="3" // Adjust rows as needed
-            className="w-full p-2 bg-slate-700/50 border border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500"
-            placeholder="e.g., Patient presents with right upper quadrant pain..."
-        />
-    </SidePanel>
-    
-                <button onClick={analyzeImages} disabled={isAiLoading || images.length === 0 || isRestricted } className="w-full mt-2 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition flex items-center justify-center disabled:bg-indigo-800 text-sm">
-                    {isAiLoading ? "Analyzing..." : <><BrainCircuit size={16} className="mr-2"/>Analyze Images</>}
-                </button>
+                    </div>
+                </SidePanel>
+
+                <SidePanel title="Report Template" icon={FileText}>
+                    <div className="space-y-2.5">
+                        <div><label className="text-[10px] uppercase font-bold text-slate-500">Modality</label>
+                        <select value={modality} onChange={e => { const m = e.target.value; const t = Object.keys(allTemplates[m])[0]; setModality(m); setTemplate(t); isProgrammaticUpdate.current = true; if(editor) editor.commands.setContent(allTemplates[m][t]||''); setEditorContent(allTemplates[m][t]||''); }} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500">
+                            {Object.keys(allTemplates).map(m => <option key={m} value={m}>{m}</option>)}
+                        </select></div>
+                        <div><label className="text-[10px] uppercase font-bold text-slate-500">Template</label>
+                        <select value={template} onChange={e => { const t = e.target.value; setTemplate(t); isProgrammaticUpdate.current = true; if(editor) editor.commands.setContent(allTemplates[modality][t]||''); setEditorContent(allTemplates[modality][t]||''); }} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500">
+                            {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                        </select></div>
+                    </div>
+                </SidePanel>
+
+                {modality === 'Ultrasound' && (
+                    <MeasurementsPanel measurements={dynamicMeasurements} organs={templateOrgans} onInsert={handleInsertMeasurements} CollapsibleSidePanel={CollapsibleSidePanel} />
+                )}
+
+                <SidePanel title="AI Analysis" icon={Upload}>
+                    <div {...getRootProps()} className={`p-3 border border-dashed rounded text-center cursor-pointer transition-colors ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
+                        <input {...getInputProps()} />
+                        <p className="text-slate-500 text-[10px] uppercase font-bold">Drop Images / PDFs (or Paste)</p>
+                    </div>
+                    {images.length > 0 && (
+                        <div className="grid grid-cols-3 gap-1 mt-2">
+                            {images.map((img, index) => (
+                                <div key={index} className="relative group aspect-square cursor-pointer border border-slate-800 rounded overflow-hidden" onClick={() => openModal(index)}>
+                                    {/* Handle PDF Visualization vs Image */}
+                                    {img.type === 'application/pdf' ? (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                                            <FileIcon size={24} className="text-red-400" />
+                                            <span className="text-[8px] absolute bottom-1 text-red-400 font-bold">PDF</span>
+                                        </div>
+                                    ) : (
+                                        <img src={img.src} className="w-full h-full object-cover" alt="preview" />
+                                    )}
+                                    
+                                    {/* Remove Button - Always visible (removed opacity-0) */}
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); removeImage(index); }} 
+                                        className="absolute top-0 right-0 bg-red-600 text-white hover:bg-red-700 p-1 rounded-bl transition-colors z-10 shadow-sm"
+                                        title="Remove"
+                                    >
+                                        <XCircle size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <textarea value={clinicalContext} onChange={e => setClinicalContext(e.target.value)} rows="2" className="w-full mt-2 p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 outline-none placeholder-slate-600" placeholder="Clinical context..." />
+                    <button onClick={analyzeImages} disabled={isAiLoading || images.length === 0} className="w-full mt-2 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-500 transition disabled:bg-slate-800 disabled:text-slate-600">
+                        {isAiLoading ? "Scanning..." : "Analyze"}
+                    </button>
+                </SidePanel>
                 
-            </SidePanel>
-
-
-
-       {/* Image Modal for DICOM & Raster navigation */}
-       <ImageModal
-         images={images}
-         currentIndex={modalIndex}
-         onClose={closeModal}
-         onNext={showNext}
-         onPrev={showPrev}
-       />
-            <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} onViewHistory={() => setShowHistoryModal(true)}  />
+                <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} onViewHistory={() => setShowHistoryModal(true)} />
             </div>
         </aside>
 
-
-            
-        {/* --- CENTER PANEL: Workspace (Viewer & Editor) --- */}
-       
-
-          
-    <div className={`flex flex-col p-2 lg:p-4 overflow-hidden lg:flex-grow
-                           ${mobileView === 'workspace' ? 'flex flex-grow' : 'hidden'} lg:flex`}
-                  // Apply calculated height only on mobile when this view is active
-                  style={mobileView === 'workspace' ? { height: 'calc(100vh - 7.5rem)' } : {}} >
-            {/* FIX #5: The main image viewer is removed from here. The editor is now the primary focus. */}
-<div className="flex-grow flex flex-col bg-slate-800/50 rounded-lg border border-slate-700 overflow-hidden">
-            {/* ======================================================= */}
-        {/* ============ ALERT PANEL ADDED HERE ================== */}
-        {/* ======================================================= */}
-        <AlertPanel
-            alertData={activeAlert}
-            onAcknowledge={() => {
-                setActiveAlert(null);
-                setIsAwaitingAlertAcknowledge(false); // Reset the lock
-            }}
-            onInsertMacro={() => {
-                if (editor && activeAlert?.type === 'critical' && activeAlert.data?.reportMacro) {
-                    isProgrammaticUpdate.current = true;
-                    editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run();
-                    setEditorContent(editor.getHTML()); // Sync state
-                    toast.success("Critical finding macro inserted.");
-                }
-                setActiveAlert(null);
-                setIsAwaitingAlertAcknowledge(false);
-            }}
-            onPrepareNotification={() => {
-                if (activeAlert?.type === 'critical' && activeAlert.data?.notificationTemplate) {
-                    copyToClipboard(activeAlert.data.notificationTemplate, "Notification text copied!");
-                }
-                setActiveAlert(null);
-                setIsAwaitingAlertAcknowledge(false);
-            }}
-            onFix={handleFixInconsistency}
-            onProceed={() => {
-                setActiveAlert(null);
-                setIsAwaitingAlertAcknowledge(false); // Reset lock
-                generateFinalReport(true); // Re-run the function, forcing it
-            }}
-            // --- THIS IS THE PROP THAT WAS MISSING ---
-            onInsertGuideline={() => {
-                if (editor && activeAlert?.type === 'guideline' && activeAlert.data?.recommendationText) {
-                    isProgrammaticUpdate.current = true;
-                    // Insert the recommendation text, e.g., in a new paragraph
-                    editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run();
-                    setEditorContent(editor.getHTML()); // Sync state
-                    toast.success("Guideline recommendation inserted.");
-                }
-                setActiveAlert(null);
-                setIsAwaitingAlertAcknowledge(false);
-            }}
-            // --- END OF FIX ---
-        />
-               <MenuBar 
-  editor={editor}
-  voiceStatus={voiceStatus}
-  isDictationSupported={isDictationSupported}
-  handleToggleListening={handleToggleListening}
-  interimTranscript={interimTranscript}
-/>
-                {/* ======================================================= */}
-        {/* ======== ADD SUGGESTION BUTTONS HERE ================ */}
-        {/* ======================================================= */}
-<div className="flex-shrink-0 p-2 border-b border-slate-700 flex items-center justify-end space-x-2">
-            <button 
-                onClick={() => handleGetSuggestions('differentials')} 
-                disabled={isSuggestionLoading || !editorContent} 
-                className="px-3 py-1 bg-slate-600 text-xs text-gray-200 font-semibold rounded-md hover:bg-slate-500 transition flex items-center disabled:opacity-50"
-            >
-                <Lightbulb size={14} className="mr-1.5"/> Suggest Differentials
-            </button>
-            <button 
-                onClick={() => handleGetSuggestions('recommendations')} 
-                disabled={isSuggestionLoading || !editorContent} 
-                className="px-3 py-1 bg-slate-600 text-xs text-gray-200 font-semibold rounded-md hover:bg-slate-500 transition flex items-center disabled:opacity-50"
-            >
-                <ListPlus size={14} className="mr-1.5"/> Generate Recommendations
-            </button>
-        </div>
-<EditorContent editor={editor} className="flex-grow overflow-y-auto" /> {/* Editor scrolls itself */}
+        {/* CENTER WORKSPACE */}
+        <section className={`flex-1 flex flex-col min-w-0 bg-slate-950 relative ${mobileView === 'workspace' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+            <div className="flex-1 flex flex-col m-2 lg:m-0 lg:border-r lg:border-slate-800 bg-slate-900 lg:bg-transparent rounded-lg lg:rounded-none overflow-hidden">
+                <div className="px-2 pt-2">
+                    <AlertPanel alertData={activeAlert} 
+                        onAcknowledge={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
+                        onInsertMacro={() => { if (editor && activeAlert?.type === 'critical') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
+                        onFix={handleFixInconsistency}
+                        onProceed={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); generateFinalReport(true); }}
+                        onInsertGuideline={() => { if (editor && activeAlert?.type === 'guideline') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
+                    />
+                </div>
+                <MenuBar editor={editor} voiceStatus={voiceStatus} isDictationSupported={isDictationSupported} handleToggleListening={handleToggleListening} interimTranscript={interimTranscript} />
+                <div className="flex items-center justify-end space-x-2 px-4 py-1 border-b border-slate-800 bg-slate-900/50">
+                    <button onClick={() => handleGetSuggestions('differentials')} disabled={!editorContent} className="text-[10px] font-bold uppercase tracking-wider text-yellow-500 hover:text-yellow-400 disabled:opacity-30 flex items-center"><Lightbulb size={12} className="mr-1"/>Differentials</button>
+                    <div className="h-3 w-px bg-slate-700"></div>
+                    <button onClick={() => handleGetSuggestions('recommendations')} disabled={!editorContent} className="text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:text-blue-300 disabled:opacity-30 flex items-center"><ListPlus size={12} className="mr-1"/>Recommendations</button>
+                </div>
+                <div className="flex-1 overflow-y-auto bg-slate-900 cursor-text" onClick={() => editor?.commands.focus()}>
+                    <EditorContent editor={editor} className="min-h-full" />
+                </div>
+                <div className="p-3 bg-slate-900 border-t border-slate-800">
+                    <button onClick={() => generateFinalReport()} disabled={isLoading || !editorContent} 
+                        className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-bold rounded shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all">
+                        {isLoading ? <span className="animate-pulse">Processing...</span> : <><Eye size={16} className="mr-2"/> Generate Final Report</>}
+                    </button>
+                </div>
             </div>
-            <div className="flex-shrink-0 pt-2">
-                 <button onClick={generateFinalReport} disabled={isLoading || !editorContent} className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 transition flex items-center justify-center disabled:bg-blue-800 text-base">
-                    <Eye size={18} className="mr-2"/> Generate Report Preview
-                </button>
+        </section>
+
+        {/* RIGHT SIDEBAR */}
+        <aside className={`w-full lg:w-96 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+            <div className="p-2 bg-slate-900 border-b border-slate-800 flex">
+                <button onClick={() => setActiveAiTab('copilot')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'copilot' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Co-pilot</button>
+                <button onClick={() => setActiveAiTab('search')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'search' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Search</button>
+                <button onClick={() => setActiveAiTab('knowledge')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'knowledge' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Knowledge</button>
             </div>
-        </div>
-
-        {/* --- RIGHT SIDEBAR: AI Co-pilot & Tools --- */}
-        {/* <aside className={`flex-shrink-0 bg-slate-950/50 flex flex-col p-4 space-y-4 overflow-y-auto transition-all duration-300 ${isRightSidebarOpen ? 'w-96' : 'w-0 p-0'}`}> */}
-       {/* ======================================================= */}
-{/* ========= COMPLETE RIGHT SIDEBAR CODE =============== */}
-{/* ======================================================= */}
-<aside className={`bg-slate-950/50 w-full lg:w-[450px] flex-shrink-0 lg:overflow-y-auto lg:h-auto
-                              ${mobileView === 'ai' ? 'flex flex-col overflow-y-auto' : 'hidden'} lg:flex`}
-                     // Apply calculated height only on mobile when this view is active
-                     style={mobileView === 'ai' ? { height: 'calc(100vh - 7.5rem)' } : {}} >
-<div className="p-4 space-y-4 flex flex-col flex-grow"> {/* ADDED flex flex-col flex-grow */}
-    {/* --- Tab Buttons --- */}
-    <div className="flex-shrink-0">
-        <div className="flex items-center p-1 bg-slate-800/50 rounded-lg border border-slate-700">
-            <button onClick={() => setActiveAiTab('copilot')} className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${activeAiTab === 'copilot' ? 'bg-slate-700 text-white' : 'text-gray-400 hover:text-white'}`}>Co-pilot</button>
-            <button onClick={() => setActiveAiTab('search')} className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${activeAiTab === 'search' ? 'bg-slate-700 text-white' : 'text-gray-400 hover:text-white'}`}>Search</button>
-            <button onClick={() => setActiveAiTab('knowledge')} disabled={!aiKnowledgeLookupResult} className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${activeAiTab === 'knowledge' ? 'bg-slate-700 text-white' : 'text-gray-400 hover:text-white'} disabled:text-slate-600`}>Knowledge</button>
-        </div>
-    </div>
-
-    {/* --- Tab Content Area --- */}
-<div className="flex-grow flex flex-col overflow-hidden mt-4"> {/* ADDED flex-grow, mt-4 and flex-col */}
-      {/* --- Co-pilot Tab --- */}
-      {activeAiTab === 'copilot' && (
-        <AiConversationPanel history={conversationHistory} onSendMessage={handleSendMessage} isReplying={isAiReplying} userInput={userInput} setUserInput={setUserInput} />
-      )}
-
-      {/* --- Search Tab --- */}
-      {activeAiTab === 'search' && (
-    // Use flex-col to structure search tab content vertically
-    <div className="flex flex-col h-full space-y-4">
-        {/* Search Input & Local Button */}
-        <div className="flex-shrink-0 flex items-center space-x-2 p-1 bg-slate-800/50 rounded-lg border border-slate-700">
-            <input
+            <div className="flex-1 overflow-hidden relative flex flex-col">
+                {activeAiTab === 'copilot' && (
+                    <div className="flex-1 flex flex-col h-full">
+                        <AiConversationPanel history={conversationHistory} onSendMessage={handleSendMessage} isReplying={isAiReplying} userInput={userInput} setUserInput={setUserInput} />
+                    </div>
+                )}
+                {activeAiTab === 'search' && (
+                    <div className="flex-1 flex flex-col p-3 overflow-hidden h-full"> {/* Added h-full */}
+                        {/* Search Input */}
+                        <div className="flex items-center space-x-2 mb-3 flex-shrink-0">
+                          
+                        <input
                 ref={localSearchInputRef}
                 type="text"
                 value={searchQuery}
@@ -4722,12 +4482,12 @@ useEffect(() => {
                 // --- FIX 1: Pass the 'searchQuery' state ---
                 onKeyDown={e => e.key === 'Enter' && handleLocalSearch(searchQuery)}
                 placeholder="Search local or AI..."
-                className="w-full bg-transparent p-2 rounded-md text-sm focus:outline-none placeholder-slate-500"
+                className="flex-1 bg-slate-950 border border-slate-700 p-1.5 rounded text-xs text-white focus:border-blue-500 outline-none" 
             />
             <button
                 // --- FIX 2: Pass the 'searchQuery' state ---
                 onClick={() => handleLocalSearch(searchQuery)}
-                className="p-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white"
                 title="Search Local Findings"
             >
                 <Search size={18}/>
@@ -4854,84 +4614,121 @@ useEffect(() => {
                      {!isSearching && !baseSearchQuery && (
                          <p className="text-sm text-slate-500 italic text-center py-4">Enter a term above to search.</p>
                     )}
-                </div>
+                        </div>
+                    </div>
+                )}
+                {activeAiTab === 'knowledge' && (
+                    <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                        <KnowledgeLookupPanel result={aiKnowledgeLookupResult} onClose={() => {setAiKnowledgeLookupResult(null); setActiveAiTab('search');}} onInsert={(c) => { if(editor) { editor.chain().focus().insertContent(c).run(); setEditorContent(editor.getHTML()); setActiveAiTab('search'); } }} />
+                    </div>
+                )}
             </div>
-      )}
-
-      {/* --- Knowledge Tab --- */}
-      {activeAiTab === 'knowledge' && (
-           // Ensure Knowledge panel takes full height and scrolls internally if needed
-           <div className="flex-grow overflow-y-auto">
-               <KnowledgeLookupPanel
-                   result={aiKnowledgeLookupResult}
-                    // Reset tab to search if knowledge panel is closed
-                   onClose={() => { setAiKnowledgeLookupResult(null); setActiveAiTab('search'); }}
-                   onInsert={(content) => {
-                       if (editor) {
-                           setEditorContent(prev => prev + content); // Append safely
-                           toast('Knowledge summary inserted.');
-                           setAiKnowledgeLookupResult(null);
-                           setActiveAiTab('search'); // Switch back after inserting
-                       }
-                   }}
-                />
+            <div className="flex-shrink-0 p-2 border-t border-slate-800 bg-slate-900">
+                <AiSuggestedMeasurementsPanel measurements={aiMeasurements} onInsert={handleInsertMeasurement} onClear={() => setAiMeasurements([])} />
             </div>
-      )}
-    </div>
-
-    {/* --- Suggested Measurements (remains at the bottom, outside tab content) --- */}
-    <div className="flex-shrink-0 border-t border-slate-700/50 pt-4">
-      <AiSuggestedMeasurementsPanel measurements={aiMeasurements} onInsert={handleInsertMeasurement} onClear={() => setAiMeasurements([])} />
-    </div>
-    </div>
-</aside>
+        </aside>
       </main>
+
       
 {/* ================================================= */}
 {/* ========= ADD THE AI ASSISTANT MODAL HERE ========= */}
 {/* ================================================= */}
 {showAssistantModal && (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-2xl flex flex-col">
-            <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 className="text-lg font-bold flex items-center">
-                    <Wand2 size={18} className="mr-2 text-blue-400"/> AI Assistant
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-xl">
+                <h3 className="text-lg font-bold flex items-center text-slate-100">
+                    <Wand2 size={20} className="mr-2 text-blue-500"/> AI Assistant
                 </h3>
-                <button onClick={() => setShowAssistantModal(false)} className="text-gray-400 hover:text-white">
-                    <XCircle />
+                <button onClick={() => setShowAssistantModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                    <XCircle size={24} />
                 </button>
             </div>
 
-            <div className="p-6">
-                <label className="text-sm font-medium text-gray-400 mb-2 block">
-                    Paste a report for correction, or enter a topic to generate a new template.
-                </label>
-                <textarea
-                    value={assistantQuery}
-                    onChange={(e) => setAssistantQuery(e.target.value)}
-                    rows="8"
-                    className="w-full p-3 bg-slate-700/50 border border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500"
-                    placeholder="Paste full report here..."
-                />
+            {/* Mode Tabs */}
+            <div className="flex p-2 bg-slate-900 border-b border-slate-800 gap-2 overflow-x-auto">
+                {['correction', 'template', 'simplify'].map(mode => (
+                    <button
+                        key={mode}
+                        onClick={() => setAssistantMode(mode)}
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                            assistantMode === mode 
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                        }`}
+                    >
+                        {mode === 'correction' && 'Correction & QA'}
+                        {mode === 'template' && 'Smart Template'}
+                        {mode === 'simplify' && 'Patient Summary'}
+                    </button>
+                ))}
             </div>
 
-            <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end space-x-2">
-                <button
-                    onClick={handleCorrectReport}
-                    disabled={isAiLoading || !assistantQuery}
-                    // Added: transition classes for animation
-                    className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-500 transition transform duration-100 ease-in-out active:scale-95 flex items-center justify-center disabled:opacity-50 text-sm"
-                >
-                    <CheckCircle size={16} className="mr-2"/> Correct Report
-                </button>
-                <button
-                    onClick={handleGenerateTemplate}
-                    disabled={isAiLoading || !assistantQuery}
-                     // Added: transition classes for animation
-                    className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 transition transform duration-100 ease-in-out active:scale-95 flex items-center justify-center disabled:opacity-50 text-sm"
-                >
-                    <PlusCircle size={16} className="mr-2"/> Generate Template
-                </button>
+            {/* Content Area */}
+            <div className="p-6 flex-grow overflow-y-auto">
+                <div className="mb-4">
+                    <label className="text-sm font-medium text-blue-400 mb-2 block flex items-center gap-2">
+                        {assistantMode === 'correction' && <><CheckCircle size={16}/> Paste Report to Correct:</>}
+                        {assistantMode === 'template' && <><FileText size={16}/> Enter Topic (e.g. 'MRI Knee'):</>}
+                        {assistantMode === 'simplify' && <><UserCheck size={16}/> Report to Simplify (leave empty to use Editor):</>}
+                    </label>
+                    <textarea
+                        value={assistantQuery}
+                        onChange={(e) => setAssistantQuery(e.target.value)}
+                        rows="10"
+                        className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none transition-all placeholder-slate-600 font-mono"
+                        placeholder={
+                            assistantMode === 'correction' ? "Paste findings here..." : 
+                            assistantMode === 'template' ? "e.g., CT Abdomen for 45M with pain..." : 
+                            "Paste medical text here..."
+                        }
+                    />
+                </div>
+                
+                {/* Context Indicator */}
+                <div className="text-xs text-slate-500 bg-slate-900/50 p-2 rounded border border-slate-800 flex items-center gap-2">
+                    <BrainCircuit size={12} />
+                    <span>Active Context: <strong>{patientAge}y {patientName}</strong> ({modality})</span>
+                </div>
+            </div>
+
+            {/* Footer / Actions */}
+            <div className="p-4 bg-slate-800/50 border-t border-slate-700 flex justify-end gap-3 rounded-b-xl">
+                {error && <span className="text-red-400 text-xs flex items-center mr-auto"><AlertTriangle size={12} className="mr-1"/> {error}</span>}
+                
+                {assistantMode === 'correction' && (
+                    <button
+                        onClick={handleCorrectReport}
+                        disabled={isLoading || !assistantQuery}
+                        className="px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all shadow-lg shadow-green-900/20 disabled:opacity-50 flex items-center"
+                    >
+                        {isLoading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div> : <CheckCircle size={18} className="mr-2"/>}
+                        Correct & Standardize
+                    </button>
+                )}
+
+                {assistantMode === 'template' && (
+                    <button
+                        onClick={handleGenerateTemplate}
+                        disabled={isLoading || !assistantQuery}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 flex items-center"
+                    >
+                        {isLoading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div> : <PlusCircle size={18} className="mr-2"/>}
+                        Generate Smart Template
+                    </button>
+                )}
+
+                {assistantMode === 'simplify' && (
+                    <button
+                        onClick={handleSimplifyReport}
+                        disabled={isLoading}
+                        className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-all shadow-lg shadow-purple-900/20 disabled:opacity-50 flex items-center"
+                    >
+                        {isLoading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div> : <UserCheck size={18} className="mr-2"/>}
+                        Generate Patient Summary
+                    </button>
+                )}
             </div>
         </div>
     </div>
