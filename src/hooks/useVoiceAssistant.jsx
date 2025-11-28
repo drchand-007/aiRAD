@@ -255,7 +255,7 @@ const getCorrectedTranscript = async (transcript) => {
   const prompt = `You are an expert medical transcriptionist. Correct any spelling or grammatical errors in the following text, paying close attention to radiological and medical terminology. Return only the corrected text. Text to correct: '${transcript}'`;
   try {
     const payload = { contents: [{ role: "user", parts: [{ "text": prompt }] }] };
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-2.5-flash-native-audio';
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -319,35 +319,43 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
-    recognition.continuous = true;
+    
+    // MOBILE OPTIMIZATION: Check if mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // On mobile, 'continuous' can sometimes cause issues. 
+    // If it fails repeatedly, consider setting this to false and restarting manually.
+    recognition.continuous = true; 
     recognition.interimResults = true;
-    recognition.lang = 'en-US'; // Explicitly set language
+    recognition.lang = 'en-US';
 
     recognition.onstart = () => {
+      console.log("Mic Started");
       setVoiceStatus('listening');
-      isListeningRef.current = true; // Mark intent as active
+      isListeningRef.current = true;
+      setError(null);
     };
 
     recognition.onresult = async (event) => {
       let finalTranscript = '';
-      let currentInterim = '';
+      let interim = '';
+
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript.trim();
         } else {
-          currentInterim += event.results[i][0].transcript;
+          interim += event.results[i][0].transcript;
         }
       }
-      setInterimTranscript(currentInterim);
+      setInterimTranscript(interim);
 
       if (finalTranscript) {
-        // We got a final result. 
-        // Stop the mic briefly to process. This helps delineate commands on mobile.
-        // The 'onend' handler will restart it immediately because isListeningRef is true.
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
-        }
-        setVoiceStatus('processing');
+        // On mobile, do NOT stop the mic. Just process text.
+        // Stopping and restarting is expensive and error-prone on mobile.
+        // We let the Keep-Alive handle the lifecycle.
+        
+        // Optionally pause UI feedback, but keep mic open
+        // setVoiceStatus('processing'); 
         setInterimTranscript('');
 
         try {
@@ -365,85 +373,89 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
         } catch (err) {
           console.error("Error processing voice command:", err);
           toast.error("Voice command failed.");
-          onPlainTextRef.current(finalTranscript); // Fallback to inserting raw text on error
+          onPlainTextRef.current(finalTranscript);
         }
-        
-        // We do NOT set 'idle' here because we want to keep listening.
-        // 'onend' will trigger and restart the mic, setting status back to 'listening'.
-        // If we set 'idle' here, it might flash 'idle' before 'listening' comes back.
+        // Reset status to listening (visual feedback only)
+        setVoiceStatus('listening');
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech error:", event.error);
+      
+      // MOBILE FIX: Ignore 'no-speech' and 'network' errors to prevent stoppage
+      if (event.error === 'no-speech') {
+          return; 
+      }
+      if (event.error === 'network') {
+          // Network flaky? Log it but let Keep-Alive restart
+          console.warn("Network error detected. Attempting auto-restart.");
+      }
+
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        isListeningRef.current = false; // Hard stop
+        setVoiceStatus('idle');
+        setError("Microphone access denied.");
+        toast.error("Mic access denied.");
       }
     };
 
     recognition.onend = () => {
-      // --- MOBILE OPTIMIZATION: AUTO-RESTART ---
+      console.log("Mic Stopped. Intent:", isListeningRef.current);
+      
+      // --- MOBILE OPTIMIZATION: ROBUST KEEP-ALIVE ---
       if (isListeningRef.current) {
-        console.log("Mic ended but intent is active. Restarting...");
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         
-        // Small delay to prevent CPU thrashing if mic fails instantly
+        // Increase delay for mobile to prevent "rapid fire" restart crashes
+        const restartDelay = isMobile ? 300 : 100;
+
         restartTimerRef.current = setTimeout(() => {
             try {
-                if (recognitionRef.current) recognitionRef.current.start();
+                // Check if already started to avoid "already started" error
+                if (voiceStatus !== 'listening') {
+                    console.log("Auto-restarting mic...");
+                    recognition.start();
+                }
             } catch (e) {
                 console.warn("Restart failed:", e);
-                setVoiceStatus('idle');
-                isListeningRef.current = false; // Give up if hard fail
+                // If it fails, try one more time with a longer delay, or reset
+                // setVoiceStatus('idle'); 
+                // isListeningRef.current = false; 
             }
-        }, 100);
+        }, restartDelay); 
       } else {
-        // Genuine stop
         setVoiceStatus('idle');
         setInterimTranscript('');
       }
     };
 
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-      
-      // Ignore 'no-speech' as it happens frequently on mobile silence
-      if (event.error === 'no-speech') {
-          return;
-      }
-
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setError(`Microphone access denied.`);
-          isListeningRef.current = false; // Stop trying to restart
-          setVoiceStatus('idle');
-      } else {
-          // For network or other errors, let onend handle the restart
-          setError(`Speech error: ${event.error}`);
-      }
-    };
-    
-    // Cleanup on unmount
     return () => {
-      isListeningRef.current = false; // Stop auto-restart loop
-      if(recognitionRef.current) {
-        recognitionRef.current.stop();
-        // We don't nullify immediately to avoid race conditions in timeouts
-      }
+      isListeningRef.current = false;
+      if (recognitionRef.current) recognitionRef.current.stop();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-    }
-  }, [geminiTools]); // Only re-run if geminiTools (the prop) changes
+    };
+  }, [geminiTools]);
 
   const handleToggleListening = useCallback(() => {
     if (!recognitionRef.current) {
-      toast.error("Voice dictation is not supported.");
+      toast.error("Voice dictation not initialized.");
       return;
     }
-    
+
+    // Toggle based on INTENT (ref), not just status
     if (isListeningRef.current) {
-      // User explicitly wants to STOP
+      // User wants to STOP
       isListeningRef.current = false;
       recognitionRef.current.stop();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       setVoiceStatus('idle');
     } else {
-      // User explicitly wants to START
+      // User wants to START
       try {
         recognitionRef.current.start();
         isListeningRef.current = true;
-        setVoiceStatus('listening'); // Immediate feedback
+        setVoiceStatus('listening'); 
       } catch (e) {
         console.error("Start Error:", e);
       }
