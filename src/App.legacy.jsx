@@ -1072,11 +1072,14 @@ const [showAssistantModal, setShowAssistantModal] = useState(false); // New stat
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [mobileView, setMobileView] = useState('workspace'); // For mobile tab navigation
 const [showHistoryModal, setShowHistoryModal] = useState(false);
+// const [isWakeWordMode, setIsWakeWordMode] = useState(false); 
+
+// 1. ADD THIS NEW STATE to the App component (near other states)
+const [assistantMode, setAssistantMode] = useState('correction'); // 'correction', 'template', 'simplify', 'rephrase'
+const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', 'concise', 'verbose'
+
 
   const [modalIndex, setModalIndex] = useState(null);
-
-  const [assistantMode, setAssistantMode] = useState('correction'); // 'correction', 'template', 'simplify', 'rephrase'
-const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', 'concise', 'verbose'
 
   const showNext = () => setModalIndex((prev) => Math.min(prev + 1, images.length - 1));
   const showPrev = () => setModalIndex((prev) => Math.max(prev - 1, 0));
@@ -3386,6 +3389,8 @@ const handleUpgrade = async () => {
     setIsAwaitingAlertAcknowledge(false);
   };
 
+// LOCATE THE EXISTING handleSendMessage FUNCTION AND REPLACE IT WITH THIS:
+
   const handleSendMessage = async (message) => {
     if (isRestricted) {
       toast.error("Please upgrade to a professional plan for conversational follow-ups.");
@@ -3503,7 +3508,8 @@ const handleUpgrade = async () => {
     }
   };
 
-  const handleCorrectReport = async () => {
+// 2. REPLACE handleCorrectReport WITH THIS ENHANCED VERSION
+const handleCorrectReport = async () => {
     if (!assistantQuery) {
         setError("Please paste a report in the text box to correct it.");
         return;
@@ -3564,7 +3570,8 @@ const handleUpgrade = async () => {
     }
 };
 
-  const handleGenerateTemplate = async () => {
+// 3. REPLACE handleGenerateTemplate WITH THIS CONTEXT-AWARE VERSION
+const handleGenerateTemplate = async () => {
     if (!assistantQuery) {
         setError("Please enter a topic/modality to generate a template.");
         return;
@@ -4248,6 +4255,44 @@ useEffect(() => {
 
 
 
+
+// // --- Wake Word Listener ---
+// const WAKE_WORD = "hey airad"; 
+
+// useEffect(() => {
+//   // We listen when Wake Word Mode is ON AND we have speech input
+//   if (isWakeWordMode && voiceStatus === 'listening' && interimTranscript) {
+    
+//     const spokenText = interimTranscript.toLowerCase();
+
+//     if (spokenText.includes(WAKE_WORD)) {
+//       // 1. Visual Feedback
+//       toast.success("AI Assistant Activated!", { 
+//         icon: '🤖',
+//         style: { borderRadius: '10px', background: '#333', color: '#fff' },
+//         duration: 2000
+//       });
+
+//       // 2. Open the Assistant Modal
+//       setShowAssistantModal(true);
+
+//       // 3. Optional: Turn OFF wake word mode if you only want it to trigger once
+//       // setIsWakeWordMode(false); 
+
+//       // 4. Cleanup: Remove the wake word from the editor text
+//       if (editor) {
+//         const currentContent = editor.getText();
+//         if (currentContent.trim().toLowerCase().endsWith(WAKE_WORD)) {
+//             const endPos = editor.state.doc.content.size;
+//             const startPos = Math.max(0, endPos - WAKE_WORD.length - 5); 
+//             editor.commands.deleteRange({ from: startPos, to: endPos }).run();
+//         }
+//       }
+//     }
+//   }
+// }, [interimTranscript, voiceStatus, editor, isWakeWordMode, setShowAssistantModal]);
+
+
   // --- CONDITIONAL RENDERING ---
   if (isAuthLoading) {
       return <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">Loading...</div>;
@@ -4330,6 +4375,15 @@ useEffect(() => {
                 </label>
             </div>
             <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            {/* <button 
+                onClick={() => setIsWakeWordMode(!isWakeWordMode)} 
+                className={`px-2 py-1.5 rounded-full flex-shrink-0 transition-all font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border mr-2
+                  ${isWakeWordMode ? 'bg-indigo-900/50 text-indigo-200 border-indigo-500/50' : 'bg-slate-800 text-slate-400 border-transparent hover:text-white'}`}
+                title={isWakeWordMode ? "Wake Word Active: Say 'Hey Co-pilot' to open assistant" : "Click to enable 'Hey Co-pilot' detection"}
+            >
+                <div className={`w-1.5 h-1.5 rounded-full ${isWakeWordMode ? 'bg-green-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                {isWakeWordMode ? "Wake Word On" : "Wake Word Off"}
+            </button> */}
             <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full flex-shrink-0 transition-all ${voiceStatus === 'listening' ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
               {voiceStatus === 'listening' ? <Mic size={18} /> : <Mic size={18} />}
             </button>
