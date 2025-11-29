@@ -207,35 +207,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 
-// --- HELPER: DEBOUNCE FUNCTION ---
-const useDebounce = (callback, delay) => {
-  const timeoutRef = useRef(null);
-
-  const debouncedCallback = useCallback((...args) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }, [callback, delay]);
-
-  return debouncedCallback;
-};
-
 /**
  * Calls the Gemini API with the user's transcript and our list of tools.
  */
 const callGeminiWithFunctions = async (transcript, geminiTools) => {
-  // Use process.env for broader compatibility
-  const apiKey = process.env.VITE_GEMINI_API_KEY || "";
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const model = 'gemini-2.5-flash';
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  // STRICT VALIDATION: Ignore empty or very short inputs (often noise)
-  if (!transcript || typeof transcript !== 'string' || transcript.trim().length < 2) {
-    return null;
-  }
 
   const prompt = `
     You are a voice assistant for a radiology reporting tool.
@@ -259,13 +237,13 @@ const callGeminiWithFunctions = async (transcript, geminiTools) => {
     });
 
     if (!response.ok) {
-      console.warn(`Gemini API Error: ${response.status}`);
-      return null;
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
     return await response.json();
 
   } catch (error) {
     console.error("Failed to call Gemini:", error);
+    toast.error("Voice intent recognition failed.");
     return null;
   }
 };
@@ -274,17 +252,16 @@ const callGeminiWithFunctions = async (transcript, geminiTools) => {
  * Gets a corrected transcript from the AI.
  */
 const getCorrectedTranscript = async (transcript) => {
-  if (!transcript || !transcript.trim()) return transcript;
-
   const prompt = `You are an expert medical transcriptionist. Correct any spelling or grammatical errors in the following text, paying close attention to radiological and medical terminology. Return only the corrected text. Text to correct: '${transcript}'`;
   try {
     const payload = { contents: [{ role: "user", parts: [{ "text": prompt }] }] };
-    const model = 'gemini-2.5-flash-native-audio'; 
-    const apiKey = process.env.VITE_GEMINI_API_KEY || "";
+    const model = 'gemini-2.5-flash';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) {
+      console.error("API Error, falling back to original transcript");
       return transcript;
     }
     const result = await response.json();
@@ -296,22 +273,28 @@ const getCorrectedTranscript = async (transcript) => {
   }
 };
 
+
 /**
  * A headless React hook to manage all voice assistant logic.
- * Mobile Optimized with Keep-Alive, Auto-Restart, and Debouncing.
+ * @param {object} props
+ * @param {Array} props.geminiTools - The list of functions for Gemini to call.
+ * @param {Function} props.onFunctionCall - Callback to execute a function (e.g., analyzeImages).
+ * @param {Function} props.onPlainText - Callback to insert plain text into the editor.
  */
 export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) => {
   const [voiceStatus, setVoiceStatus] = useState('idle'); // 'idle', 'listening', 'processing'
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState(null);
-  const [isDictationSupported, setIsDictationSupported] = useState(false);
+  const [isDictationSupported, setIsDictationSupported] = useState(true);
 
-  // Refs to maintain state inside event listeners
   const recognitionRef = useRef(null);
-  const isListeningRef = useRef(false); 
-  const restartTimerRef = useRef(null);
+  const voiceStatusRef = useRef('idle');
   
-  // Refs for callbacks
+  // --- MOBILE OPTIMIZATION REFS ---
+  const isListeningRef = useRef(false); // Tracks if user WANTS to listen
+  const restartTimerRef = useRef(null); // Debounces restarts
+
+  // Use refs for callbacks to prevent stale closures in SpeechRecognition event handlers
   const onFunctionCallRef = useRef(onFunctionCall);
   const onPlainTextRef = useRef(onPlainText);
 
@@ -320,172 +303,147 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
     onPlainTextRef.current = onPlainText;
   }, [onFunctionCall, onPlainText]);
 
-  // --- PROCESS COMMAND (AI Logic) ---
-  const processCommand = useCallback(async (text) => {
-    // Strict empty check
-    if (!text || text.trim().length < 2) return;
-
-    setVoiceStatus('processing');
-    
-    try {
-        const result = await callGeminiWithFunctions(text, geminiTools);
-        
-        let functionCall = null;
-        if (result && result.candidates && result.candidates[0]) {
-             functionCall = result.candidates[0].content.parts.find(p => p.functionCall)?.functionCall;
-        }
-
-        if (functionCall) {
-            onFunctionCallRef.current(functionCall);
-        } else {
-            // If no function call, treat as dictation and correct it
-            const correctedText = await getCorrectedTranscript(text);
-            onPlainTextRef.current(correctedText);
-        }
-    } catch (err) {
-        console.error("Processing Error:", err);
-        onPlainTextRef.current(text); // Fallback to raw text
-    } finally {
-        // Restore status
-        if (isListeningRef.current) {
-            setVoiceStatus('listening');
-        } else {
-            setVoiceStatus('idle');
-        }
-    }
-  }, [geminiTools]);
-
-  // Debounce processing (800ms)
-  const debouncedProcessCommand = useDebounce(processCommand, 800);
-
-  // --- SETUP SPEECH RECOGNITION ---
+  // Update voiceStatusRef whenever voiceStatus changes
   useEffect(() => {
-    // 1. Browser Compatibility Check
+    voiceStatusRef.current = voiceStatus;
+  }, [voiceStatus]);
+
+  // Setup SpeechRecognition on mount
+  useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
     if (!SpeechRecognition) {
-      console.error("SpeechRecognition API not found in this browser.");
       setIsDictationSupported(false);
-      setError('Speech recognition is not supported in this browser (try Chrome/Edge/Safari).');
+      setError("Voice dictation is not supported by your browser.");
       return;
-    } else {
-      setIsDictationSupported(true);
     }
-    
-    // 2. Initialize
+
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
-
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    recognition.continuous = true; 
+    recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    // --- EVENT HANDLERS ---
+    recognition.lang = 'en-US'; // Explicitly set language
 
     recognition.onstart = () => {
-      console.log("Mic Started");
       setVoiceStatus('listening');
-      isListeningRef.current = true;
-      setError(null);
+      isListeningRef.current = true; // Mark intent as active
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = async (event) => {
       let finalTranscript = '';
-      let interim = '';
-
+      let currentInterim = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          finalTranscript += event.results[i][0].transcript.trim();
         } else {
-          interim += event.results[i][0].transcript;
+          currentInterim += event.results[i][0].transcript;
         }
       }
+      setInterimTranscript(currentInterim);
 
-      setInterimTranscript(interim);
-
-      if (finalTranscript && finalTranscript.trim().length > 0) {
-        // Use debounced function
-        if (isMobile) {
-            debouncedProcessCommand(finalTranscript);
-        } else {
-            processCommand(finalTranscript); 
+      if (finalTranscript) {
+        // We got a final result. 
+        // Stop the mic briefly to process. This helps delineate commands on mobile.
+        // The 'onend' handler will restart it immediately because isListeningRef is true.
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
         }
-        setInterimTranscript(''); 
-      }
-    };
+        setVoiceStatus('processing');
+        setInterimTranscript('');
 
-    recognition.onerror = (event) => {
-      console.error("Speech Error:", event.error);
-      if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') return;
-      
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        isListeningRef.current = false;
-        setVoiceStatus('idle');
-        setError("Microphone access denied.");
-        toast.error("Mic access denied. Check browser permissions.");
+        try {
+          const result = await callGeminiWithFunctions(finalTranscript, geminiTools);
+          if (!result) throw new Error("AI call returned null");
+
+          const functionCall = result.candidates?.[0]?.content.parts.find(p => p.functionCall)?.functionCall;
+
+          if (functionCall) {
+            onFunctionCallRef.current(functionCall);
+          } else {
+            const correctedText = await getCorrectedTranscript(finalTranscript);
+            onPlainTextRef.current(correctedText);
+          }
+        } catch (err) {
+          console.error("Error processing voice command:", err);
+          toast.error("Voice command failed.");
+          onPlainTextRef.current(finalTranscript); // Fallback to inserting raw text on error
+        }
+        
+        // We do NOT set 'idle' here because we want to keep listening.
+        // 'onend' will trigger and restart the mic, setting status back to 'listening'.
+        // If we set 'idle' here, it might flash 'idle' before 'listening' comes back.
       }
     };
 
     recognition.onend = () => {
-      // --- KEEP-ALIVE LOGIC ---
+      // --- MOBILE OPTIMIZATION: AUTO-RESTART ---
       if (isListeningRef.current) {
+        console.log("Mic ended but intent is active. Restarting...");
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         
-        // Desktop can restart faster; mobile needs a breath
-        const delay = isMobile ? 500 : 200;
-
+        // Small delay to prevent CPU thrashing if mic fails instantly
         restartTimerRef.current = setTimeout(() => {
             try {
-                // Only restart if we still intend to listen
-                if (isListeningRef.current && recognitionRef.current) {
-                    recognitionRef.current.start();
-                }
+                if (recognitionRef.current) recognitionRef.current.start();
             } catch (e) {
-                // Ignore "already started" errors
-                if (e.message && !e.message.includes('already started')) {
-                     console.warn("Failed to restart:", e);
-                }
+                console.warn("Restart failed:", e);
+                setVoiceStatus('idle');
+                isListeningRef.current = false; // Give up if hard fail
             }
-        }, delay); 
+        }, 100);
       } else {
+        // Genuine stop
         setVoiceStatus('idle');
         setInterimTranscript('');
       }
     };
 
-    // Cleanup
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      
+      // Ignore 'no-speech' as it happens frequently on mobile silence
+      if (event.error === 'no-speech') {
+          return;
+      }
+
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setError(`Microphone access denied.`);
+          isListeningRef.current = false; // Stop trying to restart
+          setVoiceStatus('idle');
+      } else {
+          // For network or other errors, let onend handle the restart
+          setError(`Speech error: ${event.error}`);
+      }
+    };
+    
+    // Cleanup on unmount
     return () => {
-      isListeningRef.current = false;
-      if (recognitionRef.current) {
-          recognitionRef.current.onend = null; // Prevent zombie restarts
-          recognitionRef.current.stop();
+      isListeningRef.current = false; // Stop auto-restart loop
+      if(recognitionRef.current) {
+        recognitionRef.current.stop();
+        // We don't nullify immediately to avoid race conditions in timeouts
       }
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-    };
-  }, [geminiTools, debouncedProcessCommand, processCommand]); 
+    }
+  }, [geminiTools]); // Only re-run if geminiTools (the prop) changes
 
-  // --- PUBLIC TOGGLE FUNCTION ---
   const handleToggleListening = useCallback(() => {
     if (!recognitionRef.current) {
-      toast.error("Voice dictation not initialized.");
+      toast.error("Voice dictation is not supported.");
       return;
     }
-
+    
     if (isListeningRef.current) {
-      // User STOP
+      // User explicitly wants to STOP
       isListeningRef.current = false;
       recognitionRef.current.stop();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       setVoiceStatus('idle');
     } else {
-      // User START
+      // User explicitly wants to START
       try {
-        // Reset ref first
-        isListeningRef.current = true;
         recognitionRef.current.start();
-        setVoiceStatus('listening'); 
+        isListeningRef.current = true;
+        setVoiceStatus('listening'); // Immediate feedback
       } catch (e) {
         console.error("Start Error:", e);
       }
