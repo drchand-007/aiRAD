@@ -296,7 +296,7 @@ export const RAW_FINDINGS  = [
   {
     "findingName": "Cystitis",
     "organ": "URINARY BLADDER",
-    "findings": "Urinary bladder wall is thickened (\u22655\u00a0mm) with internal echogenic debris.",
+    "findings": "Echogenic floating debris is noted.Bulky uterus with uterine adenomyosis.appears bulky with altered echotexture and loss of endomyometrial junction",
     "impression": "Cystitis. Suggested urine routine correlation."
   },
   {
@@ -496,6 +496,12 @@ export const RAW_FINDINGS  = [
     "organ": "ABDOMINAL WALL",
     "findings": "Anterior abdominal wall defect at previous surgical site with herniating omentum.",
     "impression": "Incisional hernia."
+  },
+  {
+    "findingName": "APPENDIX",
+    "organ": "APPENDIX",
+    "findings": "Visualized appendix measuring 5.1mm with no evidence of inflammatory changes.",
+    "impression": ""
   },
   {
     "findingName": "Appendicitis",
@@ -2944,6 +2950,410 @@ export const RAW_FINDINGS  = [
       "organ": "VERTEBRAL ARTERY",
       "findings": "Flow in the [left/right] vertebral artery is retrograde (reversed) throughout the cardiac cycle. This is indicative of a hemodynamically significant stenosis or occlusion of the ipsilateral subclavian artery proximal to the vertebral origin.",
       "impression": "Complete subclavian steal syndrome involving the [left/right] vertebral artery."
+    },
+    
+    {
+        "findingName": "Grade I Fatty Liver",
+        "organ": "Liver",
+        "findings": "Mild diffuse increase in echotexture with fat fraction percentage.",
+        "impression": "Mild hepatic steatosis."
+    },
+    {
+        "findingName": "Mesenteric Lymphadenitis",
+        "organ": "Mesentery",
+        "findings": "Few subcentimetric mesenteric lymph nodes in RIF, largest 7 mm with mild surrounding inflammatory changes.",
+        "impression": "Mesenteric lymphadenitis."
+    },
+    {
+        "findingName": "Mesenteric Lymphadenopathy",
+        "organ": "Mesentery",
+        "findings": "Few subcentimetric mesenteric lymph nodes in RIF, largest 7 mm with maintained fatty hilum.",
+        "impression": "Benign-appearing mesenteric lymphadenopathy."
+    },
+    {
+        "findingName": "Mild Hepatomegaly",
+        "organ": "Liver",
+        "findings": "Liver enlarged with normal parenchymal thickness.",
+        "impression": "Mild hepatomegaly."
+    },
+    {
+        "findingName": "Bilateral Renal Calculi",
+        "organ": "Kidneys",
+        "findings": "A calculus measuring is noted in the lower pole calyx.",
+        "impression": "Bilateral renal calculi."
+    },
+    {
+        "findingName": "Left renal cortical cyst",
+        "organ": "Kidneys",
+        "findings": "A cystic lesion measuring is noted in the upper/ mid / lower pole cortex.",
+        "impression": "Left renal cortical cyst."
+    },
+    {
+        "findingName": "Simple ovarian cyst",
+        "organ": "Ovaries",
+        "findings": "A cystic lesion measuring x cm is noted in the right/left ovary.",
+        "impression": "Simple ovarian cyst."
+    },
+    {
+        "findingName": "Bilateral polycystic ovarian morphology",
+        "organ": "Ovaries",
+        "findings": "Both the ovaries are well visualized and show multiple follicles arranged in the periphery with central echogenic stroma.",
+        "impression": "Bilateral polycystic ovarian morphology."
+    },
+    {
+        "findingName": "GB Contracted",
+        "organ": "GallBladder",
+        "findings": "GallBladder: Contracted.",
+        "impression": "Mild GB sludge."
+    },
+    {
+        "findingName": "Polycystic Ovarian Morphology",
+        "organ": "Ovaries",
+        "findings": "Multiple peripheral follicles with central echogenic stroma.",
+        "impression": "PCOS morphology."
+    },
+    {
+        "findingName": "Gallbladder Sludge",
+        "organ": "Gallbladder",
+        "findings": "Mild GB sludge. GB contracted.",
+        "impression": "Mild gallbladder sludge."
+    },
+    {
+        "findingName": "Cholelithiasis",
+        "organ": "Gallbladder",
+        "findings": "Single or multiple calculi, largest 1.6 x 0.5 cm.",
+        "impression": "Cholelithiasis."
+    },
+    {
+        "findingName": "Ascites",
+        "organ": "Peritoneal Cavity",
+        "findings": "Minimal to moderate free fluid in abdomen.",
+        "impression": "Minimal/moderate ascites."
+    },
+    {
+        "findingName": "Prostatomegaly",
+        "organ": "Prostate",
+        "findings": "Grade I enlarged prostate.",
+        "impression": "Prostatomegaly."
+    },
+    {
+        "findingName": "Normal Appendix",
+        "organ": "Appendix",
+        "findings": "Appendix measuring 5.1 mm without inflammatory changes.",
+        "impression": "Normal appendix."
+    },
+    {
+        "findingName": "Acute Appendicitis",
+        "organ": "Appendix",
+        "findings": "Non-compressible blind-ending loop measuring 7 mm.",
+        "impression": "Acute appendicitis."
+    },
+    {
+        "findingName": "Umbilical Hernia",
+        "organ": "Abdominal Wall",
+        "findings": "6 mm defect with omentum as contents.",
+        "impression": "Umbilical hernia."
+    },
+    {
+        "findingName": "Direct Inguinal Hernia",
+        "organ": "Inguinal Region",
+        "findings": "1.3 cm defect with herniating omentum, inferior and medial to inferior epigastric vessels.",
+        "impression": "Direct inguinal hernia."
+    },
+    {
+        "findingName": "Indirect Inguinal Hernia",
+        "organ": "Inguinal Region",
+        "findings": "1.5 cm defect with herniating omentum and bowel loops.",
+        "impression": "Indirect inguinal hernia."
+    },
+    {
+        "findingName": "Anterior Abdominal Wall Lipoma",
+        "organ": "Abdominal Wall",
+        "findings": "Multiple hyperechoic subcutaneous lesions without vascularity.",
+        "impression": "Anterior abdominal wall lipomas."
+    },
+    {
+        "findingName": "Baker\u2019s Cyst",
+        "organ": "Knee",
+        "findings": "Cystic lesion 3.0 \u00d7 0.5 \u00d7 0.4 cm in popliteal fossa.",
+        "impression": "Baker\u2019s cyst."
+    },
+    {
+        "findingName": "Baker\u2019s Cyst",
+        "organ": "Knee",
+        "findings": "A well-defined cystic lesion with low level internal echoes measuring 3.0 x0.5 x 0.4cm noted in right popliteal fossa seen arising from medial head of gastrocnemius and semimembranosus - suggested bakers’ cyst. ",
+        "impression": "Baker\u2019s cyst."
+    },
+    {
+        "findingName": "Left VUJ Calculus",
+        "organ": "Ureter",
+        "findings": "Pelvicalyceal systems on right side is normal. Visualized portions of right ureter are not dilated. No calculus is seen in the portions of ureters which can be seen by sonography. A calculus measuring 4mm is noted in the left VUJ causing mild upstream dilatation of whole ureter and pelvicalyceal system.",
+        "impression": "Left VUJ calculus with mild hydroureteronephrosis."
+    },
+    {
+        "findingName": "Cystitis",
+        "organ": "Urinary Bladder",
+        "findings": "Echogenic floating debris in bladder.",
+        "impression": "Cystitis."
+    },
+    {
+        "findingName": "Adenomyosis",
+        "organ": "Uterus",
+        "findings": "Bulky uterus with altered echotexture and loss of endomyometrial junction.",
+        "impression": "Uterine adenomyosis."
+    },
+    {
+        "findingName": "Left grade I hydroureteronephrosis due to distal ureteric calculus.",
+        "organ": "Ureter",
+        "findings": "A calculus measuring 3.4 mm noted in left distal ureter approximately 8mm from left VUJ causing mild hydroureteronephrosis.",
+        "impression": "Left grade I hydroureteronephrosis."
+    },
+    {
+        "findingName": "Appendicolith",
+        "organ": "Appendix",
+        "findings": "A non-compressible, blind-ending tubular structure arising from the cecum, measuring approximately 7.1 mm in outer diameter, consistent with an inflamed appendix. The appendiceal wall appears thickened, and the lumen is distended. A hyperechoic intraluminal focus with posterior acoustic shadowing measuring 4mm is noted in the body, representing an appendicolith. The periappendiceal fat is echogenic, suggesting surrounding inflammatory changes. Minimal free fluid is seen in the adjacent area. No evidence of abscess formation or perforation is noted at present.",
+        "impression": "Acute appendicitis with appendicolith."
+    },
+    {
+        "findingName": "Medical Renal Disease",
+        "organ": "Kidneys",
+        "findings": "Bilateral grade II changes with mild increase in echogenicity and partial loss of CMD with maintained parenchymal thickness and echotexture, intravesical extensions.",
+        "impression": "Grade II medical renal disease."
+    },
+    {
+        "findingName": "Benign Prostatic Hyperplasia",
+        "organ": "Prostate",
+        "findings": "Prostate 44g with median lobe prominence, intravesical extension, PVR 51.3 cc.",
+        "impression": "BPH with significant post-void residual."
+    },
+
+    {
+      "findingName": "Full-Thickness Rotator Cuff Tear",
+      "organ": "SHOULDER",
+      "findings": "Anechoic or markedly hypoechoic gap indicating complete disruption of tendon fibers, often with muscle retraction. Indirect signs include subacromial-subdeltoid bursal fluid and cortical irregularity at the greater tuberosity.",
+      "impression": "Full-thickness rotator cuff tear."
+    },
+    {
+      "findingName": "Partial-Thickness Rotator Cuff Tear",
+      "organ": "SHOULDER",
+      "findings": "Focal hypoechoic or anechoic defect on the articular, bursal, or intrasubstance portion of the tendon that does not extend through its full thickness. Often associated with tendon thinning and loss of fibrillar pattern.",
+      "impression": "Partial-thickness rotator cuff tear."
+    },
+    {
+      "findingName": "Tendinopathy",
+      "organ": "TENDON",
+      "findings": "Diffuse or focal tendon thickening, hypoechogenicity, and loss of the normal fibrillar pattern. Neovascularization may be present on color Doppler, indicating active inflammation.",
+      "impression": "Tendinopathy."
+    },
+    {
+      "findingName": "Subacromial-Subdeltoid Bursitis",
+      "organ": "SHOULDER",
+      "findings": "Anechoic or hypoechoic fluid distending the subacromial-subdeltoid bursa, often accompanied by bursal wall thickening and increased vascularity on Doppler.",
+      "impression": "Subacromial-subdeltoid bursitis."
+    },
+    {
+      "findingName": "Biceps Tenosynovitis",
+      "organ": "SHOULDER",
+      "findings": "Anechoic or hypoechoic fluid distending the synovial sheath of the long head of the biceps tendon, with potential synovial thickening and increased vascularity.",
+      "impression": "Long head of biceps tenosynovitis."
+    },
+    {
+      "findingName": "Lateral Epicondylitis",
+      "organ": "ELBOW",
+      "findings": "Hypoechoic thickening of the common extensor origin, primarily at the extensor carpi radialis brevis, with potential for intratendinous tears, calcification, and neovascularization on Doppler.",
+      "impression": "Lateral epicondylitis (common extensor tendinopathy)."
+    },
+    {
+      "findingName": "Medial Epicondylitis",
+      "organ": "ELBOW",
+      "findings": "Hypoechoic thickening of the common flexor origin, with potential for intratendinous tears, calcification, and neovascularization on Doppler.",
+      "impression": "Medial epicondylitis (common flexor tendinopathy)."
+    },
+    {
+      "findingName": "Ulnar Nerve Entrapment",
+      "organ": "ELBOW",
+      "findings": "Increased cross-sectional area of the ulnar nerve (>9-10 mm²) within the cubital tunnel, with associated hypoechogenicity and loss of fascicular pattern. Dynamic assessment may reveal nerve subluxation on elbow flexion.",
+      "impression": "Ulnar neuropathy at the cubital tunnel, consistent with cubital tunnel syndrome."
+    },
+    {
+      "findingName": "Carpal Tunnel Syndrome",
+      "organ": "WRIST",
+      "findings": "Increased cross-sectional area of the median nerve at the carpal tunnel inlet (typically >10-12 mm²), with nerve hypoechogenicity and loss of the normal fascicular pattern.",
+      "impression": "Sonographic findings consistent with carpal tunnel syndrome."
+    },
+    {
+      "findingName": "De Quervain's Tenosynovitis",
+      "organ": "WRIST",
+      "findings": "Thickening and hypoechogenicity of the abductor pollicis longus (APL) and extensor pollicis brevis (EPB) tendons, with fluid and synovial thickening within the first dorsal compartment.",
+      "impression": "De Quervain's tenosynovitis."
+    },
+    {
+      "findingName": "Ganglion Cyst",
+      "organ": "SOFT TISSUE",
+      "findings": "A well-defined, anechoic or hypoechoic, unilocular or multilocular cystic lesion, typically arising from a joint capsule or tendon sheath. It is avascular on Doppler and demonstrates posterior acoustic enhancement.",
+      "impression": "Ganglion cyst."
+    },
+    {
+      "findingName": "Gluteal Tendinopathy",
+      "organ": "HIP",
+      "findings": "Hypoechoic thickening of the gluteus medius and/or minimus tendons at the greater trochanteric insertion, with loss of fibrillar architecture and potential for tears or enthesopathic changes.",
+      "impression": "Gluteal tendinopathy."
+    },
+    {
+      "findingName": "Trochanteric Bursitis",
+      "organ": "HIP",
+      "findings": "Anechoic or complex hypoechoic fluid collection distending a bursa overlying the greater trochanter, which may demonstrate bursal wall thickening.",
+      "impression": "Trochanteric bursitis."
+    },
+    {
+      "findingName": "Hip Joint Effusion",
+      "organ": "HIP",
+      "findings": "Anechoic or complex fluid distending the anterior capsular recess of the hip joint. An anterior fluid depth >5-10 mm or >2 mm asymmetry with the contralateral side is considered abnormal.",
+      "impression": "Hip joint effusion."
+    },
+    {
+      "findingName": "Patellar Tendinopathy",
+      "organ": "KNEE",
+      "findings": "Focal hypoechoic thickening of the proximal patellar tendon at the inferior patellar pole, with loss of the normal fibrillar pattern and potential neovascularization on Doppler.",
+      "impression": "Proximal patellar tendinopathy (Jumper's knee)."
+    },
+    {
+      "findingName": "Knee Medial Collateral Ligament Injury",
+      "organ": "KNEE",
+      "findings": "Injury ranges from periligamentous edema (Grade I) to partial-thickness fiber disruption (Grade II) to a full-thickness tear with a fluid-filled gap (Grade III).",
+      "impression": "Medial collateral ligament sprain/tear."
+    },
+    {
+      "findingName": "Meniscal Cyst",
+      "organ": "KNEE",
+      "findings": "An anechoic or complex hypoechoic fluid collection at the joint line, communicating with an underlying horizontal meniscal tear.",
+      "impression": "Meniscal cyst, indicative of an underlying meniscal tear."
+    },
+    {
+      "findingName": "Baker's Cyst",
+      "organ": "KNEE",
+      "findings": "A well-defined anechoic or complex fluid collection in the popliteal fossa between the semimembranosus tendon and the medial head of the gastrocnemius, often communicating with the knee joint.",
+      "impression": "Baker's (popliteal) cyst."
+    },
+    {
+      "findingName": "Achilles Tendinopathy",
+      "organ": "ANKLE",
+      "findings": "Diffuse or focal thickening of the Achilles tendon with hypoechogenicity, loss of the normal fibrillar pattern, and potential neovascularization on Doppler.",
+      "impression": "Achilles tendinopathy."
+    },
+    {
+      "findingName": "Achilles Tendon Tear",
+      "organ": "ANKLE",
+      "findings": "Complete discontinuity of tendon fibers with a fluid-filled or hematoma-filled gap and retraction of the torn ends indicates a full-thickness tear. A focal hypoechoic defect indicates a partial tear.",
+      "impression": "Partial or full-thickness Achilles tendon tear."
+    },
+    {
+      "findingName": "Plantar Fasciitis",
+      "organ": "FOOT",
+      "findings": "Thickening of the proximal plantar fascia (>4.0 mm) at its calcaneal insertion, with associated hypoechogenicity and loss of the normal fibrillar architecture.",
+      "impression": "Plantar fasciitis."
+    },
+    {
+      "findingName": "Ankle Ligament Sprain",
+      "organ": "ANKLE",
+      "findings": "Focal hypoechogenicity, thickening, or complete discontinuity of ligament fibers, most commonly involving the anterior talofibular ligament (ATFL), with associated soft tissue edema.",
+      "impression": "Ankle ligament sprain."
+    },
+    {
+      "findingName": "Morton's Neuroma",
+      "organ": "FOOT",
+      "findings": "A well-defined, non-compressible, hypoechoic fusiform mass in the intermetatarsal space, plantar to the intermetatarsal ligament, most commonly in the 3rd web space.",
+      "impression": "Morton's neuroma."
+    },
+    {
+      "findingName": "Muscle Tear",
+      "organ": "MUSCLE",
+      "findings": "Grade 1 (mild strain) shows hyperechoic edema without fiber disruption. Grade 2 (partial tear) shows a hypoechoic/anechoic defect with fiber discontinuity and hematoma. Grade 3 (complete tear) shows a full-thickness defect with fiber retraction.",
+      "impression": "Muscle tear/strain."
+    },
+    {
+      "findingName": "Hematoma",
+      "organ": "SOFT TISSUE",
+      "findings": "A fluid collection that appears anechoic to hypoechoic when acute, becoming heterogeneous and complex in the subacute phase. May resolve or evolve into a seroma.",
+      "impression": "Hematoma."
+    },
+    {
+      "findingName": "Lipoma",
+      "organ": "SOFT TISSUE",
+      "findings": "A well-defined, compressible, typically hyperechoic mass containing fine internal echogenic lines, with minimal or no internal vascularity on Doppler.",
+      "impression": "Lipoma."
+    },
+    {
+      "findingName": "Soft Tissue Foreign Body",
+      "organ": "SOFT TISSUE",
+      "findings": "A hyperechoic focus, often with posterior acoustic shadowing (wood, glass) or reverberation artifact (metal), potentially surrounded by a hypoechoic inflammatory halo or abscess.",
+      "impression": "Soft tissue foreign body."
+    },
+    {
+      "findingName": "Synovitis",
+      "organ": "JOINT",
+      "findings": "Joint effusion (anechoic/hypoechoic fluid) and/or non-compressible, hypoechoic synovial hypertrophy. Active inflammation is indicated by increased vascularity within the synovium on Power Doppler.",
+      "impression": "Synovitis."
+    },
+    {
+      "findingName": "Tenosynovitis",
+      "organ": "TENDON",
+      "findings": "Anechoic or hypoechoic fluid and/or hypoechoic synovial thickening distending the tendon sheath. Active inflammation is indicated by increased vascularity on Power Doppler.",
+      "impression": "Tenosynovitis."
+    },
+    {
+      "findingName": "Bursitis",
+      "organ": "BURSA",
+      "findings": "Anechoic or complex fluid distending a bursa, often with associated bursal wall thickening and increased vascularity on Power Doppler, indicating active inflammation.",
+      "impression": "Bursitis."
+    },
+        {
+        "findingName": "Benign/Reactive Lymphadenopathy",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "Multiple cervical lymph nodes are noted with preserved oval shape, maintaining an echogenic fatty hilum and a thin, uniform cortex. Maximum axial diameter measures up to X mm. No central necrosis, calcification, or abnormal vascularity identified. Nodes are compressible.",
+        "impression": "Presumed benign/reactive cervical lymph nodes."
+    },
+
+    {
+        "findingName": "Suspicious for Malignancy (Metastatic Features",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "A prominent cervical lymph node is identified in [location, e.g., Level IIA] measuring approximately X x Y mm. It demonstrates a rounded contour, eccentric cortical hypertrophy, and loss of the echogenic fatty hilum. Internal heterogeneity with areas suspicious for necrosis/calcification may be noted. Doppler interrogation reveals abnormal peripheral or mixed vascularity, with a high resistive index.",
+        "impression": "Suspicious cervical lymph node, concerning for malignancy. Further evaluation with FNA biopsy recommended."
+    },
+
+    {
+        "findingName": "Necrotic Lymph Node",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "A markedly enlarged cervical lymph node is identified in [location] measuring approximately X x Y mm, demonstrating a hypoechoic central necrotic component. The periphery shows irregular thickening. Doppler reveals peripheral vascularity. Etiology is non-specific and may relate to inflammatory or malignant processes.",
+        "impression": "Necrotic cervical lymph node. Correlation with clinical history and consider biopsy for definitive diagnosis."
+    },
+
+    {
+        "findingName": "Cystic Lymph Node",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "A cervical lymph node in [location] measuring X x Y mm exhibits a predominantly cystic appearance with a thin wall and an anechoic lumen. A small mural nodule or thickened septation may be present. This appearance can be seen with certain metastases (e.g., papillary thyroid carcinoma), or less commonly with cystic degeneration in other conditions.",
+        "impression": "Cystic cervical lymph node. Consider metastatic disease or other cystic pathologies. Further investigation, possibly FNA, is recommended."
+    },
+
+    {
+        "findingName": "Granulomatous Lymphadenopathy (e.g., Tuberculosis)",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "Multiple enlarged cervical lymph nodes are noted in [location, e.g., Level V], some demonstrating heterogeneous internal echotexture with central hypoechoic areas (suggestive of caseous necrosis). Associated mild surrounding edema may be present. Calcifications may or may not be evident. The nodes may appear matted.",
+        "impression": "Findings suggestive of granulomatous cervical lymphadenopathy (e.g., tuberculosis). Clinical correlation and microbiological/histopathological confirmation recommended."
+    },
+
+    {
+        "findingName": "Calcified Cervical Lymph Nodes",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "Several cervical lymph nodes in levels II and III demonstrate internal coarse echogenic foci with posterior acoustic shadowing, consistent with calcifications. The largest calcified node measures X mm. Overall nodal size is mildly enlarged to within normal limits, and the hilar architecture appears preserved in most.",
+        "impression": "Findings of calcified cervical lymph nodes, often post-inflammatory."
+    },
+
+    {
+        "findingName": "Lipomatous Cervical Lymph Node",
+        "organ": "Cervical Lymph Nodes",
+        "findings": "A prominent, enlarged lymph node in level II, measuring X x Y x Z mm, exhibits an expanded, hyperechoic fatty hilum with a thin peripheral hypoechoic cortex. The node maintains an oval shape and demonstrates normal internal vascularity on Doppler imaging. No signs of eccentric cortical thickening, necrosis, or abnormal vascular patterns are noted.",
+        "impression": "Appearance consistent with lipomatous hypertrophy of a cervical lymph node, a benign finding."
     }
 
 ];
