@@ -5,13 +5,18 @@ import {
     FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, 
     Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List,UnderlineIcon, 
     ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, FileIcon ,
-    ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2, // Added Wand2 icon
+    ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2,Table as TableIcon,  // Added Wand2 icon
     Underline
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+// 👇 Tiptap table extensions, ALIASED to avoid clash with docx.Table
+import { Table as TableExtension } from '@tiptap/extension-table';
+import { TableRow as TableRowExtension } from '@tiptap/extension-table-row';
+import { TableHeader as TableHeaderExtension } from '@tiptap/extension-table-header';
+import { TableCell as TableCellExtension } from '@tiptap/extension-table-cell';
 import jsPDF from 'jspdf';
 import { htmlToText } from 'html-to-text';
 import { useDropzone } from 'react-dropzone';
@@ -177,40 +182,103 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 
 // --- REDESIGNED COMPONENT: MenuBar ---
 
-const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
+const MenuBar = ({
+  editor,
+  voiceStatus,
+  isDictationSupported,
+  handleToggleListening,
+  interimTranscript,
+}) => {
   if (!editor) return null;
+
+  const handleInsertTable = () => {
+    editor
+      .chain()
+      .focus()
+      .insertTable({
+        rows: 3,
+        cols: 3,
+        withHeaderRow: true,
+      })
+      .run();
+  };
+
+  const buttons = ['bold', 'italic', 'underline', 'paragraph', 'bulletList', 'orderedList'];
+
+  const icons = {
+    bold: Bold,
+    italic: Italic,
+    underline: UnderlineIcon,
+    paragraph: Pilcrow,
+    bulletList: List,
+    orderedList: ListOrdered,
+  };
+
+  const actions = {
+    bold: () => editor.chain().focus().toggleBold().run(),
+    italic: () => editor.chain().focus().toggleItalic().run(),
+    underline: () => editor.chain().focus().toggleUnderline().run(),
+    paragraph: () => editor.chain().focus().setParagraph().run(),
+    bulletList: () => editor.chain().focus().toggleBulletList().run(),
+    orderedList: () => editor.chain().focus().toggleOrderedList().run(),
+  };
+
   return (
     <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900 border-b border-slate-800">
       <div className="flex items-center space-x-1">
-        {['bold', 'italic','underline', 'paragraph', 'bulletList', 'orderedList'].map(type => {
-          const icons = { bold: Bold, italic: Italic,underline:UnderlineIcon , paragraph: Pilcrow, bulletList: List, orderedList: ListOrdered };
-          const actions = {
-            bold: () => editor.chain().focus().toggleBold().run(),
-            italic: () => editor.chain().focus().toggleItalic().run(),
-             underline: () => editor.chain().focus().toggleUnderline().run(),
-            paragraph: () => editor.chain().focus().setParagraph().run(),
-            bulletList: () => editor.chain().focus().toggleBulletList().run(),
-            orderedList: () => editor.chain().focus().toggleOrderedList().run(),
-          };
+        {buttons.map((type) => {
           const Icon = icons[type];
           return (
-            <button key={type} onClick={actions[type]} className={`p-1.5 rounded ${editor.isActive(type) ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <button
+              key={type}
+              onClick={actions[type]}
+              className={`p-1.5 rounded ${
+                editor.isActive(type)
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
               <Icon size={14} />
             </button>
           );
         })}
+
+        {/* Insert 3×3 table button */}
+        <button
+          onClick={handleInsertTable}
+          className="p-1.5 rounded text-slate-400 hover:bg-slate-800 hover:text-white"
+          title="Insert 3×3 table"
+        >
+          <TableIcon size={14} />
+        </button>
       </div>
+
       <div className="flex items-center space-x-2">
         {(voiceStatus === 'listening' || voiceStatus === 'processing') && interimTranscript && (
-          <p className="text-xs text-blue-400 italic hidden md:block max-w-[150px] truncate">{interimTranscript}</p>
+          <p className="text-xs text-blue-400 italic hidden md:block max-w-[150px] truncate">
+            {interimTranscript}
+          </p>
         )}
-        <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${voiceStatus === 'listening' ? 'bg-red-600 animate-pulse text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
-          {voiceStatus === 'processing' ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Mic size={16} />}
+        <button
+          onClick={handleToggleListening}
+          disabled={!isDictationSupported}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            voiceStatus === 'listening'
+              ? 'bg-red-600 animate-pulse text-white'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          {voiceStatus === 'processing' ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Mic size={16} />
+          )}
         </button>
       </div>
     </div>
   );
 };
+
 
 // --- UNIFIED COMPONENT: AlertPanel (UNCHANGED) ---
 const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => {
@@ -1502,13 +1570,25 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
     debouncedGuardianCheck(text);
   }, [debouncedGuardianCheck]);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: 'Start dictating or paste findings here…', emptyEditorClass: 'is-editor-empty' }),
-    ],
-    onUpdate: handleEditorUpdate,
-  });
+const editor = useEditor({
+  extensions: [
+    StarterKit,
+    Placeholder.configure({
+      placeholder: 'Start dictating or paste findings here…',
+      emptyEditorClass: 'is-editor-empty',
+    }),
+    TableExtension.configure({
+      resizable: true,
+      lastColumnResizable: false,
+    }),
+    TableRowExtension,
+    TableHeaderExtension,
+    TableCellExtension,
+  ],
+  onUpdate: handleEditorUpdate,
+});
+
+
 
   useEffect(() => {
     if (editor && editorContent && editor.getHTML() !== editorContent) {
@@ -3820,48 +3900,204 @@ console.log("Generating report content..."); // Debug log
     toastDone('TXT downloaded');
   };
 
-  const downloadPdfReport = (reportContent) => {
-    if (!reportContent) {
-        setError("Report content is empty. Please generate the report first.");
-        return;
-    }
-    setError(null);
-    try {
-        const doc = new jsPDF();
+  // const downloadPdfReport = (reportContent) => {
+  //   if (!reportContent) {
+  //       setError("Report content is empty. Please generate the report first.");
+  //       return;
+  //   }
+  //   setError(null);
+  //   try {
+  //       const doc = new jsPDF();
         
-        const tempDiv = document.createElement('div');
-        tempDiv.style.width = '170mm';
-        tempDiv.style.fontFamily = 'helvetica';
-        tempDiv.style.fontSize = '12px';
-        tempDiv.innerHTML = reportContent;
-        document.body.appendChild(tempDiv);
+  //       const tempDiv = document.createElement('div');
+  //       tempDiv.style.width = '170mm';
+  //       tempDiv.style.fontFamily = 'helvetica';
+  //       tempDiv.style.fontSize = '12px';
+  //       tempDiv.innerHTML = reportContent;
+  //       document.body.appendChild(tempDiv);
 
-        doc.html(tempDiv, {
-            callback: function (doc) {
-                document.body.removeChild(tempDiv);
-                doc.save(`Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.pdf`);
-                toastDone('PDF downloaded');
-            },
-            x: 15,
-            y: 15,
-            width: 170,
-            windowWidth: tempDiv.scrollWidth
-        });
-    } catch (err) {
-        setError(`An unexpected error occurred during PDF generation: ${err.message}`);
-        console.error(err);
-    }
-  };
+  //       doc.html(tempDiv, {
+  //           callback: function (doc) {
+  //               document.body.removeChild(tempDiv);
+  //               doc.save(`Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.pdf`);
+  //               toastDone('PDF downloaded');
+  //           },
+  //           x: 15,
+  //           y: 15,
+  //           width: 170,
+  //           windowWidth: tempDiv.scrollWidth
+  //       });
+  //   } catch (err) {
+  //       setError(`An unexpected error occurred during PDF generation: ${err.message}`);
+  //       console.error(err);
+  //   }
+  // };
 
-  const downloadWordReport = async (reportContent, patientName = 'Report') => {
+ const downloadPdfReport = (reportContent) => {
+  if (!reportContent) {
+    setError("Report content is empty. Please generate the report first.");
+    return;
+  }
+  setError(null);
   try {
-    // 1. Use the browser's DOM parser to turn the HTML string into a traversable document
+    const doc = new jsPDF();
+
+    const tempDiv = document.createElement('div');
+    tempDiv.style.width = '170mm';
+    tempDiv.style.fontFamily = 'helvetica';
+    tempDiv.style.fontSize = '12px';
+    tempDiv.innerHTML = reportContent;
+
+    // 🔹 Normalize table styling + spacing for PDF
+    const pdfTables = tempDiv.querySelectorAll('table');
+    pdfTables.forEach((table) => {
+      table.style.borderCollapse = 'collapse';
+      table.style.width = '100%';
+      table.style.marginTop = '8px';      // same as 0.5rem
+      table.style.marginBottom = '8px';   // same as 0.5rem
+
+      table.querySelectorAll('th, td').forEach((cell) => {
+        cell.style.border = '0.5px solid #000';
+        cell.style.padding = '4px';
+      });
+    });
+
+    document.body.appendChild(tempDiv);
+
+    doc.html(tempDiv, {
+      callback: function (doc) {
+        document.body.removeChild(tempDiv);
+        doc.save(`Radiology_Report_${patientName.replace(/ /g, '_')}_${examDate}.pdf`);
+        toastDone('PDF downloaded');
+      },
+      x: 15,
+      y: 15,
+      width: 170,
+      windowWidth: tempDiv.scrollWidth,
+    });
+  } catch (err) {
+    setError(`An unexpected error occurred during PDF generation: ${err.message}`);
+    console.error(err);
+  }
+};
+
+
+
+
+
+//   const downloadWordReport = async (reportContent, patientName = 'Report') => {
+//   try {
+//     // 1. Use the browser's DOM parser to turn the HTML string into a traversable document
+//     const parser = new DOMParser();
+//     const docHtml = parser.parseFromString(reportContent, 'text/html');
+    
+//     const docxChildren = [];
+
+//     // --- NEW LOGIC: Manually Build the Patient Info Table for correct formatting ---
+//     const allTds = docHtml.querySelectorAll('td');
+//     if (allTds.length >= 8) {
+//       const patientInfoTable = new Table({
+//         width: { size: 100, type: WidthType.PERCENTAGE },
+//         rows: [
+//           new TableRow({
+//             children: [
+//               new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient Name", bold: true })] })] }),
+//               new TableCell({ children: [new Paragraph(allTds[1]?.textContent || '')] }),
+//               new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient ID", bold: true })] })] }),
+//               new TableCell({ children: [new Paragraph(allTds[3]?.textContent || '')] }),
+//             ],
+//           }),
+//           new TableRow({
+//             children: [
+//               new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true })] })] }),
+//               new TableCell({ children: [new Paragraph(allTds[5]?.textContent || '')] }),
+//               new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Exam Date", bold: true })] })] }),
+//               new TableCell({ children: [new Paragraph(allTds[7]?.textContent || '')] }),
+//             ],
+//           }),
+//           new TableRow({
+//             children: [
+//               new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Referring Physician", bold: true })] })] }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[9]?.textContent || '')],
+//                 columnSpan: 3, // This cell spans across 3 columns
+//               }),
+//             ],
+//           }),
+//         ],
+//       });
+//       docxChildren.push(patientInfoTable);
+//       docxChildren.push(new Paragraph("")); // Add a space after the table
+//     }
+
+//     // --- Process the rest of the report (Impression, Findings, etc.) ---
+//     const mainNodes = docHtml.body.children;
+//     for (const node of mainNodes) {
+//       // Skip the div that we already processed
+//       if (node.nodeName.toUpperCase() === 'DIV') continue;
+
+//       switch (node.nodeName.toUpperCase()) {
+//         case 'H3':
+//           docxChildren.push(new Paragraph({ text: node.textContent, heading: HeadingLevel.HEADING_3, style: "Heading3" }));
+//           break;
+//         case 'P':
+//           const paragraphRuns = [];
+//           for (const childNode of node.childNodes) {
+//             if (childNode.nodeName.toUpperCase() === 'STRONG') {
+//               paragraphRuns.push(new TextRun({ text: childNode.textContent, bold: true }));
+//             } else {
+//               paragraphRuns.push(new TextRun(childNode.textContent));
+//             }
+//           }
+//           docxChildren.push(new Paragraph({ children: paragraphRuns }));
+//           break;
+//       }
+//     }
+
+//     // Create a new document with the children we built
+//     const doc = new Document({
+//       sections: [{
+//         children: docxChildren,
+//       }],
+//       styles: {
+//         paragraphStyles: [
+//             {
+//                 id: "Heading3",
+//                 name: "Heading 3",
+//                 basedOn: "Normal",
+//                 next: "Normal",
+//                 run: {
+//                     bold: true,
+//                     size: 24, // Corresponds to 12pt font
+//                 },
+//                 paragraph: {
+//                     spacing: { after: 120 },
+//                 },
+//             },
+//         ],
+//       },
+//     });
+
+//     // Use the Packer to generate a Blob
+//     const blob = await Packer.toBlob(doc);
+
+//     // Use FileSaver to trigger the download
+//     saveAs(blob, `Radiology_Report_${patientName.replace(/ /g, '_')}.docx`);
+
+//   } catch (error) {
+//     console.error("Error generating Word document:", error);
+//   }
+// };
+
+const downloadWordReport = async (reportContent, patientName = 'Report') => {
+  try {
+    // 1. Parse the HTML into a DOM
     const parser = new DOMParser();
     const docHtml = parser.parseFromString(reportContent, 'text/html');
-    
+
     const docxChildren = [];
 
-    // --- NEW LOGIC: Manually Build the Patient Info Table for correct formatting ---
+    // --- A. Build the Patient Info Table from the FIRST table's <td>s ---
     const allTds = docHtml.querySelectorAll('td');
     if (allTds.length >= 8) {
       const patientInfoTable = new Table({
@@ -3869,93 +4105,196 @@ console.log("Generating report content..."); // Debug log
         rows: [
           new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient Name", bold: true })] })] }),
-              new TableCell({ children: [new Paragraph(allTds[1]?.textContent || '')] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient ID", bold: true })] })] }),
-              new TableCell({ children: [new Paragraph(allTds[3]?.textContent || '')] }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: "Patient Name", bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [new Paragraph(allTds[1]?.textContent || '')],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: "Patient ID", bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [new Paragraph(allTds[3]?.textContent || '')],
+              }),
             ],
           }),
           new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true })] })] }),
-              new TableCell({ children: [new Paragraph(allTds[5]?.textContent || '')] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Exam Date", bold: true })] })] }),
-              new TableCell({ children: [new Paragraph(allTds[7]?.textContent || '')] }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: "Age", bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [new Paragraph(allTds[5]?.textContent || '')],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: "Exam Date", bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [new Paragraph(allTds[7]?.textContent || '')],
+              }),
             ],
           }),
           new TableRow({
             children: [
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Referring Physician", bold: true })] })] }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: "Referring Physician", bold: true })],
+                  }),
+                ],
+              }),
               new TableCell({
                 children: [new Paragraph(allTds[9]?.textContent || '')],
-                columnSpan: 3, // This cell spans across 3 columns
+                columnSpan: 3,
               }),
             ],
           }),
         ],
       });
+
       docxChildren.push(patientInfoTable);
-      docxChildren.push(new Paragraph("")); // Add a space after the table
+      docxChildren.push(new Paragraph("")); // spacing after table
     }
 
-    // --- Process the rest of the report (Impression, Findings, etc.) ---
+    // --- B. Process the rest of the report (Impression, Findings, other tables) ---
     const mainNodes = docHtml.body.children;
-    for (const node of mainNodes) {
-      // Skip the div that we already processed
-      if (node.nodeName.toUpperCase() === 'DIV') continue;
 
-      switch (node.nodeName.toUpperCase()) {
+    for (const node of mainNodes) {
+      const nodeName = node.nodeName.toUpperCase();
+
+      // Skip the patient header wrapper div (we already handled its table)
+      if (nodeName === 'DIV') continue;
+
+      // 🔹 HANDLE ANY OTHER TABLES FROM THE EDITOR
+      if (nodeName === 'TABLE') {
+        const rows = [];
+        const rowElements = node.querySelectorAll('tr');
+
+        rowElements.forEach((tr) => {
+          const cells = [];
+          const cellElements = tr.querySelectorAll('th, td');
+
+          cellElements.forEach((cellEl) => {
+            const cellText = cellEl.textContent || '';
+            const colspanAttr = cellEl.getAttribute('colspan');
+            const colspan = colspanAttr ? parseInt(colspanAttr, 10) || 1 : 1;
+
+            const cellOptions = {
+              children: [new Paragraph(cellText)],
+            };
+
+            if (colspan > 1) {
+              cellOptions.columnSpan = colspan;
+            }
+
+            cells.push(new TableCell(cellOptions));
+          });
+
+          rows.push(new TableRow({ children: cells }));
+        });
+
+        if (rows.length) {
+          docxChildren.push(
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows,
+            })
+          );
+          docxChildren.push(new Paragraph("")); // blank line after each table
+        }
+
+        continue; // move to next node; don't fall through to switch
+      }
+
+      // 🔹 Normal headings & paragraphs
+      switch (nodeName) {
         case 'H3':
-          docxChildren.push(new Paragraph({ text: node.textContent, heading: HeadingLevel.HEADING_3, style: "Heading3" }));
+          docxChildren.push(
+            new Paragraph({
+              text: node.textContent,
+              heading: HeadingLevel.HEADING_3,
+              style: 'Heading3',
+            })
+          );
           break;
-        case 'P':
+
+        case 'P': {
           const paragraphRuns = [];
           for (const childNode of node.childNodes) {
             if (childNode.nodeName.toUpperCase() === 'STRONG') {
-              paragraphRuns.push(new TextRun({ text: childNode.textContent, bold: true }));
+              paragraphRuns.push(
+                new TextRun({ text: childNode.textContent, bold: true })
+              );
             } else {
               paragraphRuns.push(new TextRun(childNode.textContent));
             }
           }
           docxChildren.push(new Paragraph({ children: paragraphRuns }));
           break;
+        }
+
+        default:
+          // Other tags can be converted to simple paragraphs if needed
+          if (node.textContent && node.textContent.trim()) {
+            docxChildren.push(new Paragraph(node.textContent.trim()));
+          }
+          break;
       }
     }
 
-    // Create a new document with the children we built
+    // --- C. Build and download the .docx ---
     const doc = new Document({
-      sections: [{
-        children: docxChildren,
-      }],
+      sections: [
+        {
+          properties: {},
+          children: docxChildren,
+        },
+      ],
       styles: {
         paragraphStyles: [
-            {
-                id: "Heading3",
-                name: "Heading 3",
-                basedOn: "Normal",
-                next: "Normal",
-                run: {
-                    bold: true,
-                    size: 24, // Corresponds to 12pt font
-                },
-                paragraph: {
-                    spacing: { after: 120 },
-                },
+          {
+            id: 'Heading3',
+            name: 'Heading 3',
+            basedOn: 'Normal',
+            next: 'Normal',
+            run: {
+              bold: true,
+              size: 24, // 12 pt
             },
+            paragraph: {
+              spacing: { after: 120 },
+            },
+          },
         ],
       },
     });
 
-    // Use the Packer to generate a Blob
     const blob = await Packer.toBlob(doc);
-
-    // Use FileSaver to trigger the download
     saveAs(blob, `Radiology_Report_${patientName.replace(/ /g, '_')}.docx`);
-
+    toastDone('Word file downloaded');
   } catch (error) {
-    console.error("Error generating Word document:", error);
+    console.error('Error generating Word document:', error);
+    toast.error('Failed to generate Word document');
   }
 };
+
 
   // --- NEW FUNCTION: Insert Macro Directly ---
   const handleInsertMacro = (text) => {
@@ -4301,6 +4640,84 @@ useEffect(() => {
   if (!user) {
       return <Auth />;
   }
+
+const TableControls = ({ editor }) => {
+  if (!editor) return null;
+
+  // Only show when user is inside a table
+  const isInTable = editor.isActive('table');
+  if (!isInTable) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 p-2 bg-slate-800 border-b border-slate-700 text-white rounded-md mb-2">
+      <button
+        onClick={() => editor.chain().focus().addColumnBefore().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        + Col Left
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().addColumnAfter().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        + Col Right
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().addRowBefore().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        + Row Above
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().addRowAfter().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        + Row Below
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().deleteColumn().run()}
+        className="px-2 py-1 bg-red-700 hover:bg-red-600 rounded"
+      >
+        Delete Column
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().deleteRow().run()}
+        className="px-2 py-1 bg-red-700 hover:bg-red-600 rounded"
+      >
+        Delete Row
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().deleteTable().run()}
+        className="px-2 py-1 bg-red-800 hover:bg-red-700 rounded"
+      >
+        Delete Table
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().mergeCells().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        Merge Cells
+      </button>
+
+      <button
+        onClick={() => editor.chain().focus().splitCell().run()}
+        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+      >
+        Split Cell
+      </button>
+    </div>
+  );
+};
+
+
+
 // --- NEW HELPER FUNCTION for DICOM Conversion ---
   const convertDicomToPngBase64 = async (dicomFile) => {
     const cornerstone = window.cornerstone;
@@ -4343,18 +4760,159 @@ useEffect(() => {
   // --- The new render method ---
    return (
     <div className="fixed inset-0 bg-slate-950 text-gray-300 font-sans flex flex-col overflow-hidden">
-      <style>{`
-        .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
-        .tiptap p.is-editor-empty:first-child::before { color: #64748b; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-        .tiptap h3, .tiptap strong { color: #e2e8f0; }
-        .tiptap ul, .tiptap ol { padding-left: 1.2rem; }
-        .tiptap ul { list-style-type: disc; }
-        .tiptap ol { list-style-type: decimal; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-      `}</style>
+      {/* <style>{` */}
+  {/* .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
+  .tiptap p.is-editor-empty:first-child::before {
+    color: #64748b;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+  .tiptap h3, .tiptap strong { color: #e2e8f0; }
+  .tiptap ul, .tiptap ol { padding-left: 1.2rem; }
+  .tiptap ul { list-style-type: disc; }
+  .tiptap ol { list-style-type: decimal; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0f172a; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; } */}
+
+  {/* /* ======================== */
+  /* ✨ TIPTAP TABLE STYLING  */
+  /* ======================== */ }
+
+  {/* .tiptap table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    margin: 0.75rem 0;
+  } */}
+
+  {/* .tiptap th,
+  .tiptap td {
+    border: 1px solid #475569;  
+    padding: 6px 8px;
+    vertical-align: top;
+    color: #e2e8f0;             
+  } */}
+
+  {/* .tiptap th {
+    background-color: #1e293b;  
+    font-weight: 600;
+  } */}
+
+
+  {/* .tiptap .selectedCell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(59, 130, 246, 0.25);
+    pointer-events: none;
+  } */}
+
+  {/* .tiptap .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: -2px;
+    width: 4px;
+    background-color: #3b82f6; 
+    pointer-events: none;
+  } */}
+{/* `}</style> */}
+<style>{`
+  .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
+  .tiptap p.is-editor-empty:first-child::before {
+    color: #64748b;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+  .tiptap h3, .tiptap strong { color: #e2e8f0; }
+
+  /* Normalize paragraph + table spacing in the editor */
+  .tiptap p {
+    margin: 0 0 0.5rem 0;      /* 8px bottom */
+  }
+  .tiptap table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    margin: 0.5rem 0;          /* 8px above & below */
+  }
+
+  .tiptap th,
+  .tiptap td {
+    border: 1px solid #475569;
+    padding: 6px 8px;
+    vertical-align: top;
+    color: #e2e8f0;
+  }
+
+  .tiptap th {
+    background-color: #1e293b;
+    font-weight: 600;
+  }
+
+  .tiptap .selectedCell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(59, 130, 246, 0.25);
+    pointer-events: none;
+  }
+
+  .tiptap .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: -2px;
+    width: 4px;
+    background-color: #3b82f6;
+    pointer-events: none;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0f172a; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+  /* ======================== */
+  /*  REPORT PREVIEW (prose)  */
+  /* ======================== */
+
+  /* Override Tailwind Typography default margins */
+  .prose p {
+    margin: 0 0 0.5rem 0;      /* same as editor */
+  }
+
+  .prose table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    margin: 0.5rem 0;          /* same as editor */
+  }
+
+  .prose th,
+  .prose td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    vertical-align: top;
+    color: #0f172a;
+  }
+
+  .prose th {
+    background-color: #f8fafc;
+    font-weight: 600;
+  }
+`}</style>
+
+
+
+
 
       {/* HEADER */}
       <header className="h-14 flex-shrink-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 z-50 relative shadow-sm">
@@ -4404,6 +4962,8 @@ useEffect(() => {
             Free limit reached. <button onClick={handleUpgrade} className="underline font-bold hover:text-white">Upgrade to Pro</button>
         </div>
       )}
+
+
 
       {/* MAIN LAYOUT */}
       <main className="flex-1 flex overflow-hidden min-h-0 relative">
@@ -4499,7 +5059,10 @@ useEffect(() => {
                     <button onClick={() => handleGetSuggestions('recommendations')} disabled={!editorContent} className="text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:text-blue-300 disabled:opacity-30 flex items-center"><ListPlus size={12} className="mr-1"/>Recommendations</button>
                 </div>
                 <div className="flex-1 overflow-y-auto bg-slate-900 cursor-text" onClick={() => editor?.commands.focus()}>
-                    <EditorContent editor={editor} className="min-h-full" />
+                    <TableControls editor={editor} />
+                    <EditorContent editor={editor} className="tiptap" />
+
+                    {/* <EditorContent editor={editor} className="tiptap min-h-full" /> */}
                 </div>
                 <div className="p-3 bg-slate-900 border-t border-slate-800">
                     <button onClick={() => generateFinalReport()} disabled={isLoading || !editorContent} 
