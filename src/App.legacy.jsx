@@ -4479,10 +4479,25 @@ case "handleLocalSearch": // <--- NEW CASE
     onPlainText: insertPlainText
   });
 
-  // Handle voice-specific errors (optional)
+// --- MODIFIED ERROR HANDLER ---
   useEffect(() => {
     if (voiceError) {
-      setError(voiceError); // Or use toast.error(voiceError)
+      // 1. Show a visible popup so you know WHY it failed
+      toast.error(voiceError, {
+        duration: 5000,
+        icon: '🚫',
+        style: {
+          border: '1px solid #EF4444',
+          padding: '16px',
+          color: '#EF4444',
+        },
+      });
+      
+      // 2. Also set the internal error state
+      setError(voiceError); 
+
+      // 3. Log specifically for debugging
+      console.error("Voice Assistant Error Triggered:", voiceError);
     }
   }, [voiceError]);
 
