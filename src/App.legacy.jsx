@@ -32,7 +32,7 @@ import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
-import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
+// import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
 
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
@@ -5490,13 +5490,7 @@ const TableControls = ({ editor }) => {
        {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} />}
         {/* 👇 ADD THIS BLOCK AT THE BOTTOM OF YOUR JSX 👇 */}
-      <BrandingModal 
-        isOpen={showBrandingModal}
-        onClose={() => setShowBrandingModal(false)}
-        user={user}
-        currentLetterhead={letterheadUrl}
-        currentWatermark={watermarkUrl}
-      />
+     
         {/* FIX #6: New Report Preview Modal */}
       {showPreviewModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
