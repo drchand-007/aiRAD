@@ -461,15 +461,43 @@
 
 
 // src/hooks/useVoiceAssistant.jsx
+// src/hooks/useVoiceAssistant.jsx
+// src/hooks/useVoiceAssistant.jsx
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
+
+// --- HELPER: EXPONENTIAL BACKOFF FETCH ---
+const fetchWithBackoff = async (url, options, retries = 3, initialDelay = 2000) => {
+  let currentDelay = initialDelay;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (response.ok) return response;
+
+      if (response.status === 429) {
+        console.warn(`Hit Rate Limit (429). Retrying in ${currentDelay}ms... (Attempt ${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, currentDelay));
+        currentDelay *= 2; 
+        continue; 
+      }
+
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+    } catch (error) {
+      if (i === retries - 1) throw error; 
+      if (error.message.includes('API Error')) throw error; 
+    }
+  }
+};
 
 /**
  * Calls the Gemini API with the user's transcript and our list of tools.
  */
 const callGeminiWithFunctions = async (transcript, geminiTools) => {
-  if (!transcript || transcript.trim().length < 2) return null; // Ignore tiny blips
+  if (!transcript || transcript.trim().length < 2) return null;
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const model = 'gemini-2.5-flash';
@@ -490,65 +518,85 @@ const callGeminiWithFunctions = async (transcript, geminiTools) => {
   };
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithBackoff(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    const data = await response.json();
+
+    // --- TOKEN TRACKING LOGIC ---
+    if (data.usageMetadata) {
+        const { promptTokenCount, candidatesTokenCount, totalTokenCount } = data.usageMetadata;
+        console.log("📊 Token Usage (Function Check):", {
+            input: promptTokenCount,
+            output: candidatesTokenCount,
+            total: totalTokenCount
+        });
+        // Optional: Show toast for visibility during dev
+        // toast.success(`Tokens used: ${totalTokenCount}`); 
     }
-    return await response.json();
+
+    return data;
 
   } catch (error) {
-    console.error("Failed to call Gemini:", error);
-    // Don't toast here, let the main loop handle it to avoid spamming user
+    console.error("Failed to call Gemini after retries:", error);
+    toast.error("System busy. Please try again in a moment.");
     return null;
   }
 };
 
-/**
- * Gets a corrected transcript from the AI.
- */
 const getCorrectedTranscript = async (transcript) => {
   const prompt = `You are an expert medical transcriptionist. Correct any spelling or grammatical errors in the following text, paying close attention to radiological and medical terminology. Return only the corrected text. Text to correct: '${transcript}'`;
-  try {
-    const payload = { contents: [{ role: "user", parts: [{ "text": prompt }] }] };
-    const model = 'gemini-2.5-flash';
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  const payload = { contents: [{ role: "user", parts: [{ "text": prompt }] }] };
+  const model = 'gemini-flash-latest';
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) {
-      return transcript;
+  try {
+    const response = await fetchWithBackoff(apiUrl, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(payload) 
+    });
+    
+    const data = await response.json();
+
+    // --- TOKEN TRACKING LOGIC ---
+    if (data.usageMetadata) {
+        const { promptTokenCount, candidatesTokenCount, totalTokenCount } = data.usageMetadata;
+        console.log("📊 Token Usage (Dictation):", {
+            input: promptTokenCount,
+            output: candidatesTokenCount,
+            total: totalTokenCount
+        });
+        toast('Tokens: ' + totalTokenCount, { icon: '🪙', duration: 2000 });
     }
-    const result = await response.json();
-    const correctedText = result.candidates?.[0]?.content.parts?.[0]?.text;
+    
+    const correctedText = data.candidates?.[0]?.content.parts?.[0]?.text;
     return correctedText || transcript;
   } catch (error) {
-    return transcript;
+    console.warn("Correction failed, using original text:", error);
+    return transcript; 
   }
 };
 
 
-/**
- * A headless React hook to manage all voice assistant logic.
- */
 export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) => {
-  const [voiceStatus, setVoiceStatus] = useState('idle'); // 'idle', 'listening', 'processing'
+  const [voiceStatus, setVoiceStatus] = useState('idle'); 
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState(null);
   const [isDictationSupported, setIsDictationSupported] = useState(true);
 
   const recognitionRef = useRef(null);
-  const voiceStatusRef = useRef('idle');
   
-  // --- ROBUST MOBILE BUFFERS ---
-  const isListeningRef = useRef(false); // Does the user WANT to be listening?
-  const transcriptBufferRef = useRef(''); // Stores text across Android restarts
-  const silenceTimerRef = useRef(null); // The "Debounce" timer
+  const isListeningRef = useRef(false); 
+  const transcriptBufferRef = useRef(''); 
+  const silenceTimerRef = useRef(null); 
   const restartTimerRef = useRef(null); 
+  const isProcessingRef = useRef(false); 
 
   const onFunctionCallRef = useRef(onFunctionCall);
   const onPlainTextRef = useRef(onPlainText);
@@ -558,24 +606,25 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
     onPlainTextRef.current = onPlainText;
   }, [onFunctionCall, onPlainText]);
 
-  useEffect(() => {
-    voiceStatusRef.current = voiceStatus;
-  }, [voiceStatus]);
-
-  // --- THE "SEND TO AI" LOGIC ---
-  // We only call this when the Silence Timer expires (user stopped talking)
   const processFinalBuffer = async () => {
+    if (isProcessingRef.current) return;
+    
     const fullText = transcriptBufferRef.current.trim();
     if (!fullText) return;
 
-    console.log("Silence detected. Processing full text:", fullText);
+    console.log("Processing full text:", fullText);
+    isProcessingRef.current = true; 
+    isListeningRef.current = false; 
     
-    // Stop listening while we process (visual feedback)
-    if (recognitionRef.current) recognitionRef.current.stop();
+    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+    if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch (e) { }
+    }
+    
     setVoiceStatus('processing');
     setInterimTranscript('');
-    
-    // Clear buffer immediately so we don't process twice
     transcriptBufferRef.current = '';
 
     try {
@@ -586,39 +635,28 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
 
             if (functionCall) {
                 onFunctionCallRef.current(functionCall);
-                // After a function call, we usually STOP listening
-                isListeningRef.current = false;
                 setVoiceStatus('idle');
             } else {
                 const correctedText = await getCorrectedTranscript(fullText);
                 onPlainTextRef.current(correctedText);
-                
-                // After plain text dictation, we often want to KEEP listening
-                // But let's set to idle briefly to show processing happened
                 setVoiceStatus('idle'); 
-                
-                // If you want continuous conversation mode:
-                // if (isListeningRef.current) recognitionRef.current.start();
             }
         } else {
-             // Fallback if AI fails
              onPlainTextRef.current(fullText);
              setVoiceStatus('idle');
         }
     } catch (e) {
         console.error("Processing error:", e);
-        onPlainTextRef.current(fullText); // Fallback to raw text
+        onPlainTextRef.current(fullText);
         setVoiceStatus('idle');
+    } finally {
+        isProcessingRef.current = false; 
     }
   };
 
-  // Setup SpeechRecognition on mount
   useEffect(() => {
-    // HTTPS Check
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      const msg = "Microphone requires HTTPS. Please check your connection.";
-      console.error(msg);
-      setError(msg);
+      setError("Microphone requires HTTPS.");
       setIsDictationSupported(false);
       return;
     }
@@ -633,11 +671,9 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
     recognitionRef.current = new SpeechRecognition();
     const recognition = recognitionRef.current;
     
-    // CRITICAL SETTINGS FOR MOBILE
     recognition.continuous = true; 
     recognition.interimResults = true;
     recognition.lang = 'en-US'; 
-    // maxAlternatives helps prevent some Android bugs
     recognition.maxAlternatives = 1; 
 
     recognition.onstart = () => {
@@ -648,8 +684,6 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
     };
 
     recognition.onresult = (event) => {
-      // 1. CLEAR THE SILENCE TIMER
-      // If we hear ANYTHING, reset the timer. We are not done talking.
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
       let finalChunk = '';
@@ -663,83 +697,55 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
         }
       }
 
-      // 2. BUFFER MANAGEMENT
       if (finalChunk) {
           transcriptBufferRef.current += ' ' + finalChunk.trim();
-          console.log("Buffered:", transcriptBufferRef.current);
       }
 
-      // 3. UI FEEDBACK
-      // Show what we have buffered + what is currently being spoken
       const displayObj = (transcriptBufferRef.current + ' ' + currentInterim).trim();
-      setInterimTranscript(displayObj.slice(-50)); // Only show last 50 chars to fit UI
+      setInterimTranscript(displayObj.slice(-50)); 
 
-      // 4. SET SILENCE TIMER
-      // Wait 1.5 seconds. If no new 'onresult' happens, process the buffer.
       silenceTimerRef.current = setTimeout(() => {
-          if (isListeningRef.current) { // Only process if we haven't manually stopped
+          if (isListeningRef.current && !isProcessingRef.current) { 
               processFinalBuffer();
           }
-      }, 1500); // <--- THIS DELAY PREVENTS PREMATURE CUTOFF
+      }, 1200); 
     };
 
     recognition.onend = () => {
-      console.log("Mic stopped (onend). Intent active?", isListeningRef.current);
-      
-      if (isListeningRef.current) {
-        // ANDROID FIX: The browser stopped the mic, but the user didn't click stop.
-        // We DO NOT process the buffer yet (silence timer does that).
-        // We just restart the mic to keep catching words.
-        
+      if (transcriptBufferRef.current.trim().length > 2 && isListeningRef.current && !isProcessingRef.current) {
+          processFinalBuffer();
+          return;
+      }
+
+      if (isListeningRef.current && !isProcessingRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-        
         restartTimerRef.current = setTimeout(() => {
             try {
-                if (recognitionRef.current && isListeningRef.current) {
-                    console.log("Auto-restarting mic...");
+                if (recognitionRef.current && isListeningRef.current && !isProcessingRef.current) {
                     recognitionRef.current.start();
                 }
-            } catch (e) {
-                console.warn("Restart failed (likely already running):", e);
-            }
-        }, 150); // Small delay to avoid browser "spam" errors
+            } catch (e) {}
+        }, 100); 
       } else {
-        // User actually clicked stop
         setVoiceStatus('idle');
         setInterimTranscript('');
-        // Ensure any pending buffer is processed immediately
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            processFinalBuffer();
-        }
       }
     };
 
     recognition.onerror = (event) => {
-      console.error("Speech error:", event.error);
-      
-      // Ignore 'no-speech' (common on Android silence)
-      if (event.error === 'no-speech') {
-          // Just ignore it. onend will trigger and restart us.
-          return; 
-      }
-
+      if (event.error === 'no-speech') return; 
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setError(`Mic access blocked.`);
           isListeningRef.current = false; 
           setVoiceStatus('idle');
-      } else {
-          // For network or generic errors, we often want to just keep trying
-          // unless it's a fatal error.
-          if (event.error !== 'aborted') {
-            setError(event.error);
-          }
-      }
+      } 
     };
     
     return () => {
       isListeningRef.current = false; 
-      if(recognitionRef.current) recognitionRef.current.stop();
+      if(recognitionRef.current) {
+          try { recognitionRef.current.abort(); } catch(e){}
+      }
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     }
@@ -752,31 +758,33 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText }) 
     }
     
     if (isListeningRef.current) {
-      // USER CLICKED STOP
       console.log("User clicked STOP");
-      isListeningRef.current = false;
-      recognitionRef.current.stop();
+      isListeningRef.current = false; 
       
-      // Clear timers
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       
-      // Force immediate processing of whatever we have
+      try { recognitionRef.current.stop(); } catch (e) {}
       processFinalBuffer();
-      setVoiceStatus('idle');
       
     } else {
-      // USER CLICKED START
       console.log("User clicked START");
-      transcriptBufferRef.current = ''; // Clear old buffer
+      transcriptBufferRef.current = ''; 
+      isProcessingRef.current = false; 
       setError(null);
-      try {
-        recognitionRef.current.start();
-        isListeningRef.current = true;
-        setVoiceStatus('listening'); 
-      } catch (e) {
-        console.error("Start Error:", e);
-      }
+      
+      try { recognitionRef.current.abort(); } catch (e) { }
+
+      setTimeout(() => {
+          try {
+            recognitionRef.current.start();
+            isListeningRef.current = true;
+            setVoiceStatus('listening'); 
+          } catch (e) {
+            isListeningRef.current = true;
+            setVoiceStatus('listening');
+          }
+      }, 50);
     }
   }, [error]);
 
