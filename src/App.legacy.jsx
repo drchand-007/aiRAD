@@ -32,6 +32,8 @@ import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
+import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
+
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
 
@@ -1149,6 +1151,11 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
 
   const [modalIndex, setModalIndex] = useState(null);
 
+  // --- NEW BRANDING STATES ---
+  const [showBrandingModal, setShowBrandingModal] = useState(false);
+  const [letterheadUrl, setLetterheadUrl] = useState(null);
+  const [watermarkUrl, setWatermarkUrl] = useState(null);
+
   const showNext = () => setModalIndex((prev) => Math.min(prev + 1, images.length - 1));
   const showPrev = () => setModalIndex((prev) => Math.max(prev - 1, 0));
 
@@ -1339,7 +1346,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1407,7 +1414,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: { responseMimeType: "application/json" }
           };
-          const model = 'gemini-2.5-flash';
+          const model = 'gemini-flash-latest';
           const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1495,7 +1502,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1777,6 +1784,9 @@ const handleInsertMeasurements = (values, calculusData) => {
             const userData = userDocSnap.data();
             const userRole = userData.role || 'basic';
             setUserRole(userRole);
+            // --- NEW: FETCH BRANDING ---
+      if (userData.letterheadUrl) setLetterheadUrl(userData.letterheadUrl);
+      if (userData.watermarkUrl) setWatermarkUrl(userData.watermarkUrl);
 
             if (userRole === 'basic') {
               // Check for report limits (your existing logic)
@@ -1788,6 +1798,7 @@ const handleInsertMeasurements = (values, calculusData) => {
               if (lastReportDate && lastReportDate.getMonth() !== currentMonth) {
                 // It's a new month, reset their count
                 setIsRestricted(false);
+                
                 await updateDoc(userDocRef, { reportCount: 0, lastReportDate: serverTimestamp() });
               } else if (reportCount >= reportLimit) {
                 setIsRestricted(true); // They are over the limit
@@ -1926,7 +1937,7 @@ const handleInsertMeasurements = (values, calculusData) => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2035,7 +2046,7 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
           responseMimeType: "application/json",
         }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2432,7 +2443,7 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
 //         generationConfig: { responseMimeType: "application/json" }
 //       };
 
-//       const model = 'gemini-2.5-flash';
+//       const model = 'gemini-flash-latest';
 //       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 //       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2776,7 +2787,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         ]
       };
 
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3071,7 +3082,7 @@ const handleUpgrade = async () => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -3150,7 +3161,7 @@ const handleUpgrade = async () => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3233,7 +3244,7 @@ const handleUpgrade = async () => {
 
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3286,7 +3297,7 @@ const handleUpgrade = async () => {
     `;
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3535,7 +3546,7 @@ const handleUpgrade = async () => {
         generationConfig: { responseMimeType: "application/json" } // Force JSON response
       };
       
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-flash-latest';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3622,7 +3633,7 @@ const handleCorrectReport = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-flash-latest';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3680,7 +3691,7 @@ const handleGenerateTemplate = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-flash-latest';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3735,7 +3746,7 @@ const handleSimplifyReport = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-2.5-flash';
+        const model = 'gemini-flash-latest';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -4968,6 +4979,14 @@ const TableControls = ({ editor }) => {
                 <button onClick={() => setShowTemplateModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><FileText size={18} /></button>
             </div>
             <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            {/* NEW SETTINGS BUTTON */}
+<button 
+  onClick={() => setShowBrandingModal(true)} 
+  title="Report Branding Settings" 
+  className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition flex-shrink-0"
+>
+  <Settings size={18} />
+</button>
             <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
         </div>
       </header>
@@ -5470,6 +5489,14 @@ const TableControls = ({ editor }) => {
 
        {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} />}
+        {/* 👇 ADD THIS BLOCK AT THE BOTTOM OF YOUR JSX 👇 */}
+      <BrandingModal 
+        isOpen={showBrandingModal}
+        onClose={() => setShowBrandingModal(false)}
+        user={user}
+        currentLetterhead={letterheadUrl}
+        currentWatermark={watermarkUrl}
+      />
         {/* FIX #6: New Report Preview Modal */}
       {showPreviewModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
