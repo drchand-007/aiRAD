@@ -246,7 +246,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
       .chain()
       .focus()
       .insertTable({
-        rows: 3,
+        rows: 2,
         cols: 3,
         withHeaderRow: true,
       })
