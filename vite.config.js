@@ -79,6 +79,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        //  ADDED THIS LINE HERE to fix the 2MB limit error
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        
         // Cache Google Fonts and other static assets
         runtimeCaching: [
           {
