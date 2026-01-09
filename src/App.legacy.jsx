@@ -33,7 +33,7 @@ import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
 import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
-import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
+// import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
 import { handleAiKnowledgeSearchHF } from './api/huggingFaceTools.js';
 import Fuse from 'fuse.js';
 
