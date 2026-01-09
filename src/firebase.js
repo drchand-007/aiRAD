@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider  } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage"; // <--- 1. ADD THIS IMPORT
 
 // Your web app's Firebase configuration from the .env.local file
 const firebaseConfig = {
@@ -23,3 +24,5 @@ const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
 export const db = getFirestore(app)
+export const storage = getStorage(app); // <--- 2. ADD THIS EXPORT
+export const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-aiRAD';

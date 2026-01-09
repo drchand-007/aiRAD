@@ -4,7 +4,7 @@ import {
     Upload, FileText, Clipboard, Settings, BrainCircuit, User, Calendar, Stethoscope, XCircle, 
     FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight, 
     Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List,UnderlineIcon, 
-    ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, FileIcon ,
+    ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, X, Save, Wifi, WifiOff,Shield, Loader2, FileIcon ,
     ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2,Table as TableIcon,  // Added Wand2 icon
     Underline
 } from 'lucide-react';
@@ -21,7 +21,7 @@ import jsPDF from 'jspdf';
 import { htmlToText } from 'html-to-text';
 import { useDropzone } from 'react-dropzone';
 import { saveAs } from 'file-saver';
-import {  Document,  Packer,  Paragraph,  TextRun,  HeadingLevel,  Table,  TableRow,  TableCell,  WidthType,  BorderStyle,} from 'docx';
+import {  Document,  Packer,  Paragraph,  TextRun,  HeadingLevel,  Table,  TableRow,  TableCell,  WidthType,  BorderStyle, AlignmentType, ShadingType, ImageRun  } from 'docx';
 import MeasurementsPanel from './components/panels/MeasurementsPanel.jsx';
 import TemplateManagerModal from './components/modals/TemplateManagerModal.jsx';
 import CollapsibleSection from './components/common/CollapsibleSection.jsx';
@@ -32,7 +32,19 @@ import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
-// import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
+import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
+import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
+import { handleAiKnowledgeSearchHF } from './api/huggingFaceTools.js';
+import Fuse from 'fuse.js';
+
+// ... existing imports ...
+import { BrowserRouter, Routes, Route, Navigate, Outlet , useNavigate} from 'react-router-dom'; // Add this line
+
+// --- Import Admin Components ---
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './components/admin/AdminDashboard';
+import UserManagement from './components/admin/UserManagement';
+import RequireAdmin from './components/admin/RequireAdmin';
 
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
@@ -45,9 +57,9 @@ const loadScript = (src, onLoad) => {
 };
 
 // --- Firebase Imports (unchanged from original code) ---
-import { auth, db } from './firebase.js'; // Assuming firebase.js is set up
+import { auth, db, appId } from './firebase.js'; // Assuming firebase.js is set up
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, limit } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc,getDocs, updateDoc, setDoc, orderBy, limit, increment } from "firebase/firestore";
 import Auth from './auth.jsx'; // Your Auth component
 
 // NOTE: findings.js is assumed to be in the same directory.
@@ -182,24 +194,17 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 
 
 
-// --- REDESIGNED COMPONENT: MenuBar ---
-
-const MenuBar = ({
-  editor,
-  voiceStatus,
-  isDictationSupported,
-  handleToggleListening,
-  interimTranscript,
-}) => {
+const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
   if (!editor) return null;
 
-  const handleInsertTable = () => {
+  const handleInsertTable = (e) => {
+    e.preventDefault(); // Prevent default button behavior
     editor
       .chain()
       .focus()
       .insertTable({
-        rows: 3,
-        cols: 3,
+        rows: 2,
+        cols: 2,
         withHeaderRow: true,
       })
       .run();
@@ -233,12 +238,17 @@ const MenuBar = ({
           return (
             <button
               key={type}
-              onClick={actions[type]}
-              className={`p-1.5 rounded ${
+              type="button" // Explicitly set type to button
+              onClick={(e) => {
+                e.preventDefault(); // Critical for preventing focus loss or form submits
+                if (actions[type]) actions[type]();
+              }}
+              className={`p-1.5 rounded transition-colors ${
                 editor.isActive(type)
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
+              title={type}
             >
               <Icon size={14} />
             </button>
@@ -247,8 +257,9 @@ const MenuBar = ({
 
         {/* Insert 3×3 table button */}
         <button
+          type="button"
           onClick={handleInsertTable}
-          className="p-1.5 rounded text-slate-400 hover:bg-slate-800 hover:text-white"
+          className="p-1.5 rounded text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           title="Insert 3×3 table"
         >
           <TableIcon size={14} />
@@ -262,7 +273,8 @@ const MenuBar = ({
           </p>
         )}
         <button
-          onClick={handleToggleListening}
+          type="button"
+          onClick={(e) => { e.preventDefault(); handleToggleListening(); }}
           disabled={!isDictationSupported}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
             voiceStatus === 'listening'
@@ -473,6 +485,25 @@ const RecentReportsPanel = ({ onSelectReport, user, onViewHistory }) => { // Add
   );
 };
 
+// const fetchRecentReports = async (userId) => {
+//     if (!userId) return;
+//     try {
+//       // Path: /users/{userId}/reports
+//       const q = query(
+//         collection(db, 'users', userId, 'reports'),
+//         orderBy('createdAt', 'desc'),
+//         limit(10)
+//       );
+//       const querySnapshot = await getDocs(q);
+//       const reports = querySnapshot.docs.map(doc => ({
+//         id: doc.id,
+//         ...doc.data()
+//       }));
+//       setSavedReports(reports);
+//     } catch (error) {
+//       console.error("Error fetching reports:", error);
+//     }
+//   };
 // --- NEW COMPONENT: ReportHistoryModal ---
 const ReportHistoryModal = ({ isOpen, onClose, onSelectReport, user }) => {
   const [allReports, setAllReports] = useState([]);
@@ -1058,12 +1089,139 @@ const getRasterSrc = (img) => {
   return "";
 };
 
+// --- Settings Modal Component ---
+const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    department: '',
+    address: '',
+    contact: '',
+    logo: ''
+  });
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (user && isOpen) {
+      const loadSettings = async () => {
+        try {
+          // Path: /users/{userId}/settings/hospital
+          const docRef = doc(db, 'users', user.uid, 'settings', 'hospital');
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setFormData(docSnap.data());
+          } else {
+             // Default values
+             setFormData({
+                name: 'City General Hospital',
+                department: 'Department of Radiology',
+                address: '123 Medical Center Blvd, Metroville, ST 12345',
+                contact: 'Phone: (555) 123-4567 | Fax: (555) 123-4568',
+                logo: ''
+             });
+          }
+        } catch (error) {
+          console.error("Error loading settings:", error);
+        }
+      };
+      loadSettings();
+    }
+  }, [user, isOpen]);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 500000) { // Limit to ~500KB
+          alert("Image is too large. Please upload a smaller logo (under 500KB).");
+          return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logo: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Path: /users/{userId}/settings/hospital
+      const docRef = doc(db, 'users', user.uid, 'settings', 'hospital');
+      await setDoc(docRef, formData);
+      onSave(formData); 
+      onClose();
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Failed to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Settings className="w-6 h-6 text-blue-600" />
+            Hospital Profile
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+        </div>
+        
+        <div className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Hospital / Center Name</label>
+            <input type="text" className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 transition-colors" placeholder="e.g. City General Hospital" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <input type="text" className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 transition-colors" placeholder="e.g. Department of Radiology" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <textarea className="w-full p-2 border border-gray-300 rounded-lg h-20 resize-none outline-none focus:border-blue-500 transition-colors" placeholder="e.g. 123 Main St..." value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Info</label>
+            <input type="text" className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-blue-500 transition-colors" placeholder="e.g. Phone: (555) 123-4567" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+            <div className="flex items-center gap-4">
+              <div onClick={() => fileInputRef.current?.click()} className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-gray-50 transition-colors">
+                {formData.logo ? <img src={formData.logo} alt="Logo" className="w-full h-full object-contain" /> : <Upload className="w-6 h-6 text-gray-400" />}
+              </div>
+              <button onClick={() => fileInputRef.current?.click()} className="text-sm text-blue-600 font-medium hover:text-blue-700">Upload New Logo</button>
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
-const App = () => {
+const MainApp = () => {
+  const navigate = useNavigate(); // <--- ADD THIS LINE
   // --- ALL STATE AND LOGIC  ---
   // --- NEW STATE for UI ---
   const [activeAiTab, setActiveAiTab] = useState('copilot'); // 'copilot', 'search', 'knowledge'
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine); // <== New State
+
+
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
 
@@ -1072,19 +1230,22 @@ const App = () => {
   const [userRole, setUserRole] = useState('basic'); // Add userRole state
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isRestricted, setIsRestricted] = useState(false); // Freemium restriction state
+  const [isSidebarOpen, setSidebarOpen] = useState(true); // <--- Defined here
 
 
   // --- ALL OTHER APP STATE ---
-  const [patientName, setPatientName] = useState('John Doe');
-  const [patientId, setPatientId] = useState('P00000000');
-  const [patientAge, setPatientAge] = useState('45');
-  const [referringPhysician, setReferringPhysician] = useState('Dr. Evelyn Reed');
-  const [examDate, setExamDate] = useState(new Date().toISOString().split('T')[0]);
-  const [modality, setModality] = useState('Ultrasound');
-  const [template, setTemplate] = useState('Abdomen');
+  // --- REPORT DATA STATE (Initialized from LocalStorage) ---
+    const [patientName, setPatientName] = useState(() => localStorage.getItem('draft_patientName') || 'Patient Name');
+    const [patientId, setPatientId] = useState(() => localStorage.getItem('draft_patientId') || 'P00000000');
+    const [patientAge, setPatientAge] = useState(() => localStorage.getItem('draft_patientAge') || 'Age');
+    const [referringPhysician, setReferringPhysician] = useState(() => localStorage.getItem('draft_referringPhysician') || 'Dr. XYZ');
+    const [examDate, setExamDate] = useState(() => localStorage.getItem('draft_examDate') || new Date().toISOString().split('T')[0]);
+    const [modality, setModality] = useState(() => localStorage.getItem('draft_modality') || 'Ultrasound');
+    const [template, setTemplate] = useState(() => localStorage.getItem('draft_template') || 'Abdomen');
+     
   const [images, setImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [userFindings, setUserFindings] = useState('');
+    const [userFindings, setUserFindings] = useState(() => localStorage.getItem('draft_userFindings') || '');
   const [generatedReport, setGeneratedReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -1148,6 +1309,7 @@ const [showHistoryModal, setShowHistoryModal] = useState(false);
 const [assistantMode, setAssistantMode] = useState('correction'); // 'correction', 'template', 'simplify', 'rephrase'
 const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', 'concise', 'verbose'
 
+const [isDownloading, setIsDownloading] = useState(false);
 
   const [modalIndex, setModalIndex] = useState(null);
 
@@ -1163,6 +1325,21 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(null);
 
+  const [showSettings, setShowSettings] = useState(false); // <--- Add this
+  
+  // Hospital Settings State
+  const [hospitalSettings, setHospitalSettings] = useState({
+    name: 'City General Hospital',
+    department: 'Department of Radiology',
+    address: '123 Medical Center Blvd, Metroville, ST 12345',
+    contact: 'Phone: (555) 123-4567 | Fax: (555) 123-4568',
+    logo: ''
+  });
+
+
+  const [savedReports, setSavedReports] = useState([]);
+    const [reportContent, setReportContent] = useState('');
+
   // --- ALL REFS ---
   const debounceTimeoutRef = useRef(null);
   const inconsistencyCheckTimeoutRef = useRef(null);
@@ -1174,6 +1351,32 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
   const searchResultsRef = useRef();
   const isProgrammaticUpdate = useRef(false);
   const macrosRef = useRef(macros);
+
+// --- ONLINE/OFFLINE DETECTION ---
+    useEffect(() => {
+        const handleOnline = () => { setIsOnline(true); toast.success("Back Online!"); };
+        const handleOffline = () => { setIsOnline(false); toast('You are offline. Changes are saved locally.', { icon: '⚠️' }); };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // --- AUTOSAVE FORM DATA ---
+    // Saves form fields whenever they change
+    useEffect(() => {
+        localStorage.setItem('draft_patientName', patientName);
+        localStorage.setItem('draft_patientId', patientId);
+        localStorage.setItem('draft_patientAge', patientAge);
+        localStorage.setItem('draft_referringPhysician', referringPhysician);
+        localStorage.setItem('draft_examDate', examDate);
+        localStorage.setItem('draft_modality', modality);
+        localStorage.setItem('draft_template', template);
+    }, [patientName, patientId, patientAge, referringPhysician, examDate, modality, template]);
 
   useEffect(() => {
     macrosRef.current = macros;
@@ -1280,6 +1483,149 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
     };
   }, []); // Empty dependency array ensures this runs only once on mount
 
+
+  // Helper to load html2pdf dynamically
+  const loadHtml2Pdf = () => {
+    return new Promise((resolve, reject) => {
+      if (window.html2pdf) {
+        resolve(window.html2pdf);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+  };
+const handleDownloadPDF = async () => {
+    // 1. Check if editor exists and has content
+    if (!editor) return;
+    
+    const contentHTML = editor.getHTML();
+    const textContent = editor.getText();
+
+    // 2. Optional: Warn if empty but allow proceeding
+    if (!textContent.trim()) {
+        const confirmEmpty = window.confirm("The report body appears empty. Do you want to download the template with just the header and footer?");
+        if (!confirmEmpty) {
+            return;
+        }
+    }
+    
+    setIsDownloading(true); // Ensure you have this state, or remove if not used
+    try {
+      // Helper to load html2pdf if not already loaded
+      const loadHtml2Pdf = () => {
+        return new Promise((resolve, reject) => {
+          if (window.html2pdf) {
+            resolve(window.html2pdf);
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+          script.onload = () => resolve(window.html2pdf);
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+      };
+
+      const html2pdf = await loadHtml2Pdf();
+      
+      const element = document.createElement('div');
+      const date = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      // 3. Get Settings with Fallbacks
+      const hName = hospitalSettings?.name || 'City General Hospital';
+      const hDept = hospitalSettings?.department || 'Department of Radiology';
+      const hAddr = hospitalSettings?.address || '123 Medical Center Blvd, Metroville, ST 12345';
+      const hContact = hospitalSettings?.contact || 'Phone: (555) 123-4567';
+      const logoHtml = hospitalSettings?.logo 
+         ? `<img src="${hospitalSettings.logo}" alt="Logo" style="height: 60px; max-width: 150px; object-fit: contain; margin-bottom: 10px;" />` 
+         : '';
+
+      // 4. Construct the PDF HTML (Letterhead + Content)
+      element.innerHTML = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.5; padding: 20px;">
+          
+          <!-- Hospital Letterhead Header -->
+          <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1;">
+              ${logoHtml}
+              <h1 style="margin: 0; color: #1e3a8a; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
+              <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px; font-weight: 600;">${hDept}</p>
+              <p style="margin: 2px 0 0; color: #6b7280; font-size: 12px; max-width: 300px;">${hAddr}</p>
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="background-color: #2563eb; color: white; padding: 6px 16px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px; margin-bottom: 8px;">RADIOLOGY REPORT</div>
+              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Report Status:</strong> Final</p>
+              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Generated:</strong> ${date}</p>
+            </div>
+          </div>
+
+          <!-- Patient Demographics Block (Static Placeholder - Connect to real state if available) -->
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Patient Name</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">Doe, John A.</span></td>
+                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Medical Record Number</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">8492015</span></td>
+              </tr>
+              <tr>
+                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Date of Birth</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">01/15/1980 (45y M)</span></td>
+                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Exam Date</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">${date}</span></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Report Content Body -->
+          <div style="margin-bottom: 40px; font-size: 12pt; text-align: left; color: #374151;">
+            <h2 style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a; margin-bottom: 20px; font-weight: 700;">Findings & Impression</h2>
+            ${contentHTML}
+          </div>
+
+          <!-- Signature Footer -->
+          <div style="margin-top: 60px; padding-top: 25px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">Electronically Signed by:</p>
+                <div style="font-family: 'Courier New', Courier, monospace; font-size: 18px; color: #2563eb; margin-bottom: 4px;">/s/ </div>
+                <p style="margin: 0; font-size: 13px; color: #4b5563; font-weight: 500;">Certified Radiologist</p>
+              </div>
+              <div style="text-align: right;">
+                 <!-- QR Code or Stamp placeholder -->
+                 <div style="width: 60px; height: 60px; background-color: #f0f0f0; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">STAMP</div>
+              </div>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 10px;">
+              This report was generated using <strong>aiRAD</strong>.
+            </p>
+          </div>
+        </div>
+      `;
+
+      const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5], 
+        filename: `Report_${date.replace(/,/g, '').replace(/ /g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error("PDF Generation failed:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // --- NEW: Modal Handlers ---
   const openModal = (index) => {
     setCurrentImageIndex(index);
@@ -1346,7 +1692,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1414,7 +1760,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: { responseMimeType: "application/json" }
           };
-          const model = 'gemini-flash-latest';
+          const model = 'gemini-2.5-flash';
           const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1445,6 +1791,88 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
           setIsSearching(false);
       }
   };
+
+  // --- UPDATED handleAiKnowledgeSearch using Hugging Face (Gemma 3) ---
+  // const handleAiKnowledgeSearch = async (isProactive = false, queryOverride = '') => {
+  //     // if (isRestricted) {
+  //     //     toast.error("Please upgrade to a professional plan to use AI knowledge search.");
+  //     //     return;
+  //     // }
+
+  //     // --- ADD THIS BLOCK ---
+  //     const allowed = await checkAndConsumeQuota("Knowledge Lookup");
+  //     if (!allowed) return;
+
+  //     const query = isProactive ? queryOverride : baseSearchQuery;
+  //     if (!query) {
+  //         setError("Please enter a search term first.");
+  //         return;
+  //     }
+  //     setIsSearching(true);
+  //     setError(null);
+      
+  //     // Clear other search results
+  //     setAllAiSearchResults([]);
+  //     setAllAiFullReports([]);
+  //     setLocalSearchResults([]);
+
+  //     // 1. Construct a strict prompt for JSON output
+  //     const prompt = `
+  //       You are a medical AI assistant. 
+  //       Task: Provide a knowledge lookup on: "${query}".
+        
+  //       Rules:
+  //       1. Use authoritative sources (Radiopaedia, StatPearls).
+  //       2. Output MUST be a valid, parseable JSON object.
+  //       3. Do NOT wrap the JSON in markdown code blocks like \`\`\`json. Just the raw JSON string.
+  //       4. Follow this EXACT schema:
+  //       {
+  //         "queryType": "knowledgeLookup",
+  //         "conditionName": "Condition Name",
+  //         "summary": "Brief HTML-formatted explanation of pathophysiology and clinical significance.",
+  //         "keyImagingFeatures": ["Feature 1", "Feature 2"],
+  //         "differentialDiagnosis": ["Differential 1", "Differential 2"],
+  //         "sources": [{ "name": "Source Name", "url": "URL if known" }]
+  //       }
+  //     `;
+
+  //     try {
+  //         // 2. Call Hugging Face API
+  //         // Note: Ensure runHuggingFacePrompt is imported from your api file
+  //         const textResult = await runHuggingFacePrompt(prompt);
+
+  //         if (!textResult) throw new Error("No response from AI.");
+
+  //         // 3. Clean up the response (remove potential markdown fences)
+  //         const cleanedText = textResult
+  //           .replace(/^```json\s*/i, '') // Remove starting ```json
+  //           .replace(/^```\s*/i, '')     // Remove starting ```
+  //           .replace(/\s*```$/i, '')     // Remove ending ```
+  //           .trim();
+
+  //         // 4. Parse JSON
+  //         try {
+  //             const parsedResult = JSON.parse(cleanedText);
+              
+  //             if (parsedResult.queryType === 'knowledgeLookup' || parsedResult.conditionName) {
+  //                 // Fallback: If queryType is missing but structure looks right, accept it
+  //                 parsedResult.queryType = 'knowledgeLookup'; 
+  //                 setAiKnowledgeLookupResult(parsedResult);
+  //             } else {
+  //                 setError("The AI returned an unexpected response format.");
+  //                 console.warn("Unexpected JSON structure:", parsedResult);
+  //             }
+  //         } catch (jsonError) {
+  //             console.error("JSON Parsing Error:", jsonError, "Raw Text:", textResult);
+  //             setError("The AI response could not be parsed as valid data. Please try again.");
+  //         }
+
+  //     } catch (err) {
+  //         setError("Failed to perform knowledge search. " + err.message);
+  //     } finally {
+  //         setIsSearching(false);
+  //     }
+  // };
 
    /// --- UPDATED GUARDIAN AGENT (Removed strict Javascript Regex) ---
   const runEditorGuardianAgent = useCallback(async (editorText) => {
@@ -1502,7 +1930,7 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -1578,23 +2006,33 @@ const [rephraseStyle, setRephraseStyle] = useState('standard'); // 'standard', '
   }, [debouncedGuardianCheck]);
 
 const editor = useEditor({
-  extensions: [
-    StarterKit,
-    Placeholder.configure({
-      placeholder: 'Start dictating or paste findings here…',
-      emptyEditorClass: 'is-editor-empty',
-    }),
-    TableExtension.configure({
+        extensions: [
+            StarterKit,
+            Placeholder.configure({
+                placeholder: 'Start dictating or paste findings here…',
+                emptyEditorClass: 'is-editor-empty',
+            }),
+             TableExtension.configure({
       resizable: true,
       lastColumnResizable: false,
     }),
     TableRowExtension,
     TableHeaderExtension,
     TableCellExtension,
-  ],
-  onUpdate: handleEditorUpdate,
-});
-
+        ],
+        content: userFindings, // Loads from localStorage initial state
+        onUpdate: ({ editor }) => {
+            if (isProgrammaticUpdate.current) {
+                isProgrammaticUpdate.current = false;
+                return;
+            }
+            const html = editor.getHTML();
+            setUserFindings(html);
+            
+            // === CRITICAL: Save to LocalStorage on every keystroke ===
+            localStorage.setItem('draft_userFindings', html);
+        },
+    });
 
 
   useEffect(() => {
@@ -1847,7 +2285,74 @@ const handleInsertMeasurements = (values, calculusData) => {
     };
   }, []); // <-- Empty array is CRITICAL. This effect runs once on mount.
 
+  // Fetch Reports & Settings (Dependent on User)
+  useEffect(() => {
+    if (user && user.uid) {
+        fetchRecentReports(user.uid);
+        fetchSettings(user.uid);
+    }
+  }, [user]);
 
+// --- NEW HELPER: Metered Usage Check ---
+  const checkAndConsumeQuota = async (featureName) => {
+    // 1. Pro users have unlimited access
+    if (userRole !== 'basic') return true;
+
+    // 2. Check if already restricted (Limit Reached)
+    if (isRestricted) {
+      toast.error(`Free limit reached. Upgrade to Pro to use ${featureName}.`, { icon: '🔒' });
+      return false;
+    }
+
+    // 3. Increment the counter in Firestore
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        reportCount: increment(1), // Counts this action as 1 unit of usage
+        lastReportDate: serverTimestamp()
+      });
+      return true; // Usage approved
+    } catch (error) {
+      console.error("Quota update error:", error);
+      toast.error("Error verifying usage quota.");
+      return false;
+    }
+  };
+
+
+  const fetchSettings = async (userId) => {
+    if (!userId) return;
+    try {
+      // Path: /users/{userId}/settings/hospital
+      const docRef = doc(db, 'users', userId, 'settings', 'hospital');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setHospitalSettings(docSnap.data());
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    }
+  };
+
+  const fetchRecentReports = async (userId) => {
+    if (!userId) return;
+    try {
+      // Path: /users/{userId}/reports
+      const q = query(
+        collection(db, 'users', userId, 'reports'),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const reports = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setSavedReports(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    }
+  };
   useEffect(() => {
     if (user) {
       const q = query(collection(db, "users", user.uid, "macros"));
@@ -1937,7 +2442,7 @@ const handleInsertMeasurements = (values, calculusData) => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2046,7 +2551,7 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
           responseMimeType: "application/json",
         }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2443,7 +2948,7 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
 //         generationConfig: { responseMimeType: "application/json" }
 //       };
 
-//       const model = 'gemini-flash-latest';
+//       const model = 'gemini-2.5-flash';
 //       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 //       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -2518,6 +3023,9 @@ console.log("Missing fields check:", missingFields); // Add log for debugging
 
 const analyzeImages = async () => {
         console.log('AnalyzeImages....1859')
+// --- ADD THIS BLOCK ---
+    const allowed = await checkAndConsumeQuota("AI Image Analysis");
+    if (!allowed) return;
 
     if (images.length === 0) {
       setError("Please upload one or more images first.");
@@ -2787,8 +3295,8 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         ]
       };
 
-      const model = 'gemini-flash-latest';
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -2992,22 +3500,39 @@ const handleUpgrade = async () => {
     const queryLC = searchTerm.toLowerCase().trim();
     
     // --- FIX: Search in ALL fields (Name, Organ, Findings, Impression) ---
-    const results = localFindings.filter(finding => {
-        const nameMatch = finding.findingName && finding.findingName.toLowerCase().includes(queryLC);
-        const organMatch = finding.organ && finding.organ.toLowerCase().includes(queryLC);
-        const bodyMatch = finding.findings && finding.findings.toLowerCase().includes(queryLC);
-        const impressionMatch = finding.impression && finding.impression.toLowerCase().includes(queryLC);
+    // const results = localFindings.filter(finding => {
+    //     const nameMatch = finding.findingName && finding.findingName.toLowerCase().includes(queryLC);
+    //     const organMatch = finding.organ && finding.organ.toLowerCase().includes(queryLC);
+    //     const bodyMatch = finding.findings && finding.findings.toLowerCase().includes(queryLC);
+    //     const impressionMatch = finding.impression && finding.impression.toLowerCase().includes(queryLC);
         
-        return nameMatch || organMatch || bodyMatch || impressionMatch;
-    });
+    //     return nameMatch || organMatch || bodyMatch || impressionMatch;
+    // });
     
-    setLocalSearchResults(results);
+    // setLocalSearchResults(results);
+
+    // ⚡ Fuse.js Implementation
+    const fuse = new Fuse(localFindings, {
+        keys: ['findingName', 'organ', 'impression', 'findings', 'synonyms'],
+        threshold: 0.3, // 0.3 is a "fuzzy" sweet spot
+        ignoreLocation: true
+    });
+
+    const results = fuse.search(searchTerm);
+    // Fuse returns { item, refIndex }, map back to just the item
+    setLocalSearchResults(results.map(r => r.item));
+    
+    // Ensure "Search" tab is open
+    setActiveAiTab('search');
   };
   
   // In App.legacy.jsx, replace the old handleAiFindingsSearch with this:
 
   const handleAiFindingsSearch = async (queryOrIsMore, isMoreQueryFlag = false) => {
     // if (isRestricted) { ... }
+// --- ADD THIS BLOCK ---
+    const allowed = await checkAndConsumeQuota("AI Search");
+    if (!allowed) return;
 
     let queryToUse;
     let isMoreQuery = false;
@@ -3082,7 +3607,7 @@ const handleUpgrade = async () => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -3161,7 +3686,7 @@ const handleUpgrade = async () => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
       };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3244,7 +3769,7 @@ const handleUpgrade = async () => {
 
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3297,7 +3822,7 @@ const handleUpgrade = async () => {
     `;
     try {
       const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // API Key will be handled by the environment
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3483,10 +4008,14 @@ const handleUpgrade = async () => {
 // LOCATE THE EXISTING handleSendMessage FUNCTION AND REPLACE IT WITH THIS:
 
   const handleSendMessage = async (message) => {
-    if (isRestricted) {
-      toast.error("Please upgrade to a professional plan for conversational follow-ups.");
-      return;
-    }
+    // if (isRestricted) {
+    //   toast.error("Please upgrade to a professional plan for conversational follow-ups.");
+    //   return;
+    // }
+
+    // --- ADD THIS BLOCK ---
+    const allowed = await checkAndConsumeQuota("AI Co-pilot");
+    if (!allowed) return;
     
     const newUserMessage = { sender: 'user', text: message };
     
@@ -3546,7 +4075,7 @@ const handleUpgrade = async () => {
         generationConfig: { responseMimeType: "application/json" } // Force JSON response
       };
       
-      const model = 'gemini-flash-latest';
+      const model = 'gemini-2.5-flash';
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3601,7 +4130,10 @@ const handleUpgrade = async () => {
 
 // 2. REPLACE handleCorrectReport WITH THIS ENHANCED VERSION
 const handleCorrectReport = async () => {
-    if (!assistantQuery) {
+  const allowed = await checkAndConsumeQuota("AI Correction");
+    if (!allowed) return;
+    
+  if (!assistantQuery) {
         setError("Please paste a report in the text box to correct it.");
         return;
     }
@@ -3633,7 +4165,7 @@ const handleCorrectReport = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-flash-latest';
+        const model = 'gemini-2.5-flash';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3691,7 +4223,7 @@ const handleGenerateTemplate = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-flash-latest';
+        const model = 'gemini-2.5-flash';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3746,7 +4278,7 @@ const handleSimplifyReport = async () => {
 
     try {
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const model = 'gemini-flash-latest';
+        const model = 'gemini-2.5-flash';
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -3816,31 +4348,39 @@ console.log("Generating report content..."); // Debug log
     const userDoc = await getDoc(userDocRef);
     const userData = userDoc.data();
     let newCount = userData.reportCount || 0;
+const hName = hospitalSettings?.name || '';
+    const hDept = hospitalSettings?.department || '';
+    const hAddr = hospitalSettings?.address || '';
+    const hContact = hospitalSettings?.contact || '';
+    const logoHtml = hospitalSettings?.logo ? `<img src="${hospitalSettings.logo}" style="width : 100vw ..." />` : '';
+    const date = new Date().toLocaleDateString();
 
     const patientHeader = `
-      <div style="padding-bottom: 15px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
-        <h3 style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #1a202c;">Patient Information</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0;">
-          <tbody>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient Name</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientName}</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc; width: 25%;">Patient ID</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; width: 25%;">${patientId}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Age</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0;">${patientAge}</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Exam Date</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0;">${examDate}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background-color: #f8fafc;">Referring Physician</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0;" colspan="3">${referringPhysician}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div style="padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
+                <div style="flex: 1;">
+                    ${logoHtml}
+                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px;">${hName}</h1>
+                    <p style="margin: 10px 0 0; color: #4b5563;">${hDept}</p>
+                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 12px;">${hAddr}</p>
+                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
+                </div>
+            
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <tr>
+                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Patient Name:</strong> <span style="font-weight: 600; color: #1e293b;">${patientName || 'N/A'}</span></td>
+                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;"> MRN:</strong> <span style="font-weight: 600; color: #1e293b;">${patientId || 'N/A'}</span></td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">DOB / Age:</strong> <span style="font-weight: 600; color: #1e293b;">${patientAge || 'N/A'}</span></td>
+                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;"> Exam Date:</strong> <span style="font-weight: 600; color: #1e293b;">${examDate || date}</span></td>
+              </tr>
+               <tr>
+                <td style="padding: 5px 0 0 1vh; width: 100%;" colspan="2"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Referring Phys:</strong> <span style="font-weight: 600; color: #1e293b;">${referringPhysician || 'N/A'}</span></td>
+              </tr>
+            </table>
+            <br/>
+      
     `;
     const fullReport = patientHeader + reportBody;
     setGeneratedReport(fullReport);
@@ -3944,6 +4484,8 @@ console.log("Generating report content..."); // Debug log
   //   }
   // };
 
+  //Cuttenlt working but not properly aligned.
+
  const downloadPdfReport = (reportContent) => {
   if (!reportContent) {
     setError("Report content is empty. Please generate the report first.");
@@ -3992,6 +4534,136 @@ console.log("Generating report content..."); // Debug log
   }
 };
 
+// const downloadPdfReport = (reportContent) => {
+//     if (!reportContent) {
+//       toast.error("Report content is empty. Please generate the report first.");
+//       return;
+//     }
+    
+//     try {
+//       const doc = new jsPDF();
+      
+//       // 1. Prepare Data
+//       const hName = hospitalSettings?.name || 'City General Hospital';
+//       const hDept = hospitalSettings?.department || 'Department of Radiology';
+//       const hAddr = hospitalSettings?.address || '123 Medical Center Blvd, Metroville, ST 12345';
+//       const hContact = hospitalSettings?.contact || 'Phone: (555) 123-4567';
+//       const logoHtml = hospitalSettings?.logo 
+//          ? `<img src="${hospitalSettings.logo}" style="height: 50px; max-width: 150px; object-fit: contain; margin-bottom: 5px; display: block;" />` 
+//          : '';
+//       const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+//       // 2. Create Temporary HTML Element for jsPDF
+//       const tempDiv = document.createElement('div');
+//       tempDiv.style.width = '170mm'; // Match A4 width approx minus margins
+//       tempDiv.style.fontFamily = 'Helvetica, Arial, sans-serif';
+//       tempDiv.style.fontSize = '12px';
+//       tempDiv.style.lineHeight = '1.5';
+//       tempDiv.style.color = '#333';
+//       tempDiv.style.padding = '10px';
+
+//       // 3. Construct HTML Structure (Same visual style as handleDownloadPDF)
+//       tempDiv.innerHTML = `
+//         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937;">
+          
+//           <!-- HEADER -->
+//           <div style="border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+//             <div style="flex: 1;">
+//               ${logoHtml}
+//               <h1 style="margin: 0; color: #1e3a8a; font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
+//               <p style="margin: 4px 0 0; color: #4b5563; font-size: 12px; font-weight: 600;">${hDept}</p>
+//               <p style="margin: 2px 0 0; color: #6b7280; font-size: 10px; max-width: 300px;">${hAddr}</p>
+//               <p style="margin: 0; color: #6b7280; font-size: 10px;">${hContact}</p>
+//             </div>
+//             <div style="text-align: right;">
+//               <div style="background-color: #2563eb; color: white; padding: 5px 12px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 12px; margin-bottom: 5px;">RADIOLOGY REPORT</div>
+//               <p style="margin: 0; font-size: 10px; color: #6b7280;"><strong>Status:</strong> Final</p>
+//               <p style="margin: 0; font-size: 10px; color: #6b7280;"><strong>Date:</strong> ${date}</p>
+//             </div>
+//           </div>
+
+//           <!-- PATIENT INFO (Static placeholder based on your previous code) -->
+//           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+//             <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+//               <tr>
+//                 <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Patient Name:</strong> <span style="font-weight: 600; color: #1e293b;">${patientName || 'N/A'}</span></td>
+//                 <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">MRN:</strong> <span style="font-weight: 600; color: #1e293b;">${patientId || 'N/A'}</span></td>
+//               </tr>
+//               <tr>
+//                 <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">DOB / Age:</strong> <span style="font-weight: 600; color: #1e293b;">${patientAge || 'N/A'}</span></td>
+//                 <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Exam Date:</strong> <span style="font-weight: 600; color: #1e293b;">${examDate || date}</span></td>
+//               </tr>
+//                <tr>
+//                 <td style="padding: 5px 0 0 1vh; width: 100%;" colspan="2"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Referring Phys:</strong> <span style="font-weight: 600; color: #1e293b;">${referringPhysician || 'N/A'}</span></td>
+//               </tr>
+//             </table>
+//           </div>
+
+//           <!-- BODY CONTENT -->
+//           <div style="margin-bottom: 40px; font-size: 11px; text-align: left; color: #374151; line-height: 1.6;">
+//             <h2 style="font-size: 14px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; color: #1e3a8a; margin-bottom: 15px; font-weight: 700;">Findings & Impression</h2>
+//             ${reportContent}
+//           </div>
+
+//           <!-- FOOTER -->
+//           <div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
+//             <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+//               <div>
+//                 <p style="margin: 0 0 5px; font-weight: bold; color: #1f2937; font-size: 11px;">Electronically Signed by:</p>
+//                 <div style="font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #2563eb; margin-bottom: 2px;">/s/ Dr. Jane Smith, MD</div>
+//                 <p style="margin: 0; font-size: 10px; color: #4b5563;">Board Certified Radiologist</p>
+//               </div>
+//               <div style="text-align: right;">
+//                  <!-- QR Code Placeholder -->
+//                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=aiRAD-Verified" alt="QR" style="width: 45px; height: 45px; opacity: 0.7;" />
+//               </div>
+//             </div>
+            
+//             <p style="margin-top: 20px; font-size: 8px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 8px;">
+//               This report was generated using <strong>aiRAD</strong>. Confidential Patient Information.
+//             </p>
+//           </div>
+//         </div>
+//       `;
+
+//       // 4. Normalize styling for existing tables in content
+//       const pdfTables = tempDiv.querySelectorAll('table');
+//       pdfTables.forEach((table) => {
+//         table.style.borderCollapse = 'collapse';
+//         table.style.width = '100%';
+//         table.style.marginTop = '8px';
+//         table.style.marginBottom = '8px';
+//         table.style.fontSize = '10px'; // Smaller font for inner tables
+
+//         table.querySelectorAll('th, td').forEach((cell) => {
+//           cell.style.border = '0.5px solid #cbd5e1'; // lighter border
+//           cell.style.padding = '4px';
+//         });
+//         table.querySelectorAll('th').forEach((header) => {
+//             header.style.backgroundColor = '#f1f5f9';
+//             header.style.fontWeight = 'bold';
+//             header.style.textAlign = 'left';
+//         });
+//       });
+
+//       document.body.appendChild(tempDiv);
+
+//       doc.html(tempDiv, {
+//         callback: function (doc) {
+//           document.body.removeChild(tempDiv);
+//           doc.save(`Radiology_Report_${(patientName || 'Patient').replace(/ /g, '_')}_${examDate || date}.pdf`);
+//           toast.success('PDF downloaded');
+//         },
+//         x: 15,
+//         y: 15,
+//         width: 170, // Max width in mm
+//         windowWidth: tempDiv.scrollWidth, // Important for html2canvas
+//       });
+//     } catch (err) {
+//       toast.error(`An unexpected error occurred: ${err.message}`);
+//       console.error(err);
+//     }
+//   };
 
 
 
@@ -4100,211 +4772,462 @@ console.log("Generating report content..."); // Debug log
 //   }
 // };
 
+// const downloadWordReport = async (reportContent, patientName = 'Report') => {
+//   try {
+//     // 1. Parse the HTML into a DOM
+//     const parser = new DOMParser();
+//     const docHtml = parser.parseFromString(reportContent, 'text/html');
+
+//     const docxChildren = [];
+
+//     // --- A. Build the Patient Info Table from the FIRST table's <td>s ---
+//     const allTds = docHtml.querySelectorAll('td');
+//     if (allTds.length >= 8) {
+//       const patientInfoTable = new Table({
+//         width: { size: 100, type: WidthType.PERCENTAGE },
+//         rows: [
+//           new TableRow({
+//             children: [
+//               new TableCell({
+//                 children: [
+//                   new Paragraph({
+//                     children: [new TextRun({ text: "Patient Name", bold: true })],
+//                   }),
+//                 ],
+//               }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[1]?.textContent || '')],
+//               }),
+//               new TableCell({
+//                 children: [
+//                   new Paragraph({
+//                     children: [new TextRun({ text: "Patient ID", bold: true })],
+//                   }),
+//                 ],
+//               }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[3]?.textContent || '')],
+//               }),
+//             ],
+//           }),
+//           new TableRow({
+//             children: [
+//               new TableCell({
+//                 children: [
+//                   new Paragraph({
+//                     children: [new TextRun({ text: "Age", bold: true })],
+//                   }),
+//                 ],
+//               }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[5]?.textContent || '')],
+//               }),
+//               new TableCell({
+//                 children: [
+//                   new Paragraph({
+//                     children: [new TextRun({ text: "Exam Date", bold: true })],
+//                   }),
+//                 ],
+//               }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[7]?.textContent || '')],
+//               }),
+//             ],
+//           }),
+//           new TableRow({
+//             children: [
+//               new TableCell({
+//                 children: [
+//                   new Paragraph({
+//                     children: [new TextRun({ text: "Referring Physician", bold: true })],
+//                   }),
+//                 ],
+//               }),
+//               new TableCell({
+//                 children: [new Paragraph(allTds[9]?.textContent || '')],
+//                 columnSpan: 3,
+//               }),
+//             ],
+//           }),
+//         ],
+//       });
+
+//       docxChildren.push(patientInfoTable);
+//       docxChildren.push(new Paragraph("")); // spacing after table
+//     }
+
+//     // --- B. Process the rest of the report (Impression, Findings, other tables) ---
+//     const mainNodes = docHtml.body.children;
+
+//     for (const node of mainNodes) {
+//       const nodeName = node.nodeName.toUpperCase();
+
+//       // Skip the patient header wrapper div (we already handled its table)
+//       if (nodeName === 'DIV') continue;
+
+//       // 🔹 HANDLE ANY OTHER TABLES FROM THE EDITOR
+//       if (nodeName === 'TABLE') {
+//         const rows = [];
+//         const rowElements = node.querySelectorAll('tr');
+
+//         rowElements.forEach((tr) => {
+//           const cells = [];
+//           const cellElements = tr.querySelectorAll('th, td');
+
+//           cellElements.forEach((cellEl) => {
+//             const cellText = cellEl.textContent || '';
+//             const colspanAttr = cellEl.getAttribute('colspan');
+//             const colspan = colspanAttr ? parseInt(colspanAttr, 10) || 1 : 1;
+
+//             const cellOptions = {
+//               children: [new Paragraph(cellText)],
+//             };
+
+//             if (colspan > 1) {
+//               cellOptions.columnSpan = colspan;
+//             }
+
+//             cells.push(new TableCell(cellOptions));
+//           });
+
+//           rows.push(new TableRow({ children: cells }));
+//         });
+
+//         if (rows.length) {
+//           docxChildren.push(
+//             new Table({
+//               width: { size: 100, type: WidthType.PERCENTAGE },
+//               rows,
+//             })
+//           );
+//           docxChildren.push(new Paragraph("")); // blank line after each table
+//         }
+
+//         continue; // move to next node; don't fall through to switch
+//       }
+
+//       // 🔹 Normal headings & paragraphs
+//       switch (nodeName) {
+//         case 'H3':
+//           docxChildren.push(
+//             new Paragraph({
+//               text: node.textContent,
+//               heading: HeadingLevel.HEADING_3,
+//               style: 'Heading3',
+//             })
+//           );
+//           break;
+
+//         case 'P': {
+//           const paragraphRuns = [];
+//           for (const childNode of node.childNodes) {
+//             if (childNode.nodeName.toUpperCase() === 'STRONG') {
+//               paragraphRuns.push(
+//                 new TextRun({ text: childNode.textContent, bold: true })
+//               );
+//             } else {
+//               paragraphRuns.push(new TextRun(childNode.textContent));
+//             }
+//           }
+//           docxChildren.push(new Paragraph({ children: paragraphRuns }));
+//           break;
+//         }
+
+//         default:
+//           // Other tags can be converted to simple paragraphs if needed
+//           if (node.textContent && node.textContent.trim()) {
+//             docxChildren.push(new Paragraph(node.textContent.trim()));
+//           }
+//           break;
+//       }
+//     }
+
+//     // --- C. Build and download the .docx ---
+//     const doc = new Document({
+//       sections: [
+//         {
+//           properties: {},
+//           children: docxChildren,
+//         },
+//       ],
+//       styles: {
+//         paragraphStyles: [
+//           {
+//             id: 'Heading3',
+//             name: 'Heading 3',
+//             basedOn: 'Normal',
+//             next: 'Normal',
+//             run: {
+//               bold: true,
+//               size: 24, // 12 pt
+//             },
+//             paragraph: {
+//               spacing: { after: 120 },
+//             },
+//           },
+//         ],
+//       },
+//     });
+
+//     const blob = await Packer.toBlob(doc);
+//     saveAs(blob, `Radiology_Report_${patientName.replace(/ /g, '_')}.docx`);
+//     toastDone('Word file downloaded');
+//   } catch (error) {
+//     console.error('Error generating Word document:', error);
+//     toast.error('Failed to generate Word document');
+//   }
+// };
+
 const downloadWordReport = async (reportContent, patientName = 'Report') => {
-  try {
-    // 1. Parse the HTML into a DOM
-    const parser = new DOMParser();
-    const docHtml = parser.parseFromString(reportContent, 'text/html');
+    try {
+      // 1. Parse the HTML content
+      const parser = new DOMParser();
+      const docHtml = parser.parseFromString(reportContent, 'text/html');
 
-    const docxChildren = [];
+      const docxChildren = [];
+      const FONT_FACE = "Calibri"; // <--- Global Font Setting
 
-    // --- A. Build the Patient Info Table from the FIRST table's <td>s ---
-    const allTds = docHtml.querySelectorAll('td');
-    if (allTds.length >= 8) {
-      const patientInfoTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: "Patient Name", bold: true })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(allTds[1]?.textContent || '')],
-              }),
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: "Patient ID", bold: true })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(allTds[3]?.textContent || '')],
-              }),
-            ],
-          }),
-          new TableRow({
-            children: [
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: "Age", bold: true })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(allTds[5]?.textContent || '')],
-              }),
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: "Exam Date", bold: true })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(allTds[7]?.textContent || '')],
-              }),
-            ],
-          }),
-          new TableRow({
-            children: [
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: "Referring Physician", bold: true })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(allTds[9]?.textContent || '')],
-                columnSpan: 3,
-              }),
-            ],
-          }),
-        ],
-      });
+      // --- 0. HEADER & LOGO ---
+      const hName = hospitalSettings?.name || '';
+      const hDept = hospitalSettings?.department || '';
+      const hAddr = hospitalSettings?.address || '';
+      const hContact = hospitalSettings?.contact || '';
+      const date = new Date().toLocaleDateString();
+      const hasLogo = !!hospitalSettings?.logo;
 
-      docxChildren.push(patientInfoTable);
-      docxChildren.push(new Paragraph("")); // spacing after table
-    }
-
-    // --- B. Process the rest of the report (Impression, Findings, other tables) ---
-    const mainNodes = docHtml.body.children;
-
-    for (const node of mainNodes) {
-      const nodeName = node.nodeName.toUpperCase();
-
-      // Skip the patient header wrapper div (we already handled its table)
-      if (nodeName === 'DIV') continue;
-
-      // 🔹 HANDLE ANY OTHER TABLES FROM THE EDITOR
-      if (nodeName === 'TABLE') {
-        const rows = [];
-        const rowElements = node.querySelectorAll('tr');
-
-        rowElements.forEach((tr) => {
-          const cells = [];
-          const cellElements = tr.querySelectorAll('th, td');
-
-          cellElements.forEach((cellEl) => {
-            const cellText = cellEl.textContent || '';
-            const colspanAttr = cellEl.getAttribute('colspan');
-            const colspan = colspanAttr ? parseInt(colspanAttr, 10) || 1 : 1;
-
-            const cellOptions = {
-              children: [new Paragraph(cellText)],
-            };
-
-            if (colspan > 1) {
-              cellOptions.columnSpan = colspan;
+      if (hasLogo) {
+        try {
+            let imageBuffer;
+            if (hospitalSettings.logo.startsWith('data:')) {
+                const base64Data = hospitalSettings.logo.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                imageBuffer = bytes.buffer;
+            } else {
+                const response = await fetch(hospitalSettings.logo);
+                const blob = await response.blob();
+                imageBuffer = await blob.arrayBuffer();
             }
-
-            cells.push(new TableCell(cellOptions));
-          });
-
-          rows.push(new TableRow({ children: cells }));
-        });
-
-        if (rows.length) {
-          docxChildren.push(
-            new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
-              rows,
-            })
-          );
-          docxChildren.push(new Paragraph("")); // blank line after each table
+            
+            docxChildren.push(
+                new Paragraph({
+                    children: [
+                        new ImageRun({
+                            data: imageBuffer,
+                            transformation: { width: 600, height: 150 }, 
+                        }),
+                    ],
+                    alignment: AlignmentType.CENTER, 
+                    spacing: { after: 200 },
+                })
+            );
+        } catch (e) {
+            console.error("Logo error:", e);
         }
-
-        continue; // move to next node; don't fall through to switch
       }
 
-      // 🔹 Normal headings & paragraphs
-      switch (nodeName) {
-        case 'H3':
+      const isDefaultName = hName === 'City General Hospital';
+      if (hName && !isDefaultName) { 
           docxChildren.push(
             new Paragraph({
-              text: node.textContent,
-              heading: HeadingLevel.HEADING_3,
-              style: 'Heading3',
+                children: [ new TextRun({ text: hName, bold: true, size: 32, color: "1E3A8A", font: FONT_FACE }) ],
+                alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+                children: [ new TextRun({ text: hDept, size: 24, color: "4B5563", font: FONT_FACE }) ],
+                alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+                children: [ new TextRun({ text: hAddr, size: 20, color: "6B7280", font: FONT_FACE }) ],
+                alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+                children: [ new TextRun({ text: hContact, size: 20, color: "6B7280", font: FONT_FACE }) ],
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 300 },
             })
           );
-          break;
-
-        case 'P': {
-          const paragraphRuns = [];
-          for (const childNode of node.childNodes) {
-            if (childNode.nodeName.toUpperCase() === 'STRONG') {
-              paragraphRuns.push(
-                new TextRun({ text: childNode.textContent, bold: true })
-              );
-            } else {
-              paragraphRuns.push(new TextRun(childNode.textContent));
-            }
-          }
-          docxChildren.push(new Paragraph({ children: paragraphRuns }));
-          break;
-        }
-
-        default:
-          // Other tags can be converted to simple paragraphs if needed
-          if (node.textContent && node.textContent.trim()) {
-            docxChildren.push(new Paragraph(node.textContent.trim()));
-          }
-          break;
       }
-    }
 
-    // --- C. Build and download the .docx ---
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: docxChildren,
+      // docxChildren.push(
+      //     new Paragraph({
+      //         children: [ new TextRun({ text: "RADIOLOGY REPORT", bold: true, color: "FFFFFF", font: FONT_FACE }) ],
+      //         alignment: AlignmentType.RIGHT,
+      //         shading: { fill: "2563EB", type: ShadingType.CLEAR, color: "auto" },
+      //         spacing: { after: 100 },
+      //     }),
+      //     new Paragraph({
+      //         children: [ new TextRun({ text: `Date: ${date}  |  Status: Final`, size: 20, color: "6B7280", font: FONT_FACE }) ],
+      //         alignment: AlignmentType.RIGHT,
+      //         spacing: { after: 400 },
+      //     })
+      // );
+
+      // --- A. PATIENT INFO TABLE ---
+      // const patientInfoTable = new Table({
+      //   width: { size: 100, type: WidthType.PERCENTAGE },
+      //   rows: [
+      //     new TableRow({
+      //       children: [
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient Name", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientName || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient ID", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientId || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+      //       ],
+      //     }),
+      //     new TableRow({
+      //       children: [
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientAge || 'N/A', font: FONT_FACE })] })] }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Exam Date", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: examDate || date, font: FONT_FACE })] })] }),
+      //       ],
+      //     }),
+      //     new TableRow({
+      //       children: [
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Referring Physician", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: referringPhysician || 'N/A', font: FONT_FACE })] })], columnSpan: 3 }),
+      //       ],
+      //     }),
+      //   ],
+      // });
+      // docxChildren.push(patientInfoTable);
+      docxChildren.push(new Paragraph("")); 
+
+      // --- B. CONTENT PROCESSOR (HELPER) ---
+      const extractTextRuns = (node) => {
+          const runs = [];
+          node.childNodes.forEach(child => {
+              if (child.nodeName === '#text') {
+                  if (child.textContent) runs.push(new TextRun({ text: child.textContent, font: FONT_FACE }));
+              } 
+              else if (['STRONG', 'B'].includes(child.nodeName)) {
+                  runs.push(new TextRun({ text: child.textContent, bold: true, font: FONT_FACE }));
+              } 
+              else if (['EM', 'I'].includes(child.nodeName)) {
+                  runs.push(new TextRun({ text: child.textContent, italics: true, font: FONT_FACE }));
+              } 
+              else if (child.nodeName === 'BR') {
+                  runs.push(new TextRun({ break: 1, font: FONT_FACE }));
+              }
+              else {
+                  runs.push(...extractTextRuns(child));
+              }
+          });
+          return runs;
+      };
+
+      // --- C. RECURSIVE NODE PROCESSOR ---
+      const processNode = (node) => {
+          const nodeName = node.nodeName.toUpperCase();
+
+          if (nodeName === '#TEXT' && !node.textContent.trim()) return;
+
+          // PARAGRAPHS
+          if (nodeName === 'P' || (nodeName === '#TEXT' && node.textContent.trim())) {
+              const runs = nodeName === 'P' ? extractTextRuns(node) : [new TextRun({ text: node.textContent, font: FONT_FACE })];
+              docxChildren.push(new Paragraph({ children: runs, spacing: { after: 120 } }));
+          }
+          // HEADINGS
+          else if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(nodeName)) {
+              docxChildren.push(new Paragraph({
+                  text: node.textContent,
+                  heading: HeadingLevel.HEADING_3, 
+                  spacing: { before: 200, after: 100 },
+                  color: "1E3A8A",
+                  // Note: Font for Heading style is defined in Document definition below
+              }));
+          }
+          // LISTS
+          else if (nodeName === 'UL' || nodeName === 'OL') {
+              const listItems = node.querySelectorAll(':scope > li'); 
+              listItems.forEach(li => {
+                  const runs = extractTextRuns(li);
+                  docxChildren.push(new Paragraph({
+                      children: runs,
+                      bullet: { level: 0 } 
+                  }));
+              });
+          }
+          // DIVs
+          else if (nodeName === 'DIV') {
+              node.childNodes.forEach(child => processNode(child));
+          }
+          // TABLES
+          else if (nodeName === 'TABLE') {
+             if (node.textContent.includes('Patient Name') && node.textContent.includes('Patient ID')) return;
+
+             const rows = [];
+             node.querySelectorAll('tr').forEach((tr) => {
+                 const cells = [];
+                 tr.querySelectorAll('th, td').forEach((cell) => {
+                     const cellText = cell.textContent || '';
+                     cells.push(new TableCell({
+                         children: [new Paragraph({ children: [new TextRun({ text: cellText, font: FONT_FACE })] })],
+                         borders: {
+                            top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                        },
+                     }));
+                 });
+                 rows.push(new TableRow({ children: cells }));
+             });
+             if (rows.length) {
+                 docxChildren.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }));
+                 docxChildren.push(new Paragraph(""));
+             }
+          }
+      };
+
+      const mainNodes = docHtml.body.childNodes;
+      mainNodes.forEach(node => processNode(node));
+
+      // --- D. FOOTER / SIGNATURE ---
+      // docxChildren.push(
+      //     new Paragraph({ children: [ new TextRun({ text: "Electronically Signed by:", bold: false, size: 20, font: FONT_FACE }) ], spacing: { before: 600 } }),
+      //     new Paragraph({ children: [ new TextRun({ text: " Dr. , MD",  bold: true, size: 22, font: FONT_FACE }) ] }),
+      //     new Paragraph({ children: [ new TextRun({ text: "Board Certified Radiologist", size: 20, color: "4B5563", font: FONT_FACE }) ] }),
+      //     new Paragraph({
+      //         children: [ new TextRun({ text: "This report was generated using aiRAD.", size: 16, color: "9CA3AF", font: FONT_FACE }) ],
+      //         alignment: AlignmentType.CENTER,
+      //         spacing: { before: 400, after: 200 },
+      //         border: { top: { color: "E2E8F0", space: 10, value: "single", size: 6 } }
+      //     })
+      // );
+
+      // --- E. GENERATE ---
+      const doc = new Document({
+        sections: [{ children: docxChildren }],
+        styles: {
+          paragraphStyles: [{
+              id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal',
+              run: { bold: true, size: 24, color: "000000", font: FONT_FACE }, // <--- Font for Headings
+              paragraph: { spacing: { after: 120 } },
+          }],
+          default: {
+              document: {
+                  run: {
+                      font: FONT_FACE, // <--- Default font fallback
+                  }
+              }
+          }
         },
-      ],
-      styles: {
-        paragraphStyles: [
-          {
-            id: 'Heading3',
-            name: 'Heading 3',
-            basedOn: 'Normal',
-            next: 'Normal',
-            run: {
-              bold: true,
-              size: 24, // 12 pt
-            },
-            paragraph: {
-              spacing: { after: 120 },
-            },
-          },
-        ],
-      },
-    });
+      });
 
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `Radiology_Report_${patientName.replace(/ /g, '_')}.docx`);
-    toastDone('Word file downloaded');
-  } catch (error) {
-    console.error('Error generating Word document:', error);
-    toast.error('Failed to generate Word document');
-  }
-};
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `Radiology_Report_${(patientName || 'Report').replace(/ /g, '_')}.docx`);
+      toast.success('Word file downloaded');
+    } catch (error) {
+      console.error('Error generating Word document:', error);
+      toast.error('Failed to generate Word document');
+    }
+  };
 
 
   // --- NEW FUNCTION: Insert Macro Directly ---
@@ -4416,6 +5339,16 @@ const downloadWordReport = async (reportContent, patientName = 'Report') => {
           toast.error("Please upload images first.");
         }
         break;
+
+        // ⚡ NEW OPTIMIZED CASE
+      // This is called directly by localIntentParser when it finds a macro match
+      // case "insertFindings":
+      //   if (args.findingToInsert) {
+      //       insertFindings(args.findingToInsert);
+      //       toast.success(`Inserted: ${args.findingToInsert.findingName}`);
+      //   }
+      //   break;
+        
 case "handleLocalSearch": // <--- NEW CASE
         // This will trigger your local findings search
         await handleLocalSearch(args.query); 
@@ -4425,7 +5358,8 @@ case "handleLocalSearch": // <--- NEW CASE
 
       case "handleAiFindingsSearch": // <--- NEW CASE
         // This will trigger your AI findings search
-        await handleAiFindingsSearch(args.query);
+  // await handleAiFindingsSearch(args.query);
+  handleAiFindingsSearch(args.query);
         // Also ensure the "AI Findings" tab (or main search tab) is active
         setActiveAiTab('search'); // Assuming AI findings is part of the 'search' tab
         break;
@@ -4435,7 +5369,17 @@ case "handleLocalSearch": // <--- NEW CASE
         setActiveAiTab('knowledge')
         break;
 
-      case "insertMacro":
+     case "insertMacro":
+        // 🟢 OPTIMIZED PATH: The local parser already found the text!
+        if (args._directContent) {
+            isProgrammaticUpdate.current = true;
+            editor.chain().focus().insertContent(args._directContent + ' ').run();
+            setEditorContent(editor.getHTML());
+            toast.success(`Inserted macro: ${args.macroName}`);
+            return;
+        }
+
+        // Fallback Path (if triggered by Cloud API which only sends macroName)
         const macroPhrase = args.macroName.toLowerCase().trim().replace(/[.,?]/g, '');
         const macro = macrosRef.current.find(m => m.command.toLowerCase().trim().replace(/[.,?]/g, '') === macroPhrase);
         
@@ -4447,6 +5391,12 @@ case "handleLocalSearch": // <--- NEW CASE
           toast.error(`Macro "${args.macroName}" not found.`);
         }
         break;
+
+        case "insertFindings": // <--- NEW CASE for Standard Findings (from findings.js)
+         if (args.findingToInsert) {
+             insertFindings(args.findingToInsert);
+         }
+         break;
 
       case "generateFinalReport":
         await generateFinalReport();
@@ -4487,7 +5437,8 @@ case "handleLocalSearch": // <--- NEW CASE
   } = useVoiceAssistant({
     geminiTools,
     onFunctionCall: executeFunctionCall,
-    onPlainText: insertPlainText
+    onPlainText: insertPlainText,
+    userMacros: macros // <--- 🟢 CRITICAL ADDITION: Pass User Macros
   });
 
 // --- MODIFIED ERROR HANDLER ---
@@ -4785,6 +5736,7 @@ const TableControls = ({ editor }) => {
 
   // --- The new render method ---
    return (
+    
     <div className="fixed inset-0 bg-slate-950 text-gray-300 font-sans flex flex-col overflow-hidden">
       {/* <style>{` */}
   {/* .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
@@ -4947,8 +5899,13 @@ const TableControls = ({ editor }) => {
             <h1 className="text-lg font-bold text-slate-100 hidden sm:block tracking-tight">aiRAD</h1>
         </div>
 
+                        {/* === NEW: Connectivity Badge === */}
+                        {/* <div className={`ml-4 px-2 py-0.5 rounded-full text-xs font-bold flex items-center space-x-1 ${isOnline ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {isOnline ? <Wifi size={14}/> : <WifiOff size={14}/>}
+                            <span>{isOnline ? 'Online' : 'Offline Mode'}</span>
+                        </div> */}
         <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
-            <div className="flex items-center flex-shrink-0" title="AI Co-pilot">
+            {/* <div className="flex items-center flex-shrink-0" title="AI Co-pilot">
                 <label htmlFor="proactive-toggle" className="flex items-center cursor-pointer">
                     <div className="relative">
                         <input type="checkbox" id="proactive-toggle" className="sr-only" checked={isProactiveHelpEnabled} onChange={() => setIsProactiveHelpEnabled(!isProactiveHelpEnabled)} />
@@ -4957,7 +5914,7 @@ const TableControls = ({ editor }) => {
                     </div>
                     <Lightbulb size={16} className={`ml-1.5 ${isProactiveHelpEnabled ? 'text-yellow-400' : 'text-slate-600'}`} />
                 </label>
-            </div>
+            </div> */}
             <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
             {/* <button 
                 onClick={() => setIsWakeWordMode(!isWakeWordMode)} 
@@ -4979,6 +5936,16 @@ const TableControls = ({ editor }) => {
                 <button onClick={() => setShowTemplateModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><FileText size={18} /></button>
             </div>
             <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            {/* 🛡️ ADMIN PANEL BUTTON (Only visible to Admins) */}
+{userRole === 'admin' && (
+  <button 
+    onClick={() => navigate('/admin')} 
+    title="Open Admin Panel" 
+    className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-purple-400 transition flex-shrink-0"
+  >
+    <Shield size={18} />
+  </button>
+)}
             {/* NEW SETTINGS BUTTON */}
 <button 
   onClick={() => setShowBrandingModal(true)} 
@@ -5069,7 +6036,13 @@ const TableControls = ({ editor }) => {
                         {isAiLoading ? "Scanning..." : "Analyze"}
                     </button>
                 </SidePanel>
-                
+                <button 
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-gray-600 hover:bg-gray-50"
+          >
+            <Settings className="w-5 h-5" />
+            {isSidebarOpen && <span className="font-medium">Settings</span>}
+          </button>
                 <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} onViewHistory={() => setShowHistoryModal(true)} />
             </div>
         </aside>
@@ -5490,7 +6463,14 @@ const TableControls = ({ editor }) => {
        {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} />}
         {/* 👇 ADD THIS BLOCK AT THE BOTTOM OF YOUR JSX 👇 */}
-     
+      
+      <BrandingModal 
+        isOpen={showBrandingModal}
+        onClose={() => setShowBrandingModal(false)}
+        user={user}
+        currentLetterhead={letterheadUrl}
+        currentWatermark={watermarkUrl}
+      />
         {/* FIX #6: New Report Preview Modal */}
       {showPreviewModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -5499,7 +6479,7 @@ const TableControls = ({ editor }) => {
                     <h3 className="text-lg font-bold">Report Preview</h3>
                     <div className="flex items-center space-x-2">
                        {/* Download and copy buttons go here */}
-                       <button onClick={() => downloadPdfReport(generatedReport)} title="Download as PDF" className="p-2 rounded-md hover:bg-slate-700"><FileJson size={18}/></button>
+                       <button onClick={() => downloadPdfReport(generatedReport)} disabled={isDownloading} title="Download as PDF" className="p-2 rounded-md hover:bg-slate-700"><FileJson size={18}/></button>
                        <button onClick={() => copyToClipboard(generatedReport)} title="Copy Text" className="p-2 rounded-md hover:bg-slate-700"><Clipboard size={18}/></button>
                         <button onClick={()=>downloadTxtReport(generatedReport)} title="Download as .txt" className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition text-gray-600 disabled:opacity-50" disabled={!generatedReport}><FileType size={18}/></button>                          
                           <button
@@ -5645,7 +6625,39 @@ const TableControls = ({ editor }) => {
       </div>
 
        <Toaster position="bottom-right" toastOptions={{ style: { background: '#1f2937', color: '#e5e7eb' } }} />
+       {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+        user={user}
+        onSave={setHospitalSettings}
+      />
     </div>
+  );
+};
+// 2. CREATE the new App component to handle routing
+// src/App.legacy.jsx (Bottom section)
+
+// ... (MainApp definition) ...
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* 🔒 ADMIN ROUTES (Place these FIRST) */}
+        <Route path="/admin" element={
+          <RequireAdmin>
+            <AdminLayout />
+          </RequireAdmin>
+        }>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+        </Route>
+
+        {/* 🏠 PUBLIC / MAIN APP (Catch-all goes LAST) */}
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
