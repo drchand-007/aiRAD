@@ -33,6 +33,7 @@ import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
 import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
+import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
 import { handleAiKnowledgeSearchHF } from './api/huggingFaceTools.js';
 import Fuse from 'fuse.js';
 
@@ -44,7 +45,8 @@ import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './components/admin/AdminDashboard';
 import UserManagement from './components/admin/UserManagement';
 import RequireAdmin from './components/admin/RequireAdmin';
-
+// Import the component
+import BroadcastManager from './components/admin/BroadcastManager';
 
 // --- DICOM Libraries via CDN (Required for the viewer) ---
 
@@ -58,7 +60,7 @@ const loadScript = (src, onLoad) => {
 // --- Firebase Imports (unchanged from original code) ---
 import { auth, db, appId } from './firebase.js'; // Assuming firebase.js is set up
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc,getDocs, updateDoc, setDoc, orderBy, limit, increment } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc,getDocs, updateDoc, setDoc, where, orderBy, limit, increment } from "firebase/firestore";
 import Auth from './auth.jsx'; // Your Auth component
 
 // NOTE: findings.js is assumed to be in the same directory.
@@ -127,10 +129,14 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
   return (
     <div className="flex flex-col h-full bg-slate-800/50 rounded-lg">
       <div className="p-4 h-full overflow-y-auto flex flex-col space-y-4">
-        {history.map((msg, index) => (
+       {history.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`rounded-lg p-3 max-w-lg shadow-md ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-gray-200'}`}>
-              <p className="text-sm" dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br />') }} />
+            <div className={`rounded-2xl p-3.5 max-w-lg shadow-md backdrop-blur-sm text-sm leading-relaxed ${
+              msg.sender === 'user' 
+                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-900/20 rounded-tr-sm' 
+                : 'bg-slate-800/80 border border-slate-700/50 text-gray-200 rounded-tl-sm ring-1 ring-white/5'
+            }`}>
+              <p dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br />') }} />
             </div>
           </div>
         ))}
@@ -178,10 +184,10 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
 
 // --- REDESIGNED COMPONENT: SidePanel ---
 const SidePanel = ({ title, icon: Icon, children }) => (
-  <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden mb-4 shadow-sm">
-    <div className="bg-slate-950/50 px-3 py-2 border-b border-slate-800 flex items-center">
-      {Icon && <Icon size={14} className="mr-2 text-blue-500" />}
-      <h2 className="text-xs font-bold text-blue-400 uppercase tracking-wide">
+  <div className="bg-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden mb-4 shadow-lg ring-1 ring-white/5 transition-all hover:bg-slate-900/50">
+    <div className="bg-white/5 px-3 py-2 border-b border-slate-700/50 flex items-center backdrop-blur-md">
+      {Icon && <Icon size={14} className="mr-2 text-blue-400" />}
+      <h2 className="text-xs font-bold text-blue-300 uppercase tracking-wider">
         {title}
       </h2>
     </div>
@@ -189,8 +195,7 @@ const SidePanel = ({ title, icon: Icon, children }) => (
         {children}
     </div>
   </div>
-);
-
+); 
 
 
 const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
@@ -230,7 +235,7 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
   };
 
   return (
-    <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center justify-between space-x-1 p-2 bg-slate-900/60 backdrop-blur-md border-b border-slate-700/50 rounded-t-lg">
       <div className="flex items-center space-x-1">
         {buttons.map((type) => {
           const Icon = icons[type];
@@ -304,16 +309,16 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
 
   const config = {
     critical: {
-      bgColor: 'bg-red-900', 
-      borderColor: 'border-red-600',
+      bgColor: 'bg-gradient-to-r from-red-900/90 to-red-950/90 backdrop-blur-md', 
+      borderColor: 'border-red-500/50',
       textColor: 'text-white',
       iconColor: 'text-red-200',
       Icon: AlertTriangle,
       message: 'Please review and take appropriate action immediately.',
     },
     inconsistency: {
-      bgColor: 'bg-yellow-900',
-      borderColor: 'border-yellow-600',
+      bgColor: 'bg-gradient-to-r from-yellow-900/90 to-yellow-950/90 backdrop-blur-md',
+      borderColor: 'border-yellow-500/50',
       textColor: 'text-white',
       iconColor: 'text-yellow-200',
       Icon: AlertTriangle,
@@ -321,8 +326,8 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
       message: alertData.message,
     },
     missing_info: {
-      bgColor: 'bg-orange-900',
-      borderColor: 'border-orange-600',
+      bgColor: 'bg-gradient-to-r from-orange-900/90 to-orange-950/90 backdrop-blur-md',
+      borderColor: 'border-orange-500/50',
       textColor: 'text-white',
       iconColor: 'text-orange-200',
       Icon: AlertTriangle,
@@ -330,8 +335,8 @@ const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotifica
       message: alertData.message,
     },
     guideline: {
-      bgColor: 'bg-blue-900',
-      borderColor: 'border-blue-600',
+      bgColor: 'bg-gradient-to-r from-blue-900/90 to-blue-950/90 backdrop-blur-md',
+      borderColor: 'border-blue-500/50',
       textColor: 'text-white',
       iconColor: 'text-blue-200',
       Icon: Lightbulb,
@@ -1326,18 +1331,21 @@ const [isDownloading, setIsDownloading] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false); // <--- Add this
   
+  
   // Hospital Settings State
   const [hospitalSettings, setHospitalSettings] = useState({
     name: 'City General Hospital',
     department: 'Department of Radiology',
     address: '123 Medical Center Blvd, Metroville, ST 12345',
     contact: 'Phone: (555) 123-4567 | Fax: (555) 123-4568',
-    logo: ''
+    logo: 'Add your logo in the settings and this is text is default please change accordingly.'
   });
 
 
   const [savedReports, setSavedReports] = useState([]);
     const [reportContent, setReportContent] = useState('');
+
+const [systemAnnouncement, setSystemAnnouncement] = useState(null);
 
   // --- ALL REFS ---
   const debounceTimeoutRef = useRef(null);
@@ -1350,6 +1358,27 @@ const [isDownloading, setIsDownloading] = useState(false);
   const searchResultsRef = useRef();
   const isProgrammaticUpdate = useRef(false);
   const macrosRef = useRef(macros);
+
+
+  //Broadcasting App News to Users
+  useEffect(() => {
+    // Listen for the most recent active announcement
+    const q = query(
+        collection(db, 'system_announcements'), 
+        where('isActive', '==', true),
+        orderBy('createdAt', 'desc'), 
+        limit(1)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+            setSystemAnnouncement(snapshot.docs[0].data());
+        } else {
+            setSystemAnnouncement(null);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
 
 // --- ONLINE/OFFLINE DETECTION ---
     useEffect(() => {
@@ -5736,7 +5765,7 @@ const TableControls = ({ editor }) => {
   // --- The new render method ---
    return (
     
-    <div className="fixed inset-0 bg-slate-950 text-gray-300 font-sans flex flex-col overflow-hidden">
+<div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black text-slate-300 font-sans flex flex-col overflow-hidden">
       {/* <style>{` */}
   {/* .tiptap { flex-grow: 1; padding: 1rem; outline: none; }
   .tiptap p.is-editor-empty:first-child::before {
@@ -5892,10 +5921,10 @@ const TableControls = ({ editor }) => {
 
 
       {/* HEADER */}
-      <header className="h-14 flex-shrink-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 z-50 relative shadow-sm">
+<header className="h-14 flex-shrink-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50 flex items-center justify-between px-3 z-50 relative shadow-sm">
         <div className="flex items-center space-x-3">
             <img src={appLogo} alt="Logo" className="h-8 w-8 rounded shadow-sm" />
-            <h1 className="text-lg font-bold text-slate-100 hidden sm:block tracking-tight">aiRAD</h1>
+            <h1 className="text-lg font-bold text-slate-100 hidden sm:block tracking-tight">aiRAD - Reporting, Redefined.</h1>
         </div>
 
                         {/* === NEW: Connectivity Badge === */}
@@ -5956,6 +5985,17 @@ const TableControls = ({ editor }) => {
             <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
         </div>
       </header>
+{/* SYSTEM ANNOUNCEMENT BANNER */}
+      {systemAnnouncement && (
+        <div className={`w-full px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium animate-in slide-in-from-top-5 ${
+            systemAnnouncement.type === 'critical' ? 'bg-red-600 text-white' :
+            systemAnnouncement.type === 'warning' ? 'bg-yellow-500 text-black' :
+            'bg-blue-600 text-white'
+        }`}>
+            <AlertTriangle size={16} />
+            <span>{systemAnnouncement.message}</span>
+        </div>
+      )}
 
       {isRestricted && (
         <div className="bg-yellow-900/30 border-b border-yellow-500/20 text-yellow-200 text-xs py-1 text-center flex-shrink-0">
@@ -5969,7 +6009,7 @@ const TableControls = ({ editor }) => {
       <main className="flex-1 flex overflow-hidden min-h-0 relative">
 
         {/* LEFT SIDEBAR */}
-        <aside className={`w-full lg:w-72 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+        <aside className={`w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300  ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                 <SidePanel title="Patient & Exam" icon={User}>
                     <div className="space-y-2.5">
@@ -6037,7 +6077,7 @@ const TableControls = ({ editor }) => {
                 </SidePanel>
                 <button 
             onClick={() => setShowSettings(true)}
-            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-gray-600 hover:bg-gray-50"
+            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-gray-00 hover:bg-black"
           >
             <Settings className="w-5 h-5" />
             {isSidebarOpen && <span className="font-medium">Settings</span>}
@@ -6071,16 +6111,16 @@ const TableControls = ({ editor }) => {
                     {/* <EditorContent editor={editor} className="tiptap min-h-full" /> */}
                 </div>
                 <div className="p-3 bg-slate-900 border-t border-slate-800">
-                    <button onClick={() => generateFinalReport()} disabled={isLoading || !editorContent} 
-                        className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-bold rounded shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all">
-                        {isLoading ? <span className="animate-pulse">Processing...</span> : <><Eye size={16} className="mr-2"/> Generate Final Report</>}
-                    </button>
+                   <button onClick={() => generateFinalReport()} disabled={isLoading || !editorContent} 
+    className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:-translate-y-0.5 border border-blue-400/20 text-white text-sm font-bold rounded shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200">
+    {isLoading ? <span className="animate-pulse">Processing...</span> : <><Eye size={16} className="mr-2"/> Generate Final Report</>}
+</button>
                 </div>
             </div>
         </section>
 
         {/* RIGHT SIDEBAR */}
-        <aside className={`w-full lg:w-96 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+        <aside className={`w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300 ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
             <div className="p-2 bg-slate-900 border-b border-slate-800 flex">
                 <button onClick={() => setActiveAiTab('copilot')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'copilot' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Co-pilot</button>
                 <button onClick={() => setActiveAiTab('search')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'search' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Search</button>
@@ -6124,7 +6164,7 @@ const TableControls = ({ editor }) => {
                 onClick={() => handleAiFindingsSearch(searchQuery)}
                 // --- FIX 4: Disable based on 'searchQuery', not 'baseSearchQuery' ---
                 disabled={isSearching || !searchQuery}
-                className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                className="w-full text-xs py-2 bg-gray-950 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
             >
                 {isSearching && !aiKnowledgeLookupResult && !allAiFullReports.length ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Search size={14}/>}
                 <span>AI Findings</span>
@@ -6134,7 +6174,7 @@ const TableControls = ({ editor }) => {
                 onClick={() => handleAiKnowledgeSearch(false, searchQuery)}
                 // --- FIX 6: Disable based on 'searchQuery' ---
                 disabled={isSearching || !searchQuery}
-                className="w-full text-xs py-2 bg-slate-700 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                className="w-full text-xs py-2 bg-gray-950 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
             >
                 {isSearching && aiKnowledgeLookupResult ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BookOpen size={14}/>}
                 <span>AI Knowledge</span>
@@ -6651,6 +6691,7 @@ const App = () => {
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="broadcasts" element={<BroadcastManager />} />
         </Route>
 
         {/* 🏠 PUBLIC / MAIN APP (Catch-all goes LAST) */}
