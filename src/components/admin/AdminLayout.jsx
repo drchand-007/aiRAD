@@ -1,8 +1,7 @@
-// src/components/admin/AdminLayout.jsx
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Users, BarChart2, FileText, LogOut, Shield } from 'lucide-react';
-import { auth } from '../../firebase'; // Adjust path to your firebase.js
+import { Users, BarChart2, LogOut, Shield, Megaphone, Activity } from 'lucide-react';
+import { auth } from '../../firebase';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -16,39 +15,79 @@ const AdminLayout = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-800">
-            <Shield className="text-blue-500" />
-            <h1 className="text-xl font-bold">aiRAD Admin</h1>
+    // ✨ BACKGROUND: Deep 'Obsidian' Hex with a subtle top-light
+    <div className="flex h-screen bg-[#020617] text-gray-200 font-sans overflow-hidden relative selection:bg-indigo-500/30">
+      
+      {/* Ambient Background Glows */}
+      <div className="absolute top-0 left-0 w-full h-96 bg-indigo-900/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-900/10 blur-[120px] pointer-events-none" />
+
+      {/* ✨ SIDEBAR: Glassy Noir */}
+      <aside className="w-72 bg-[#0B1121]/80 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shadow-2xl relative">
+        
+        {/* Logo Area */}
+        <div className="p-8 flex items-center gap-4">
+            <div className="relative group">
+                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="relative p-2.5 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-xl shadow-lg border border-white/10">
+                    <Shield className="text-white" size={24} />
+                </div>
+            </div>
+            <div>
+                <h1 className="text-lg font-bold text-white tracking-tight">aiRAD<span className="text-indigo-400">.admin</span></h1>
+                <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase">System Control</p>
+            </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-            <Link to="/admin" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
-                <BarChart2 size={20} /> Dashboard
-            </Link>
-            <Link to="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/users') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
-                <Users size={20} /> User Management
-            </Link>
-             <Link to="/admin/content" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/content') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
-                <FileText size={20} /> Findings & Macros
-            </Link>
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-2 mt-2">
+            <NavItem to="/admin" icon={BarChart2} label="Overview" active={isActive('/admin')} color="text-indigo-400" />
+            <NavItem to="/admin/users" icon={Users} label="User Directory" active={isActive('/admin/users')} color="text-cyan-400" />
+            <NavItem to="/admin/broadcasts" icon={Megaphone} label="Announcements" active={isActive('/admin/broadcasts')} color="text-rose-400" />
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
-            <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-slate-800 w-full rounded-lg transition-colors">
-                <LogOut size={20} /> Logout
+        {/* User Profile / Logout */}
+        <div className="p-4 m-4 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                    AD
+                </div>
+                <div>
+                    <p className="text-sm font-semibold text-white">Administrator</p>
+                    <p className="text-xs text-green-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Online
+                    </p>
+                </div>
+            </div>
+            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-red-300 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/10 rounded-lg transition-all">
+                <LogOut size={14} /> Sign Out
             </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto p-8">
-        <Outlet />
+      <main className="flex-1 overflow-auto relative z-10 scrollbar-thin scrollbar-thumb-indigo-900/50 scrollbar-track-transparent">
+        <div className="p-8 max-w-[1600px] mx-auto">
+            <Outlet />
+        </div>
       </main>
     </div>
   );
 };
+
+// ✨ Nav Item with "Glow Bar" Active State
+const NavItem = ({ to, icon: Icon, label, active, color }) => (
+  <Link to={to} className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
+      active 
+      ? 'bg-white/[0.03] text-white' 
+      : 'text-gray-400 hover:text-gray-100 hover:bg-white/[0.02]'
+  }`}>
+      {/* Active Indicator Line */}
+      {active && <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.6)]`} />}
+      
+      <Icon size={20} className={`transition-colors ${active ? color : 'text-gray-500 group-hover:text-gray-300'}`} /> 
+      <span className="tracking-wide text-sm">{label}</span>
+  </Link>
+);
 
 export default AdminLayout;

@@ -1,100 +1,106 @@
-// src/components/admin/UserManagement.jsx
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
-import { Search, Shield, ShieldOff } from 'lucide-react';
+import { Search, Shield, User, Filter, MoreHorizontal } from 'lucide-react';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Fetch all users
     useEffect(() => {
         const fetchUsers = async () => {
             const querySnapshot = await getDocs(collection(db, 'users'));
-            const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setUsers(userList);
+            setUsers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setLoading(false);
         };
         fetchUsers();
     }, []);
 
-    // Toggle Role Function
     const toggleRole = async (userId, currentRole) => {
         const newRole = currentRole === 'pro' ? 'basic' : 'pro';
         try {
-            const userRef = doc(db, 'users', userId);
-            await updateDoc(userRef, { role: newRole });
-            
-            // Update local state to reflect change instantly
+            await updateDoc(doc(db, 'users', userId), { role: newRole });
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
-            toast.success(`User role updated to ${newRole.toUpperCase()}`);
-        } catch (error) {
-            console.error("Error updating role:", error);
-            toast.error("Failed to update role");
-        }
+            toast.success(`Role updated to ${newRole.toUpperCase()}`);
+        } catch (error) { toast.error("Update failed"); }
     };
 
-    const filteredUsers = users.filter(u => 
-        u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        u.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users.filter(u => u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800">User Management</h2>
+        <div className="space-y-6 max-w-[1600px] mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-gray-800 pb-6">
+                <div>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">Directory</h2>
+                    <p className="text-gray-400 mt-1 text-sm">Manage user access and subscriptions.</p>
+                </div>
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Search by email..." 
-                        className="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Search emails..." 
+                        className="w-80 pl-10 pr-4 py-2.5 bg-[#0f1629] border border-gray-700 rounded-xl text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-lg"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-[#0f1629] border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
                 <table className="w-full text-left">
-                    <thead className="bg-slate-50 text-slate-600 font-semibold border-b">
+                    <thead className="bg-gray-900/50 text-gray-400 text-xs font-bold uppercase tracking-wider">
                         <tr>
-                            <th className="p-4">User Email</th>
-                            <th className="p-4">Role</th>
-                            <th className="p-4">Status</th>
-                            <th className="p-4 text-right">Actions</th>
+                            <th className="p-5 pl-6">Identity</th>
+                            <th className="p-5">Subscription Tier</th>
+                            <th className="p-5">Account Status</th>
+                            <th className="p-5 text-right pr-6">Controls</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-800">
                         {loading ? (
-                             <tr><td colSpan="4" className="p-8 text-center text-gray-500">Loading users...</td></tr>
+                             <tr><td colSpan="4" className="p-10 text-center text-gray-500">Loading...</td></tr>
                         ) : filteredUsers.map(user => (
-                            <tr key={user.id} className="border-b last:border-0 hover:bg-slate-50 transition">
-                                <td className="p-4 font-medium text-slate-800">{user.email || 'No Email'}</td>
-                                <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                        user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                        user.role === 'pro' ? 'bg-green-100 text-green-700' : 
-                                        'bg-gray-100 text-gray-700'
+                            <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
+                                <td className="p-5 pl-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-400 group-hover:border-gray-500 transition-colors">
+                                            <User size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-200">{user.email?.split('@')[0]}</p>
+                                            <p className="text-xs text-gray-500">{user.email}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="p-5">
+                                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
+                                        user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                        user.role === 'pro' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 
+                                        'bg-gray-800 text-gray-400 border-gray-700'
                                     }`}>
+                                        {user.role === 'admin' && <Shield size={10} />}
                                         {user.role?.toUpperCase() || 'BASIC'}
                                     </span>
                                 </td>
-                                <td className="p-4 text-slate-500 text-sm">Active</td>
-                                <td className="p-4 text-right">
+                                <td className="p-5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                        <span className="text-sm text-gray-300 font-medium">Active</span>
+                                    </div>
+                                </td>
+                                <td className="p-5 text-right pr-6">
                                     {user.role !== 'admin' && (
                                         <button 
                                             onClick={() => toggleRole(user.id, user.role)}
-                                            className={`text-sm font-semibold px-3 py-1 rounded-md transition-colors ${
+                                            className={`text-xs font-bold px-4 py-2 rounded-lg transition-all border ${
                                                 user.role === 'pro' 
-                                                ? 'text-red-600 hover:bg-red-50' 
-                                                : 'text-blue-600 hover:bg-blue-50'
+                                                ? 'bg-transparent border-red-500/30 text-red-400 hover:bg-red-500/10' 
+                                                : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
                                             }`}
                                         >
-                                            {user.role === 'pro' ? 'Downgrade to Basic' : 'Upgrade to Pro'}
+                                            {user.role === 'pro' ? 'Downgrade' : 'Upgrade to Pro'}
                                         </button>
                                     )}
                                 </td>
