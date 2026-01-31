@@ -193,7 +193,7 @@ const LandingPage = () => {
                     <Activity className="text-white" size={20} />
                 </div>
             </div>
-            <span className="text-xl font-bold text-white tracking-tight">aiRAD<span className="text-cyan-500">.io</span></span>
+            <span className="text-xl font-bold text-white tracking-tight">aiRAD<span className="text-cyan-500"> -Reporting,Redefined.</span></span>
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
@@ -246,10 +246,10 @@ const LandingPage = () => {
 
       {/* --- STATS BAR --- */}
       <div className="relative z-10 border-y border-white/5 bg-[#0B1121]/30 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-white/5">
+        <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-3 gap-8 text-center divide-x divide-white/5">
             <StatItem value="300+" label="Findings Loaded" />
             <StatItem value="99.9%" label="Accuracy Rate" />
-            <StatItem value="2hrs" label="Saved Per Day" />
+            {/* <StatItem value="2hrs" label="Saved Per Day" /> */}
             <StatItem value="0s" label="Setup Time" />
         </div>
       </div>
