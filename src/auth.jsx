@@ -375,6 +375,7 @@ import { auth, googleProvider } from './firebase';
 
 // Commenting out image import to prevent build errors if file is missing
 import loginImage from './assets/medical_imaging.png'; 
+import { useNavigate } from 'react-router-dom';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -383,12 +384,13 @@ const Auth = () => {
   const [message, setMessage] = useState(''); // For success messages (e.g., reset email sent)
   const [isLogin, setIsLogin] = useState(true);
   const [isReset, setIsReset] = useState(false); // New state for Reset Password view
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
-    
+    navigate('/app'); // <--- ENSURE THIS REDIRECTS TO /app
     try {
       if (isReset) {
         // Handle Password Reset
