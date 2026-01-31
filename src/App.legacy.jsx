@@ -36,6 +36,7 @@ import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new
 import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
 import { handleAiKnowledgeSearchHF } from './api/huggingFaceTools.js';
 import Fuse from 'fuse.js';
+import LandingPage from './components/LandingPage';
 
 // ... existing imports ...
 import { BrowserRouter, Routes, Route, Navigate, Outlet , useNavigate} from 'react-router-dom'; // Add this line
@@ -1346,6 +1347,7 @@ const [isDownloading, setIsDownloading] = useState(false);
     const [reportContent, setReportContent] = useState('');
 
 const [systemAnnouncement, setSystemAnnouncement] = useState(null);
+const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true); // Control visibility
 
   // --- ALL REFS ---
   const debounceTimeoutRef = useRef(null);
@@ -5975,25 +5977,37 @@ const TableControls = ({ editor }) => {
   </button>
 )}
             {/* NEW SETTINGS BUTTON */}
-<button 
+{/* <button 
   onClick={() => setShowBrandingModal(true)} 
   title="Report Branding Settings" 
   className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition flex-shrink-0"
 >
   <Settings size={18} />
-</button>
+</button> */}
             <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
         </div>
       </header>
 {/* SYSTEM ANNOUNCEMENT BANNER */}
-      {systemAnnouncement && (
-        <div className={`w-full px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium animate-in slide-in-from-top-5 ${
+      {systemAnnouncement && isAnnouncementVisible && (
+        <div className={`w-full px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${
             systemAnnouncement.type === 'critical' ? 'bg-red-600 text-white' :
-            systemAnnouncement.type === 'warning' ? 'bg-yellow-500 text-black' :
+            systemAnnouncement.type === 'warning' ? 'bg-amber-500 text-black' :
             'bg-blue-600 text-white'
         }`}>
-            <AlertTriangle size={16} />
+            {/* Icon */}
+            <AlertTriangle size={16} className="shrink-0" />
+            
+            {/* Message */}
             <span>{systemAnnouncement.message}</span>
+
+            {/* Close Button */}
+            <button 
+                onClick={() => setIsAnnouncementVisible(false)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-black/10 transition-colors"
+                title="Dismiss"
+            >
+                <X size={14} />
+            </button>
         </div>
       )}
 
@@ -6039,6 +6053,7 @@ const TableControls = ({ editor }) => {
                     <MeasurementsPanel measurements={dynamicMeasurements} organs={templateOrgans} onInsert={handleInsertMeasurements} CollapsibleSidePanel={CollapsibleSidePanel} />
                 )}
 
+                {userRole === 'admin' &&
                 <SidePanel title="AI Analysis" icon={Upload}>
                     <div {...getRootProps()} className={`p-3 border border-dashed rounded text-center cursor-pointer transition-colors ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
                         <input {...getInputProps()} />
@@ -6071,10 +6086,10 @@ const TableControls = ({ editor }) => {
                         </div>
                     )}
                     <textarea value={clinicalContext} onChange={e => setClinicalContext(e.target.value)} rows="2" className="w-full mt-2 p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 outline-none placeholder-slate-600" placeholder="Clinical context..." />
-                    <button onClick={analyzeImages} disabled={isAiLoading || images.length === 0} className="w-full mt-2 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-500 transition disabled:bg-slate-800 disabled:text-slate-600">
+                    <button onClick={analyzeImages} disabled={userRole !== 'admin'&& isAiLoading || images.length === 0} className="w-full mt-2 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-500 transition disabled:bg-slate-800 disabled:text-slate-600">
                         {isAiLoading ? "Scanning..." : "Analyze"}
                     </button>
-                </SidePanel>
+                </SidePanel>}
                 <button 
             onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-gray-00 hover:bg-black"
@@ -6683,7 +6698,18 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🔒 ADMIN ROUTES (Place these FIRST) */}
+        {/* 1. 🌍 ROOT: LANDING PAGE */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* 2. 🔐 AUTH: LOGIN/SIGNUP PAGE */}
+        <Route path="/auth" element={<Auth />} />
+
+        {/* 3. 🏥 MAIN APP: PROTECTED (Requires Login) */}
+        {/* We assume MainApp checks for user internally and renders <Auth /> if null. 
+            To force the routing logic, we direct users here after login. */}
+        <Route path="/app/*" element={<MainApp />} />
+
+        {/* 4. 🛡️ ADMIN PANEL */}
         <Route path="/admin" element={
           <RequireAdmin>
             <AdminLayout />
@@ -6691,11 +6717,10 @@ const App = () => {
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UserManagement />} />
-          <Route path="broadcasts" element={<BroadcastManager />} />
         </Route>
 
-        {/* 🏠 PUBLIC / MAIN APP (Catch-all goes LAST) */}
-        <Route path="/*" element={<MainApp />} />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
