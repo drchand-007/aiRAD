@@ -106,6 +106,7 @@ const templates = {
 };
 
 // --- REDESIGNED COMPONENT: AiConversationPanel ---
+// --- REDESIGNED COMPONENT: AiConversationPanel ---
 const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, setUserInput }) => {
   const chatEndRef = useRef(null);
 
@@ -129,7 +130,8 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
 
   return (
     <div className="flex flex-col h-full bg-slate-800/50 rounded-lg">
-      <div className="p-4 h-full overflow-y-auto flex flex-col space-y-4">
+      {/* FIX: Changed h-full to flex-1 and added min-h-0 for proper scrolling */}
+      <div className="p-4 flex-1 min-h-0 overflow-y-auto flex flex-col space-y-4 custom-scrollbar">
        {history.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`rounded-2xl p-3.5 max-w-lg shadow-md backdrop-blur-sm text-sm leading-relaxed ${
@@ -154,7 +156,7 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
         )}
         <div ref={chatEndRef} />
       </div>
-      <div className="p-3 border-t border-slate-700">
+      <div className="p-3 border-t border-slate-700 flex-shrink-0"> {/* Added flex-shrink-0 */}
         <div className="flex items-center space-x-2">
           <textarea
             value={userInput}
@@ -6023,7 +6025,7 @@ const TableControls = ({ editor }) => {
       <main className="flex-1 flex overflow-hidden min-h-0 relative">
 
         {/* LEFT SIDEBAR */}
-        <aside className={`w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300  ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+  <aside className={`w-full lg:w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300  ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                 <SidePanel title="Patient & Exam" icon={User}>
                     <div className="space-y-2.5">
@@ -6135,7 +6137,7 @@ const TableControls = ({ editor }) => {
         </section>
 
         {/* RIGHT SIDEBAR */}
-        <aside className={`w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300 ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+<aside className={`w-full lg:w-80 bg-slate-900/80 backdrop-blur-md border-r border-slate-700/50 flex flex-col z-20 transition-all duration-300 ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
             <div className="p-2 bg-slate-900 border-b border-slate-800 flex">
                 <button onClick={() => setActiveAiTab('copilot')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'copilot' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Co-pilot</button>
                 <button onClick={() => setActiveAiTab('search')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'search' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Search</button>
