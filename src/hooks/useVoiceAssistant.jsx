@@ -825,11 +825,347 @@
 // };
 
 
+
+
+//3.....
+
+// import { useState, useEffect, useRef, useCallback } from 'react';
+// import { toast } from 'react-hot-toast';
+// import { parseLocalIntent } from '../lib/localIntentParser'; // Ensure path is correct
+
+// // --- Helper: Fetch with Backoff (Keep existing) ---
+// const fetchWithBackoff = async (url, options, retries = 3, initialDelay = 2000) => {
+//   let currentDelay = initialDelay;
+//   for (let i = 0; i < retries; i++) {
+//     try {
+//       const response = await fetch(url, options);
+//       if (response.ok) return response;
+//       if (response.status === 429) {
+//         await new Promise(resolve => setTimeout(resolve, currentDelay));
+//         currentDelay *= 2; 
+//         continue; 
+//       }
+//       throw new Error(`API Error: ${response.status} ${response.statusText}`);
+//     } catch (error) {
+//       if (i === retries - 1) throw error; 
+//     }
+//   }
+// };
+
+// const callGeminiWithFunctions = async (transcript, geminiTools) => {
+//   if (!transcript || transcript.trim().length < 2) return null;
+//   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+//   const model = 'gemini-2.5-flash'; // Use 1.5 Flash for tools
+//   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+//   const prompt = `
+//     You are a voice assistant for a radiology reporting tool.
+//     The user said: "${transcript}"
+//     Analyze the user's intent. If their request matches one of the available tools,
+//     call that function. If they are just dictating, do not call any function.
+//   `;
+
+//   const payload = {
+//     "contents": [{ "role": "user", "parts": [{ "text": prompt }] }],
+//     "tools": geminiTools,
+//     "tool_config": { "function_calling_config": { "mode": "AUTO" } }
+//   };
+
+//   try {
+//     const response = await fetchWithBackoff(apiUrl, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify(payload)
+//     });
+//     return await response.json();
+//   } catch (error) {
+//     console.error("Failed to call Gemini:", error);
+//     return null;
+//   }
+// };
+
+// const getCorrectedTranscript = async (transcript) => {
+//   // ... (Keep your existing implementation)
+//   return transcript; // Simplified for this snippet, keep your original logic
+// };
+
+// // --- UPDATED HOOK ---
+// // Added 'userMacros' to props
+// export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, userMacros }) => {
+//   const [voiceStatus, setVoiceStatus] = useState('idle'); 
+//   const [interimTranscript, setInterimTranscript] = useState('');
+//   const [error, setError] = useState(null);
+//   const [isDictationSupported, setIsDictationSupported] = useState(true);
+
+//   const recognitionRef = useRef(null);
+//   const isListeningRef = useRef(false); 
+//   const transcriptBufferRef = useRef(''); 
+//   const silenceTimerRef = useRef(null); 
+//   const isProcessingRef = useRef(false); 
+
+//   const onFunctionCallRef = useRef(onFunctionCall);
+//   const onPlainTextRef = useRef(onPlainText);
+//   const userMacrosRef = useRef(userMacros || []); // Ref for macros
+//   const processedChunksRef = useRef(0); // <--- ADD THIS LINE
+//   const sessionTextRef = useRef(''); // <--- ADD THIS: Tracks text for the current mic session
+
+//   useEffect(() => {
+//     onFunctionCallRef.current = onFunctionCall;
+//     onPlainTextRef.current = onPlainText;
+//     userMacrosRef.current = userMacros || []; // Update ref when props change
+//   }, [onFunctionCall, onPlainText, userMacros]);
+
+//   const processFinalBuffer = async () => {
+//     if (isProcessingRef.current) return;
+    
+//     const fullText = transcriptBufferRef.current.trim();
+//     if (!fullText) return;
+
+//     isProcessingRef.current = true;
+//     if (recognitionRef.current) try { recognitionRef.current.stop(); } catch (e) {}
+    
+//     setVoiceStatus('processing');
+//     setInterimTranscript('');
+//     transcriptBufferRef.current = '';
+
+//     try {
+//         // 1. LOCAL INTENT CHECK (Includes User Macros via ref)
+//         console.log("Checking local intents for:", fullText);
+//         const localAction = parseLocalIntent(fullText, userMacrosRef.current);
+
+//         if (localAction) {
+//             console.log("⚡ Local Action Triggered:", localAction);
+//             onFunctionCallRef.current(localAction);
+//             setVoiceStatus('idle');
+//         } 
+//         // 2. CLOUD FALLBACK
+//         else {
+//             const isCommand = /^(ask|hey|perform|run|do)/i.test(fullText);
+            
+//             if (isCommand) {
+//                  const result = await callGeminiWithFunctions(fullText, geminiTools);
+//                  const functionCall = result?.candidates?.[0]?.content?.parts?.find(p => p.functionCall)?.functionCall;
+                 
+//                  if (functionCall) {
+//                      onFunctionCallRef.current(functionCall);
+//                  } else {
+//                      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+//                      if(text) onPlainTextRef.current(text);
+//                  }
+//             } else {
+//                  // Standard Dictation
+//                  onPlainTextRef.current(fullText);
+//             }
+//             setVoiceStatus('idle');
+//         }
+//     } catch (e) {
+//         console.error("Processing error:", e);
+//         onPlainTextRef.current(fullText);
+//         setVoiceStatus('idle');
+//     } finally {
+//         isProcessingRef.current = false; 
+//         if (isListeningRef.current && recognitionRef.current) {
+//             try { recognitionRef.current.start(); } catch(e){}
+//             setVoiceStatus('listening');
+//         }
+//     }
+//   };
+
+//   // ... (Keep existing SpeechRecognition useEffect logic exactly as is) ...
+//   // Ensure you include the SpeechRecognition setup here (omitted for brevity but assume it's the same as your file)
+  
+//   // Minimal setup for context:
+//   // useEffect(() => {
+//   //   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+//   //   if (!SpeechRecognition) { setIsDictationSupported(false); return; }
+//   //   recognitionRef.current = new SpeechRecognition();
+//   //   recognitionRef.current.continuous = true;
+//   //   recognitionRef.current.interimResults = true;
+//   //   recognitionRef.current.lang = 'en-US';
+
+//   //   recognitionRef.current.onstart = () => { 
+//   //     setVoiceStatus('listening'); 
+//   //     isListeningRef.current = true; 
+//   //   processedChunksRef.current = 0; // <--- ADD THIS: Reset index on every start
+//   //   sessionTextRef.current = ''; // Reset deduplication tracker
+//   //   };
+//   // recognitionRef.current.onresult = (event) => {
+//   //     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+//   //     // 1. Reconstruct the full text the browser *currently* sees for this session
+//   //     // We loop from 0 to capture everything, ignoring the buggy resultIndex
+//   //     let currentSessionFinal = '';
+//   //     let currentInterim = '';
+
+//   //     for (let i = 0; i < event.results.length; ++i) {
+//   //       if (event.results[i].isFinal) {
+//   //         currentSessionFinal += event.results[i][0].transcript;
+//   //       } else {
+//   //         currentInterim += event.results[i][0].transcript;
+//   //       }
+//   //     }
+
+//   //     // 2. Calculate the "New" text by comparing it to what we processed last time
+//   //     // This works even if Android sends the whole string again (the "Echo" bug)
+//   //     if (currentSessionFinal.length > sessionTextRef.current.length) {
+//   //         const newText = currentSessionFinal.slice(sessionTextRef.current.length);
+          
+//   //         if (newText.trim().length > 0) {
+//   //            transcriptBufferRef.current += ' ' + newText.trim();
+//   //         }
+          
+//   //         // Update our tracker so we know we've processed this part
+//   //         sessionTextRef.current = currentSessionFinal;
+//   //     }
+
+//   //     // 3. Update UI
+//   //     const displayObj = (transcriptBufferRef.current + ' ' + currentInterim).trim();
+//   //     setInterimTranscript(displayObj.slice(-100)); 
+
+//   //     // 4. Silence Timer
+//   //     silenceTimerRef.current = setTimeout(() => {
+//   //         if (isListeningRef.current && !isProcessingRef.current) { 
+//   //             processFinalBuffer();
+//   //         }
+//   //     }, 1200); 
+//   //   };
+//   //   recognitionRef.current.onerror = (e) => { if(e.error !== 'no-speech') console.error(e); };
+//   //   return () => { if(recognitionRef.current) recognitionRef.current.abort(); };
+//   // }, []);
+//   // Replace the LAST useEffect in src/hooks/useVoiceAssistant.jsx with this:
+
+//   // Replace the LAST useEffect in src/hooks/useVoiceAssistant.jsx with this:
+
+//   useEffect(() => {
+//     // 1. Check Browser Support
+//     if (!('webkitSpeechRecognition' in window)) {
+//       console.error("Web Speech API not supported.");
+//       return;
+//     }
+
+//     const SpeechRecognition = window.webkitSpeechRecognition;
+//     recognitionRef.current = new SpeechRecognition();
+//     recognitionRef.current.continuous = true;
+//     recognitionRef.current.interimResults = true;
+//     recognitionRef.current.lang = 'en-US';
+
+//     // TRACKER: Stores the last text we processed to detect duplicates
+//     let lastSeenSessionText = "";
+
+//     recognitionRef.current.onstart = () => {
+//       console.log("Mic started");
+//       setVoiceStatus('listening');
+//       isListeningRef.current = true;
+//       lastSeenSessionText = ""; // RESET tracker on start
+//       setError(null);
+//     };
+
+//     recognitionRef.current.onresult = (event) => {
+//       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+//       let currentSessionTranscript = "";
+//       let currentInterim = "";
+
+//       // 1. EXTRACT: Get the full text currently in the browser's buffer
+//       for (let i = 0; i < event.results.length; ++i) {
+//         if (event.results[i].isFinal) {
+//           currentSessionTranscript += event.results[i][0].transcript;
+//         } else {
+//           currentInterim += event.results[i][0].transcript;
+//         }
+//       }
+
+//       // 2. NORMALIZE: Clean spaces for comparison
+//       // We compare the raw strings to catch the "Laddering" bug
+//       const normalizedCurrent = currentSessionTranscript.trim();
+//       const normalizedLast = lastSeenSessionText.trim();
+
+//       // 3. DEDUPLICATE: Check if the new text is just an extension of the old text
+//       if (normalizedCurrent.length > normalizedLast.length) {
+        
+//         // Check if the NEW text starts with the OLD text (e.g. "Hi this" starts with "Hi")
+//         if (normalizedCurrent.startsWith(normalizedLast)) {
+//            // YES: It's the Android Ladder Bug. 
+//            // We only want the *new* part (the suffix).
+//            const newPart = normalizedCurrent.slice(normalizedLast.length);
+//            if (newPart.trim()) {
+//              transcriptBufferRef.current += ' ' + newPart.trim();
+//            }
+//         } else {
+//            // NO: The browser reset its buffer (New sentence). 
+//            // We append the whole thing.
+//            transcriptBufferRef.current += ' ' + normalizedCurrent;
+//         }
+
+//         // Update the tracker so we don't add this part again
+//         lastSeenSessionText = normalizedCurrent;
+//       }
+
+//       // 4. UPDATE UI
+//       const displayObj = (transcriptBufferRef.current + ' ' + currentInterim).trim();
+//       setInterimTranscript(displayObj.slice(-100));
+
+//       // 5. SILENCE TIMER
+//       silenceTimerRef.current = setTimeout(() => {
+//         if (isListeningRef.current && !isProcessingRef.current) {
+//           processFinalBuffer();
+//           // Optional: Reset tracker after processing (depends on flow preference)
+//           // lastSeenSessionText = ""; 
+//         }
+//       }, 1200);
+//     };
+
+//     recognitionRef.current.onerror = (e) => {
+//       if (e.error !== 'no-speech') {
+//         console.error("Speech Error:", e);
+//       }
+//     };
+
+//     recognitionRef.current.onend = () => {
+//       // Auto-restart logic for mobile which often kills the mic automatically
+//       if (isListeningRef.current) {
+//         try {
+//             recognitionRef.current.start();
+//         } catch(e) { /* ignore */ }
+//       } else {
+//         setVoiceStatus('idle');
+//       }
+//     };
+
+//     return () => {
+//       if (recognitionRef.current) recognitionRef.current.abort();
+//     };
+//   }, []);
+
+//   const handleToggleListening = useCallback(() => {
+//     if (!recognitionRef.current) return;
+//     if (isListeningRef.current) {
+//       isListeningRef.current = false;
+//       recognitionRef.current.stop();
+//       processFinalBuffer();
+//       setVoiceStatus('idle');
+//     } else {
+//       transcriptBufferRef.current = '';
+//       recognitionRef.current.start();
+//       isListeningRef.current = true;
+//       setVoiceStatus('listening');
+//     }
+//   }, []);
+
+//   return { voiceStatus, interimTranscript, error, isDictationSupported, handleToggleListening };
+// };
+
+
+
+//4....
+
+// src/hooks/useVoiceAssistant.jsx
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { parseLocalIntent } from '../lib/localIntentParser'; // Ensure path is correct
+import { parseLocalIntent } from '../lib/localIntentParser'; 
 
-// --- Helper: Fetch with Backoff (Keep existing) ---
+// --- Helper: Fetch with Backoff ---
 const fetchWithBackoff = async (url, options, retries = 3, initialDelay = 2000) => {
   let currentDelay = initialDelay;
   for (let i = 0; i < retries; i++) {
@@ -851,7 +1187,7 @@ const fetchWithBackoff = async (url, options, retries = 3, initialDelay = 2000) 
 const callGeminiWithFunctions = async (transcript, geminiTools) => {
   if (!transcript || transcript.trim().length < 2) return null;
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const model = 'gemini-2.5-flash'; // Use 1.5 Flash for tools
+  const model = 'gemini-2.5-flash'; 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const prompt = `
@@ -880,13 +1216,6 @@ const callGeminiWithFunctions = async (transcript, geminiTools) => {
   }
 };
 
-const getCorrectedTranscript = async (transcript) => {
-  // ... (Keep your existing implementation)
-  return transcript; // Simplified for this snippet, keep your original logic
-};
-
-// --- UPDATED HOOK ---
-// Added 'userMacros' to props
 export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, userMacros }) => {
   const [voiceStatus, setVoiceStatus] = useState('idle'); 
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -894,52 +1223,43 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, us
   const [isDictationSupported, setIsDictationSupported] = useState(true);
 
   const recognitionRef = useRef(null);
-  const isListeningRef = useRef(false); 
-  const transcriptBufferRef = useRef(''); 
-  const silenceTimerRef = useRef(null); 
-  const isProcessingRef = useRef(false); 
+  const isListeningRef = useRef(false); // User's intent to keep mic open
+  const mainBufferRef = useRef(''); // Stores commited text from previous sentences
+  const currentSentenceRef = useRef(''); // Stores the result of the *current* mic session
+  const processingTimerRef = useRef(null);
 
   const onFunctionCallRef = useRef(onFunctionCall);
   const onPlainTextRef = useRef(onPlainText);
-  const userMacrosRef = useRef(userMacros || []); // Ref for macros
+  const userMacrosRef = useRef(userMacros || []); 
 
   useEffect(() => {
     onFunctionCallRef.current = onFunctionCall;
     onPlainTextRef.current = onPlainText;
-    userMacrosRef.current = userMacros || []; // Update ref when props change
+    userMacrosRef.current = userMacros || []; 
   }, [onFunctionCall, onPlainText, userMacros]);
 
-  const processFinalBuffer = async () => {
-    if (isProcessingRef.current) return;
-    
-    const fullText = transcriptBufferRef.current.trim();
+  // --- PROCESSING LOGIC ---
+  const processBuffer = async () => {
+    const fullText = mainBufferRef.current.trim();
     if (!fullText) return;
 
-    isProcessingRef.current = true;
-    if (recognitionRef.current) try { recognitionRef.current.stop(); } catch (e) {}
-    
-    setVoiceStatus('processing');
-    setInterimTranscript('');
-    transcriptBufferRef.current = '';
+    // Reset buffer immediately to prevent double-processing
+    mainBufferRef.current = '';
 
     try {
-        // 1. LOCAL INTENT CHECK (Includes User Macros via ref)
-        console.log("Checking local intents for:", fullText);
+        setVoiceStatus('processing');
+        
+        // 1. LOCAL INTENT CHECK
         const localAction = parseLocalIntent(fullText, userMacrosRef.current);
-
         if (localAction) {
-            console.log("⚡ Local Action Triggered:", localAction);
             onFunctionCallRef.current(localAction);
-            setVoiceStatus('idle');
         } 
         // 2. CLOUD FALLBACK
         else {
             const isCommand = /^(ask|hey|perform|run|do)/i.test(fullText);
-            
             if (isCommand) {
                  const result = await callGeminiWithFunctions(fullText, geminiTools);
                  const functionCall = result?.candidates?.[0]?.content?.parts?.find(p => p.functionCall)?.functionCall;
-                 
                  if (functionCall) {
                      onFunctionCallRef.current(functionCall);
                  } else {
@@ -947,62 +1267,127 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, us
                      if(text) onPlainTextRef.current(text);
                  }
             } else {
-                 // Standard Dictation
                  onPlainTextRef.current(fullText);
             }
-            setVoiceStatus('idle');
         }
     } catch (e) {
         console.error("Processing error:", e);
         onPlainTextRef.current(fullText);
-        setVoiceStatus('idle');
     } finally {
-        isProcessingRef.current = false; 
-        if (isListeningRef.current && recognitionRef.current) {
-            try { recognitionRef.current.start(); } catch(e){}
+        if (isListeningRef.current) {
             setVoiceStatus('listening');
+        } else {
+            setVoiceStatus('idle');
         }
     }
   };
 
-  // ... (Keep existing SpeechRecognition useEffect logic exactly as is) ...
-  // Ensure you include the SpeechRecognition setup here (omitted for brevity but assume it's the same as your file)
-  
-  // Minimal setup for context:
   useEffect(() => {
+    // 1. Check Browser Support
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error("Web Speech API not supported.");
+      setIsDictationSupported(false);
+      return;
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { setIsDictationSupported(false); return; }
     recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.continuous = true;
+    
+    // === CRITICAL FIX: DISABLE CONTINUOUS MODE ===
+    // This forces the browser to finalize and stop after every sentence (silence).
+    // This physically prevents the buffer from accumulating duplicates ("laddering").
+    // We will manually restart it in 'onend' to emulate a continuous experience.
+    recognitionRef.current.continuous = false; 
+    
     recognitionRef.current.interimResults = true;
     recognitionRef.current.lang = 'en-US';
 
-    recognitionRef.current.onstart = () => { setVoiceStatus('listening'); isListeningRef.current = true; };
-    recognitionRef.current.onresult = (event) => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        let chunk = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) chunk += event.results[i][0].transcript;
-        }
-        if (chunk) transcriptBufferRef.current += ' ' + chunk.trim();
-        setInterimTranscript(transcriptBufferRef.current.slice(-100));
-        silenceTimerRef.current = setTimeout(() => {
-            if (isListeningRef.current && !isProcessingRef.current) processFinalBuffer();
-        }, 1200);
+    recognitionRef.current.onstart = () => {
+      setVoiceStatus('listening');
+      isListeningRef.current = true;
+      currentSentenceRef.current = ''; // Reset current sentence buffer
+      setError(null);
     };
-    recognitionRef.current.onerror = (e) => { if(e.error !== 'no-speech') console.error(e); };
-    return () => { if(recognitionRef.current) recognitionRef.current.abort(); };
+
+    recognitionRef.current.onresult = (event) => {
+      // With continuous=false, we usually get index 0. We take the latest.
+      let interim = '';
+      let final = '';
+
+      for (let i = 0; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      // If we got a final result, store it
+      if (final) {
+          currentSentenceRef.current = final;
+      }
+
+      setInterimTranscript(interim);
+    };
+
+    recognitionRef.current.onerror = (e) => {
+      if (e.error !== 'no-speech') {
+        console.warn("Speech Error:", e.error);
+        if (e.error === 'not-allowed') {
+            setError('Microphone access denied');
+            isListeningRef.current = false;
+        }
+      }
+    };
+
+    recognitionRef.current.onend = () => {
+      // 1. COMMIT: If we caught a sentence, add it to main buffer
+      if (currentSentenceRef.current) {
+          const text = currentSentenceRef.current.trim();
+          if (text) {
+             mainBufferRef.current += ' ' + text;
+             
+             // Debounce processing slightly so we can batch if needed, 
+             // but usually we process immediately on silence.
+             if (processingTimerRef.current) clearTimeout(processingTimerRef.current);
+             processingTimerRef.current = setTimeout(processBuffer, 100);
+          }
+          currentSentenceRef.current = ''; // Clear for next sentence
+      }
+
+      // 2. RESTART: If user still wants to listen, start again immediately
+      if (isListeningRef.current) {
+        try {
+            recognitionRef.current.start();
+        } catch(e) { 
+            // Ignored: sometimes browser fires onend before it's fully ready to restart
+            setTimeout(() => {
+                if(isListeningRef.current && recognitionRef.current) {
+                    try { recognitionRef.current.start(); } catch(e){}
+                }
+            }, 100);
+        }
+      } else {
+        setVoiceStatus('idle');
+      }
+    };
+
+    return () => {
+      if (recognitionRef.current) recognitionRef.current.abort();
+    };
   }, []);
 
   const handleToggleListening = useCallback(() => {
     if (!recognitionRef.current) return;
+    
     if (isListeningRef.current) {
+      // Stop
       isListeningRef.current = false;
-      recognitionRef.current.stop();
-      processFinalBuffer();
-      setVoiceStatus('idle');
+      recognitionRef.current.stop(); // This triggers onend -> commits text -> stops loop
     } else {
-      transcriptBufferRef.current = '';
+      // Start
+      mainBufferRef.current = '';
+      currentSentenceRef.current = '';
       recognitionRef.current.start();
       isListeningRef.current = true;
       setVoiceStatus('listening');
