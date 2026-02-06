@@ -2,6 +2,11 @@ import React, { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
+import Link from "@tiptap/extension-link";
 import MenuBar from "./MenuBar.jsx";
 
 /**
@@ -16,16 +21,28 @@ export default function EditorPane({ content = "", onUpdate }) {
     {
       extensions: [
         StarterKit,
+        Underline,
+        Subscript,
+        Superscript,
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-indigo-400 underline cursor-pointer hover:text-indigo-300',
+          },
+        }),
+        TextAlign.configure({
+          types: ["heading", "paragraph"],
+        }),
         Placeholder.configure({
           placeholder: "Start dictating or paste findings here…",
-          emptyEditorClass: "text-neutral-400 italic",
+          emptyEditorClass: "text-slate-500 italic",
         }),
       ],
       content,
       editorProps: {
         attributes: {
           class:
-            "tiptap min-h-[250px] outline-none prose max-w-none focus-visible:ring-2 ring-brandTeal rounded-b-lg bg-white p-2",
+            "tiptap min-h-[400px] outline-none prose prose-invert max-w-none focus-visible:ring-2 ring-indigo-500 rounded-b-lg bg-[#0c1221] p-6 text-slate-200 shadow-inner",
         },
       },
       onUpdate({ editor }) {
@@ -46,7 +63,7 @@ export default function EditorPane({ content = "", onUpdate }) {
   if (!editor) return null; // While lazy bundle loads
 
   return (
-    <div className="rounded-lg border border-gray-300 overflow-hidden bg-white">
+    <div className="rounded-lg border border-white/10 overflow-hidden bg-[#0a0f1c] shadow-xl">
       <MenuBar editor={editor} />
       <EditorContent editor={editor} aria-label="Findings editor" />
     </div>
