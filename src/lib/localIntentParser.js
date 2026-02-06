@@ -27,7 +27,7 @@
 //       args: { question: copilotMatch[1].trim() }
 //     };
 //   }
-  
+
 //   // --- 1. IMAGE ANALYSIS ---
 //   // Matches: "Analyze images", "Check the scan", "Read the x-ray"
 //   if (/(analyze|check|read|study).*(image|scan|x-ray|dicom)/i.test(t)) {
@@ -64,10 +64,10 @@
 //   const macroMatch = t.match(/^(?:insert|add|use)(?: macro| template)?\s+(.+)/i);
 //   if (macroMatch) {
 //     const rawQuery = macroMatch[1].trim();
-    
+
 //     // Check if the user is explicitly asking for a known finding
 //     const results = findingsFuse.search(rawQuery);
-    
+
 //     if (results.length > 0) {
 //       // Direct hit! We found the data locally.
 //       return { 
@@ -163,17 +163,17 @@ export const parseLocalIntent = (transcript, userMacros = []) => {
   if (localSearchMatch) {
     // Determine if user explicitly asked for "AI" (caught above) or just "Search" (Local)
     if (!t.includes('ai search')) {
-        return { 
-            name: 'handleLocalSearch', 
-            args: { query: localSearchMatch[1].trim() } 
-        };
+      return {
+        name: 'handleLocalSearch',
+        args: { query: localSearchMatch[1].trim() }
+      };
     }
   }
 
   // =========================================================================
   // 3. MACRO & TEMPLATE INSERTION (Hybrid: Firebase + Local File)
   // =========================================================================
-  
+
   const macroMatch = t.match(/^(?:insert|add|use)(?: macro| template| finding)?\s+(.+)/i);
   if (macroMatch) {
     const rawQuery = macroMatch[1].trim();
@@ -181,31 +181,31 @@ export const parseLocalIntent = (transcript, userMacros = []) => {
     // A. CHECK USER MACROS (Firebase) FIRST
     // We create a temporary Fuse instance for the user's specific macros
     if (userMacros && userMacros.length > 0) {
-        const userMacroFuse = new Fuse(userMacros, {
-            keys: ['command'], // Firebase field is 'command'
-            threshold: 0.3
-        });
-        const userResults = userMacroFuse.search(rawQuery);
-        
-        if (userResults.length > 0) {
-            return {
-                name: 'insertMacro',
-                args: {
-                    macroName: userResults[0].item.command,
-                    _directContent: userResults[0].item.text // Pass text directly
-                }
-            };
-        }
+      const userMacroFuse = new Fuse(userMacros, {
+        keys: ['command'], // Firebase field is 'command'
+        threshold: 0.3
+      });
+      const userResults = userMacroFuse.search(rawQuery);
+
+      if (userResults.length > 0) {
+        return {
+          name: 'insertMacro',
+          args: {
+            macroName: userResults[0].item.command,
+            _directContent: userResults[0].item.text // Pass text directly
+          }
+        };
+      }
     }
 
     // B. CHECK STANDARD FINDINGS (Local File) SECOND
     const stdResults = standardFindingsFuse.search(rawQuery);
     if (stdResults.length > 0) {
-      return { 
+      return {
         name: 'insertFindings', // Different handler for structured findings
-        args: { 
-            findingToInsert: stdResults[0].item 
-        } 
+        args: {
+          findingToInsert: stdResults[0].item
+        }
       };
     }
   }
