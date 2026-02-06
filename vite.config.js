@@ -43,7 +43,7 @@ export default defineConfig({
     tailwindcss(),
     basicSsl(),
     VitePWA({
-      
+
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -68,7 +68,7 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any'  
+            purpose: 'any'
           },
           {
             src: 'pwa-512x512.png',
@@ -81,7 +81,7 @@ export default defineConfig({
       workbox: {
         //  ADDED THIS LINE HERE to fix the 2MB limit error
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        
+
         // Cache Google Fonts and other static assets
         runtimeCaching: [
           {
@@ -118,6 +118,10 @@ export default defineConfig({
   ],
   server: {
     host: true,
+    // headers: {
+    //   'Cross-Origin-Opener-Policy': 'same-origin',
+    //   'Cross-Origin-Embedder-Policy': 'require-corp',
+    // },
   },
   define: {
     global: {},
@@ -131,4 +135,7 @@ export default defineConfig({
       buffer: 'buffer',
     },
   },
+  optimizeDeps: {
+    exclude: ['@xenova/transformers']
+  }
 });
