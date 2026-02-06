@@ -1157,7 +1157,7 @@
 
 
 
-//4....
+//4.... Mobile Repetetion fixed...
 
 // src/hooks/useVoiceAssistant.jsx
 
@@ -1396,3 +1396,417 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, us
 
   return { voiceStatus, interimTranscript, error, isDictationSupported, handleToggleListening };
 };
+
+
+
+
+//5. Whisper Model Trial - Working.
+// src/hooks/useVoiceAssistant.jsx
+
+// import { useState, useEffect, useRef, useCallback } from 'react';
+// import { parseLocalIntent } from '../lib/localIntentParser'; 
+
+// export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, userMacros }) => {
+//   const [voiceStatus, setVoiceStatus] = useState('loading'); // loading -> idle -> listening -> processing
+//   const [interimTranscript, setInterimTranscript] = useState('');
+  
+//   const workerRef = useRef(null);
+//   const mediaRecorderRef = useRef(null);
+//   const streamRef = useRef(null);
+//   const chunksRef = useRef([]);
+
+//   const onFunctionCallRef = useRef(onFunctionCall);
+//   const onPlainTextRef = useRef(onPlainText);
+//   const userMacrosRef = useRef(userMacros || []);
+
+//   useEffect(() => {
+//     onFunctionCallRef.current = onFunctionCall;
+//     onPlainTextRef.current = onPlainText;
+//     userMacrosRef.current = userMacros || [];
+//   }, [onFunctionCall, onPlainText, userMacros]);
+
+//   // --- 1. INITIALIZE WORKER ---
+//   useEffect(() => {
+//     workerRef.current = new Worker(new URL('../workers/whisper.worker.js', import.meta.url), {
+//       type: 'module'
+//     });
+
+//     workerRef.current.onmessage = (event) => {
+//       const { status, text, error } = event.data;
+
+//       if (status === 'ready') {
+//         setVoiceStatus('idle');
+//         console.log("✅ Whisper Model Ready");
+//       }
+      
+//       if (status === 'complete') {
+//         console.log("✅ AI Output:", text);
+//         if (!text || text.trim() === '') {
+//            console.warn("⚠️ AI returned empty text. (Audio might be silent)");
+//         }
+//         handleFinalText(text);
+//         setVoiceStatus('idle');
+//       }
+
+//       if (status === 'error') {
+//         console.error("❌ Worker Error:", error);
+//         setVoiceStatus('error');
+//       }
+//     };
+
+//     workerRef.current.postMessage({ type: 'load' });
+
+//     return () => workerRef.current.terminate();
+//   }, []);
+
+//   // --- 2. HANDLE RESULTS ---
+//   const handleFinalText = (text) => {
+//     const cleanText = text ? text.trim() : "";
+//     if (!cleanText) return;
+
+//     // A. Check Local Macros
+//     const localAction = parseLocalIntent(cleanText, userMacrosRef.current);
+//     if (localAction) {
+//         onFunctionCallRef.current(localAction);
+//     } else {
+//         // B. Standard Dictation
+//         onPlainTextRef.current(cleanText);
+//     }
+//   };
+
+//   // --- 3. START RECORDING ---
+//   const startRecording = async () => {
+//     try {
+//       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+//       streamRef.current = stream; // Store stream to stop it later
+
+//       // Detect supported mime type
+//       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      
+//       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+//       chunksRef.current = [];
+
+//       mediaRecorderRef.current.ondataavailable = (e) => {
+//         if (e.data.size > 0) chunksRef.current.push(e.data);
+//       };
+
+//       mediaRecorderRef.current.onstop = () => {
+//         // --- CRITICAL FIX START ---
+//         // 1. Create Blob from captured chunks
+//         const blob = new Blob(chunksRef.current, { type: mediaRecorderRef.current.mimeType });
+//         console.log(`🎤 Audio Captured: ${blob.size} bytes`);
+
+//         if (blob.size < 1000) {
+//             console.warn("⚠️ Audio file too small, possible silence.");
+//         }
+
+//         // 2. Process the blob
+//         processAudioBlob(blob);
+        
+//         // 3. NOW it is safe to kill the microphone
+//         if (streamRef.current) {
+//             streamRef.current.getTracks().forEach(track => track.stop());
+//             streamRef.current = null;
+//         }
+//         // --- CRITICAL FIX END ---
+//       };
+
+//       mediaRecorderRef.current.start();
+//       setVoiceStatus('listening');
+//     } catch (err) {
+//       console.error("Mic access denied", err);
+//       setVoiceStatus('error');
+//     }
+//   };
+
+//   // --- 4. STOP RECORDING ---
+//   const stopRecording = () => {
+//     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+//       mediaRecorderRef.current.stop(); // This triggers onstop above
+//       setVoiceStatus('processing');
+//     }
+//   };
+
+//   // --- 5. ROBUST AUDIO PROCESSING (Resampling Fix) ---
+//   const processAudioBlob = async (blob) => {
+//     try {
+//         // 1. Decode the audio at its native rate (e.g., 44k or 48k)
+//         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+//         const arrayBuffer = await blob.arrayBuffer();
+//         const decodedAudio = await audioContext.decodeAudioData(arrayBuffer);
+
+//         // 2. Calculate the Ratio to target 16kHz
+//         const targetSampleRate = 16000;
+//         const offlineContext = new OfflineAudioContext(
+//             1, // Mono
+//             decodedAudio.duration * targetSampleRate,
+//             targetSampleRate
+//         );
+
+//         // 3. Render the audio into the Offline Context (resampling happens here)
+//         const source = offlineContext.createBufferSource();
+//         source.buffer = decodedAudio;
+//         source.connect(offlineContext.destination);
+//         source.start(0);
+
+//         const resampledBuffer = await offlineContext.startRendering();
+        
+//         // 4. Extract the resampled PCM data
+//         const audioData = resampledBuffer.getChannelData(0);
+
+//         console.log(`original rate: ${decodedAudio.sampleRate}, new rate: ${resampledBuffer.sampleRate}`);
+//         console.log(`📡 Sending ${audioData.length} samples to Worker...`);
+
+//         workerRef.current.postMessage({
+//             type: 'transcribe',
+//             audio: audioData
+//         });
+
+//     } catch (e) {
+//         console.error("Audio Processing Failed:", e);
+//         setVoiceStatus('error');
+//     }
+//   };
+
+//   const handleToggleListening = useCallback(() => {
+//     if (voiceStatus === 'listening') {
+//       stopRecording();
+//     } else if (voiceStatus === 'idle') {
+//       startRecording();
+//     }
+//   }, [voiceStatus]);
+
+//   return { 
+//     voiceStatus, 
+//     interimTranscript: voiceStatus === 'processing' ? 'Processing on device...' : '', 
+//     isDictationSupported: true, 
+//     handleToggleListening 
+//   };
+// };
+
+
+//6. Qur like Voice
+
+// src/hooks/useVoiceAssistant.jsx
+
+// import { useState, useEffect, useRef, useCallback } from 'react';
+// import { parseLocalIntent } from '../lib/localIntentParser'; 
+
+// // --- GEMINI HELPER (The "Brain" for Magic Mode) ---
+// const callGeminiToFormat = async (rawText) => {
+//   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+//   if (!apiKey) return rawText;
+
+//   const prompt = `
+//     You are a professional Radiologist's assistant.
+//     The user is dictating findings in rough, short-hand notes.
+    
+//     Rule 1: Expand abbreviations and medical shorthand into full, professional sentences.
+//     Rule 2: Fix any potential phonetic errors in medical terms.
+//     Rule 3: Do NOT add introductions like "Here is the report". Just output the text.
+//     Rule 4: If the input is already a command or clear sentence, keep it as is.
+    
+//     User Notes: "${rawText}"
+    
+//     Professional Output:
+//   `;
+
+//   try {
+//     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+//     });
+//     const data = await response.json();
+//     return data?.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+//   } catch (e) {
+//     console.error("Gemini Formatting Failed:", e);
+//     return rawText; 
+//   }
+// };
+
+// export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, userMacros, isMagicMode = false }) => {
+//   const [voiceStatus, setVoiceStatus] = useState('loading'); 
+//   const [interimTranscript, setInterimTranscript] = useState('');
+  
+//   const workerRef = useRef(null);
+//   const mediaRecorderRef = useRef(null);
+//   const streamRef = useRef(null);
+//   const chunksRef = useRef([]);
+
+//   const onFunctionCallRef = useRef(onFunctionCall);
+//   const onPlainTextRef = useRef(onPlainText);
+//   const userMacrosRef = useRef(userMacros || []);
+//   const isMagicModeRef = useRef(isMagicMode);
+
+//   useEffect(() => {
+//     onFunctionCallRef.current = onFunctionCall;
+//     onPlainTextRef.current = onPlainText;
+//     userMacrosRef.current = userMacros || [];
+//     isMagicModeRef.current = isMagicMode;
+//   }, [onFunctionCall, onPlainText, userMacros, isMagicMode]);
+
+//   // --- 1. INITIALIZE WHISPER WORKER ---
+//   useEffect(() => {
+//     workerRef.current = new Worker(new URL('../workers/whisper.worker.js', import.meta.url), {
+//       type: 'module'
+//     });
+
+//     workerRef.current.onmessage = async (event) => {
+//       const { status, text, error } = event.data;
+
+//       if (status === 'ready') {
+//         setVoiceStatus('idle');
+//         console.log("✅ Whisper Model Ready");
+//       }
+      
+//       if (status === 'complete') {
+//         const cleanText = text ? text.trim() : "";
+//         console.log("✅ Whisper Output:", cleanText);
+
+//         if (cleanText) {
+//             // --- QUILLR LOGIC ---
+//             if (isMagicModeRef.current) {
+//                 setVoiceStatus('processing_ai');
+//                 const formattedText = await callGeminiToFormat(cleanText);
+//                 handleFinalResult(formattedText);
+//             } else {
+//                 handleFinalResult(cleanText);
+//             }
+//         } else {
+//             console.warn("⚠️ AI returned empty text. (Audio might have been too quiet)");
+//             setVoiceStatus('idle');
+//         }
+//       }
+
+//       if (status === 'error') {
+//         console.error("❌ Worker Error:", error);
+//         setVoiceStatus('error');
+//       }
+//     };
+
+//     workerRef.current.postMessage({ type: 'load' });
+
+//     return () => workerRef.current.terminate();
+//   }, []);
+
+//   const handleFinalResult = (text) => {
+//     const localAction = parseLocalIntent(text, userMacrosRef.current);
+//     if (localAction) {
+//         onFunctionCallRef.current(localAction);
+//     } else {
+//         onPlainTextRef.current(text);
+//     }
+//     setVoiceStatus('idle');
+//   };
+
+//   // --- 2. START RECORDING ---
+//   const startRecording = async () => {
+//     try {
+//       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+//       streamRef.current = stream; 
+
+//       // Prefer standard webm
+//       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      
+//       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+//       chunksRef.current = [];
+
+//       mediaRecorderRef.current.ondataavailable = (e) => {
+//         if (e.data.size > 0) chunksRef.current.push(e.data);
+//       };
+
+//       mediaRecorderRef.current.onstop = () => {
+//         const blob = new Blob(chunksRef.current, { type: mediaRecorderRef.current.mimeType });
+//         console.log(`🎤 Captured ${blob.size} bytes`);
+//         processAudioBlob(blob);
+        
+//         // Cleanup stream
+//         if (streamRef.current) {
+//             streamRef.current.getTracks().forEach(track => track.stop());
+//             streamRef.current = null;
+//         }
+//       };
+
+//       mediaRecorderRef.current.start();
+//       setVoiceStatus('listening');
+//     } catch (err) {
+//       console.error("Mic access denied", err);
+//       setVoiceStatus('error');
+//     }
+//   };
+
+//   const stopRecording = () => {
+//     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+//       mediaRecorderRef.current.stop();
+//       setVoiceStatus('processing');
+//     }
+//   };
+
+//   // --- 3. ROBUST AUDIO PROCESSING (The Fix) ---
+//   const processAudioBlob = async (blob) => {
+//     try {
+//         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+//         const arrayBuffer = await blob.arrayBuffer();
+//         const decodedAudio = await audioContext.decodeAudioData(arrayBuffer);
+
+//         // === BUG FIX: Handle Infinity Duration ===
+//         // On Android/Chrome, decodedAudio.duration is often 'Infinity'.
+//         // We must calculate it manually: length / sampleRate
+//         let duration = decodedAudio.duration;
+//         if (!duration || duration === Infinity) {
+//              duration = decodedAudio.length / decodedAudio.sampleRate;
+//              console.log("⚠️ Fixed Infinity Duration:", duration);
+//         }
+
+//         const targetSampleRate = 16000;
+//         const offlineContext = new OfflineAudioContext(
+//             1, // Mono
+//             duration * targetSampleRate,
+//             targetSampleRate
+//         );
+
+//         const source = offlineContext.createBufferSource();
+//         source.buffer = decodedAudio;
+//         source.connect(offlineContext.destination);
+//         source.start(0);
+
+//         const resampledBuffer = await offlineContext.startRendering();
+//         const audioData = resampledBuffer.getChannelData(0);
+
+//         // === VOLUME CHECK ===
+//         // Calculate RMS (Root Mean Square) to see if it's silent
+//         let sum = 0;
+//         for (let i = 0; i < audioData.length; i++) {
+//             sum += audioData[i] * audioData[i];
+//         }
+//         const rms = Math.sqrt(sum / audioData.length);
+//         console.log(`🔊 Audio RMS Level: ${rms.toFixed(5)}`);
+
+//         if (rms < 0.001) {
+//             console.warn("⚠️ Audio is extremely quiet (Silent). Check microphone.");
+//         }
+
+//         workerRef.current.postMessage({ type: 'transcribe', audio: audioData });
+
+//     } catch (e) {
+//         console.error("Audio Processing Failed:", e);
+//         setVoiceStatus('error');
+//     }
+//   };
+
+//   const handleToggleListening = useCallback(() => {
+//     if (voiceStatus === 'listening') {
+//       stopRecording();
+//     } else if (voiceStatus === 'idle') {
+//       startRecording();
+//     }
+//   }, [voiceStatus]);
+
+//   return { 
+//     voiceStatus, 
+//     interimTranscript: voiceStatus === 'processing' ? 'Transcribing...' : (voiceStatus === 'processing_ai' ? 'Refining with AI...' : ''), 
+//     isDictationSupported: true, 
+//     handleToggleListening 
+//   };
+// };
