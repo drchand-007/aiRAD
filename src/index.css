@@ -4,13 +4,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* body{
-  background-image: url("https://images.stockcake.com/public/5/4/d/54d4cb54-76ef-4e12-b33c-b87d89adf444/medical-symbol-glistens-stockcake.jpg");
-} */
-/* optional: add your own layers below
 @layer utilities {
-  .content-auto {
-    content-visibility: auto;
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
   }
 }
-*/
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 8s linear infinite;
+}
+
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
