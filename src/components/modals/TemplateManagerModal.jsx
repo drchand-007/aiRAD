@@ -179,7 +179,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
       attributes: {
         // include `tiptap` so your global table CSS applies here as well
         class:
-          'tiptap prose prose-sm focus:outline-none w-full p-2 border rounded-b-lg min-h-[250px] text-black',
+          'tiptap prose prose-sm focus:outline-none w-full p-2 border border-slate-700 rounded-b-lg min-h-[250px] text-slate-300 bg-black/40',
       },
     },
   });
@@ -254,30 +254,30 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b flex justify-between items-center">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center">
-            <FileText size={24} className="mr-3 text-blue-500" />
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+          <h3 className="text-2xl font-bold text-slate-100 flex items-center">
+            <FileText size={24} className="mr-3 text-indigo-400" />
             Manage Custom Templates
           </h3>
           <button
-            className="text-2xl font-bold text-gray-800 hover:bg-gray-300 transition rounded-full p-1"
+            className="text-slate-400 hover:text-white transition rounded-full p-1"
             onClick={onClose}
           >
-            <XCircle />
+            <XCircle size={28} />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-grow grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 overflow-y-auto flex-grow grid grid-cols-1 md:grid-cols-2 gap-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
           {/* Add New Template Form */}
           <div className="space-y-4">
-            <h4 className="font-bold text-xl text-gray-700 border-b pb-2">Add New Template</h4>
+            <h4 className="font-bold text-xl text-indigo-300 border-b border-indigo-500/30 pb-2">Add New Template</h4>
             <div>
-              <label className="font-semibold text-black  mb-1 block">Modality</label>
+              <label className="font-semibold text-slate-400 mb-1 block">Modality</label>
               <select
                 value={newTemplateModality}
                 onChange={e => setNewTemplateModality(e.target.value)}
-                className="w-full p-2 border rounded-lg bg-white text-gray-600"
+                className="w-full p-2 border border-slate-700 rounded-lg bg-black/40 text-slate-200 focus:border-indigo-500 outline-none"
               >
                 {existingModalities.map(mod => (
                   <option key={mod} value={mod}>
@@ -287,26 +287,25 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
               </select>
             </div>
             <div>
-              <label className="font-semibold text-black mb-1 block">Template Name</label>
+              <label className="font-semibold text-slate-400 mb-1 block">Template Name</label>
               <input
                 type="text"
                 placeholder="e.g., Pediatric Hip Ultrasound"
                 value={newTemplateName}
                 onChange={e => setNewTemplateName(e.target.value)}
-                className="w-full p-2 border rounded-lg text-gray-600"
+                className="w-full p-2 border border-slate-700 rounded-lg bg-black/40 text-slate-200 focus:border-indigo-500 outline-none placeholder:text-slate-600"
               />
             </div>
 
             {/* --- RICH TEXT EDITOR --- */}
             <div>
-              <label className="font-semibold text-black mb-1 block">Template Content</label>
-              <div className="border rounded-lg">
-                <div className="flex items-center gap-1 p-2 bg-gray-100 rounded-t-lg border-b text-black">
+              <label className="font-semibold text-slate-400 mb-1 block">Template Content</label>
+              <div className="border border-slate-700 rounded-lg">
+                <div className="flex items-center gap-1 p-2 bg-black/60 rounded-t-lg border-b border-slate-700 text-slate-200">
                   <button
                     onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`p-2 rounded ${
-                      editor.isActive('bold') ? 'bg-gray-300' : 'hover:bg-gray-200'
-                    }`}
+                    className={`p-2 rounded transition-colors ${editor.isActive('bold') ? 'bg-indigo-600 text-white' : 'hover:bg-white/10 text-slate-400'
+                      }`}
                     title="Bold"
                   >
                     <Bold size={16} />
@@ -315,7 +314,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
                   {/* Insert 3×3 table button */}
                   <button
                     onClick={handleInsertTable}
-                    className="p-2 rounded hover:bg-gray-200"
+                    className="p-2 rounded hover:bg-white/10 text-slate-400 transition-colors"
                     title="Insert 3×3 table"
                   >
                     <TableIcon size={16} />
@@ -330,7 +329,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
             <button
               onClick={handleAddTemplate}
               disabled={isSaving}
-              className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition disabled:bg-blue-300 flex items-center justify-center"
+              className="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition disabled:bg-indigo-800 disabled:opacity-50 flex items-center justify-center shadow-lg shadow-indigo-900/20"
             >
               {isSaving ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -345,30 +344,30 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
 
           {/* Existing Templates List */}
           <div className="space-y-4">
-            <h4 className="font-bold text-xl text-gray-700 border-b pb-2">Your Templates</h4>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+            <h4 className="font-bold text-xl text-indigo-300 border-b border-indigo-500/30 pb-2">Your Templates</h4>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
               {customTemplates.length > 0 ? (
                 customTemplates.map(template => (
                   <div
                     key={template.id}
-                    className="flex justify-between items-start bg-gray-50 p-3 rounded-lg border"
+                    className="flex justify-between items-start bg-white/5 p-3 rounded-lg border border-white/5 hover:border-indigo-500/30 transition-all"
                   >
                     <div className="flex-grow">
-                      <p className="font-bold text-gray-800">{template.name}</p>
-                      <p className="text-xs text-white bg-blue-500 rounded-full px-2 py-0.5 inline-block mt-1">
+                      <p className="font-bold text-slate-200">{template.name}</p>
+                      <p className="text-xs text-white bg-indigo-600 rounded-full px-2 py-0.5 inline-block mt-1">
                         {template.modality}
                       </p>
                     </div>
                     <button
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="text-red-500 hover:text-red-700 ml-4 flex-shrink-0"
+                      className="text-red-400 hover:text-red-300 ml-4 flex-shrink-0"
                     >
                       <Trash2 />
                     </button>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 mt-4 text-center">
+                <p className="text-slate-500 mt-4 text-center">
                   You haven't added any custom templates yet.
                 </p>
               )}
