@@ -68,6 +68,7 @@ import { auth, db, appId } from './firebase.js'; // Assuming firebase.js is set 
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, addDoc, serverTimestamp, onSnapshot, query, deleteDoc, doc, getDoc, getDocs, updateDoc, setDoc, where, orderBy, limit, increment } from "firebase/firestore";
 import Auth from './auth.jsx'; // Your Auth component
+import UserProfile from './components/UserProfile.jsx';
 
 // NOTE: findings.js is assumed to be in the same directory.
 import { localFindings } from './findings.js';
@@ -143,7 +144,7 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
               ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-900/20 rounded-tr-sm'
               : 'bg-slate-800/80 border border-slate-700/50 text-gray-200 rounded-tl-sm ring-1 ring-white/5'
               }`}>
-              <p dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br />') }} />
+              <p dangerouslySetInnerHTML={{ __html: (msg.text || '').replace(/\n/g, '<br />') }} />
             </div>
           </div>
         ))}
@@ -1342,6 +1343,10 @@ const MainApp = () => {
   const [generatedReport, setGeneratedReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+
+  // --- UI STATE ---
   const [aiAnalysisStatus, setAiAnalysisStatus] = useState('');
   const [clinicalContext, setClinicalContext] = useState('');
   const [assistantQuery, setAssistantQuery] = useState('');
@@ -2330,6 +2335,26 @@ const MainApp = () => {
     // This first listener only watches for LOGIN or LOGOUT
     const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setIsAuthLoading(true);
+      setUser(currentUser); // Set the user object
+
+      // Fetch basic profile to have it available in the app
+      if (currentUser) {
+        const fetchProfile = async () => {
+          try {
+            const docRef = doc(db, "users", currentUser.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              setUserProfile(data);
+            }
+          } catch (err) {
+            console.error("Error fetching background profile", err);
+          }
+        }
+        fetchProfile();
+      } else {
+        setUserProfile(null);
+      }
 
       // If a user was logged in, we must unsubscribe from their old doc
       if (databaseUnsubscribe) {
@@ -4629,32 +4654,37 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       const date = new Date().toLocaleDateString();
 
       const patientHeader = `
-    <div style="padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
-                <div style="flex: 1;">
-                    ${logoHtml}
-                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px;">${hName}</h1>
-                    <p style="margin: 10px 0 0; color: #4b5563;">${hDept}</p>
-                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 12px;">${hAddr}</p>
-                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
+            <div style="font-family: sans-serif; color: #333;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px;">
+                    <div>
+                        <h1 style="color: #0056b3; margin: 0; font-size: 24px;">RADIOLOGY REPORT</h1>
+                        <p style="margin: 5px 0 0; font-size: 14px; color: #666;">${userProfile?.institution || 'Advanced Imaging Center'}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin: 0; font-weight: bold;">${userProfile?.displayName || user.email}</p>
+                        <p style="margin: 0; font-size: 12px; color: #666;">${userProfile?.title || 'Radiologist'}</p>
+                    </div>
                 </div>
-            
-
-          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-              <tr>
-                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Patient Name:</strong> <span style="font-weight: 600; color: #1e293b;">${patientName || 'N/A'}</span></td>
-                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;"> MRN:</strong> <span style="font-weight: 600; color: #1e293b;">${patientId || 'N/A'}</span></td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">DOB / Age:</strong> <span style="font-weight: 600; color: #1e293b;">${patientAge || 'N/A'}</span></td>
-                <td style="padding: 5px 0 0 1vh; width: 50%;"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;"> Exam Date:</strong> <span style="font-weight: 600; color: #1e293b;">${examDate || date}</span></td>
-              </tr>
-               <tr>
-                <td style="padding: 5px 0 0 1vh; width: 100%;" colspan="2"><strong style="color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Referring Phys:</strong> <span style="font-weight: 600; color: #1e293b;">${referringPhysician || 'N/A'}</span></td>
-              </tr>
-            </table>
-            <br/>
-      
-    `;
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                    <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%; font-weight: bold;">Patient Name</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;">${patientName}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%; font-weight: bold;">Patient ID</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;">${patientId}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Age / Gender</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${patientAge} / ${patientGender}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Exam Date</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${examDate}</td>
+                    </tr>
+                    <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Ref. Physician</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;" colspan="3">${referringPhysician}</td>
+                    </tr>
+                </table>
+            </div>`;
       const fullReport = patientHeader + reportBody;
       setGeneratedReport(fullReport);
       setShowPreviewModal(true);
@@ -5600,9 +5630,13 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
     switch (name) {
       case "askCopilot":
         // 1. Send the question to the chat.
-        handleSendMessage(args.question);
-        // 2. Switch to the Co-pilot tab so the user sees the answer.
-        setActiveAiTab('copilot');
+        if (args.question) {
+          handleSendMessage(args.question);
+          // 2. Switch to the Co-pilot tab so the user sees the answer.
+          setActiveAiTab('copilot');
+        } else {
+          console.warn("askCopilot called without a question:", args);
+        }
         break;
 
       case "analyzeImages":
@@ -6255,6 +6289,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 >
   <Settings size={18} />
 </button> */}
+            <button onClick={() => setShowProfile(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0" title="Profile"><User size={18} /></button>
             <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
           </div>
         </header>
@@ -6313,8 +6348,29 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                       {Object.keys(allTemplates).map(m => <option key={m} value={m}>{m}</option>)}
                     </select></div>
                   <div><label className="text-[10px] uppercase font-bold text-slate-500">Template</label>
-                    <select value={template} onChange={e => { const t = e.target.value; setTemplate(t); isProgrammaticUpdate.current = true; if (editor) editor.commands.setContent(allTemplates[modality][t] || ''); setEditorContent(allTemplates[modality][t] || ''); }} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500">
-                      {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                    <select
+                      value={template}
+                      onChange={e => {
+                        const t = e.target.value;
+                        setTemplate(t);
+                        isProgrammaticUpdate.current = true;
+
+                        // Check in standard templates first, then user templates
+                        const content = allTemplates[modality]?.[t] || userTemplates[modality]?.[t] || '';
+
+                        if (editor) editor.commands.setContent(content);
+                        setEditorContent(content);
+                      }}
+                      className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500"
+                    >
+                      <optgroup label="Standard Templates">
+                        {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={`std-${t}`} value={t}>{t}</option>)}
+                      </optgroup>
+                      {userTemplates[modality] && Object.keys(userTemplates[modality]).length > 0 && (
+                        <optgroup label="My Templates">
+                          {Object.keys(userTemplates[modality]).map(t => <option key={`usr-${t}`} value={t}>{t}</option>)}
+                        </optgroup>
+                      )}
                     </select></div>
                 </div>
               </SidePanel>
@@ -6794,6 +6850,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
           currentLetterhead={letterheadUrl}
           currentWatermark={watermarkUrl}
         />
+        {showProfile && <UserProfile user={user} onClose={() => setShowProfile(false)} />}
         {/* FIX #6: New Report Preview Modal */}
         {showPreviewModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
