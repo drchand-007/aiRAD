@@ -1332,6 +1332,7 @@ const MainApp = () => {
   const [patientName, setPatientName] = useState(() => localStorage.getItem('draft_patientName') || 'Patient Name');
   const [patientId, setPatientId] = useState(() => localStorage.getItem('draft_patientId') || 'P00000000');
   const [patientAge, setPatientAge] = useState(() => localStorage.getItem('draft_patientAge') || 'Age');
+  const [patientGender, setPatientGender] = useState(() => localStorage.getItem('draft_patientGender') || 'Male'); // <--- ADD THIS LINE
   const [referringPhysician, setReferringPhysician] = useState(() => localStorage.getItem('draft_referringPhysician') || 'Dr. XYZ');
   const [examDate, setExamDate] = useState(() => localStorage.getItem('draft_examDate') || new Date().toISOString().split('T')[0]);
   const [modality, setModality] = useState(() => localStorage.getItem('draft_modality') || 'Ultrasound');
@@ -1392,8 +1393,6 @@ const MainApp = () => {
   // --- ADD THESE NEW STATES ---
   const [dynamicMeasurements, setDynamicMeasurements] = useState([]);
   const [templateOrgans, setTemplateOrgans] = useState([]);
-
-  const [userTemplates, setUserTemplates] = useState({});
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const [editorContent, setEditorContent] = useState(templates.Ultrasound.Abdomen);
@@ -1424,6 +1423,32 @@ const MainApp = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(null);
 
   const [showSettings, setShowSettings] = useState(false); // <--- Add this
+
+  // --- NEW: User Templates State ---
+  const [userTemplates, setUserTemplates] = useState({});
+
+  // --- Effect: Fetch User Templates ---
+  useEffect(() => {
+    if (!user) {
+      setUserTemplates({});
+      return;
+    }
+    const templatesRef = collection(db, "users", user.uid, "templates");
+    const unsubscribe = onSnapshot(templatesRef, (snapshot) => {
+      const newTemplates = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // Organize by modality
+        const mod = data.modality || 'Other';
+        if (!newTemplates[mod]) newTemplates[mod] = {};
+        newTemplates[mod][data.name] = data.content;
+      });
+      setUserTemplates(newTemplates);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Hospital Settings State
 
 
   // Hospital Settings State
@@ -1673,64 +1698,64 @@ const MainApp = () => {
 
       // 4. Construct the PDF HTML (Letterhead + Content)
       element.innerHTML = `
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.5; padding: 20px;">
-          
-          <!-- Hospital Letterhead Header -->
-          <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start;">
-            <div style="flex: 1;">
-              ${logoHtml}
-              <h1 style="margin: 0; color: #1e3a8a; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
-              <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px; font-weight: 600;">${hDept}</p>
-              <p style="margin: 2px 0 0; color: #6b7280; font-size: 12px; max-width: 300px;">${hAddr}</p>
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
-            </div>
-            <div style="text-align: right;">
-              <div style="background-color: #2563eb; color: white; padding: 6px 16px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px; margin-bottom: 8px;">RADIOLOGY REPORT</div>
-              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Report Status:</strong> Final</p>
-              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Generated:</strong> ${date}</p>
-            </div>
-          </div>
-
-          <!-- Patient Demographics Block (Static Placeholder - Connect to real state if available) -->
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Patient Name</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">Doe, John A.</span></td>
-                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Medical Record Number</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">8492015</span></td>
-              </tr>
-              <tr>
-                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Date of Birth</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">01/15/1980 (45y M)</span></td>
-                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Exam Date</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">${date}</span></td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Report Content Body -->
-          <div style="margin-bottom: 40px; font-size: 12pt; text-align: left; color: #374151;">
-            <h2 style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a; margin-bottom: 20px; font-weight: 700;">Findings & Impression</h2>
-            ${contentHTML}
-          </div>
-
-          <!-- Signature Footer -->
-          <div style="margin-top: 60px; padding-top: 25px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-              <div>
-                <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">Electronically Signed by:</p>
-                <div style="font-family: 'Courier New', Courier, monospace; font-size: 18px; color: #2563eb; margin-bottom: 4px;">/s/ </div>
-                <p style="margin: 0; font-size: 13px; color: #4b5563; font-weight: 500;">Certified Radiologist</p>
+              <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.5; padding: 20px;">
+                
+                <!-- Hospital Letterhead Header -->
+                <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div style="flex: 1;">
+                    ${logoHtml}
+                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
+                    <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px; font-weight: 600;">${hDept}</p>
+                    <p style="margin: 2px 0 0; color: #6b7280; font-size: 12px; max-width: 300px;">${hAddr}</p>
+                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="background-color: #2563eb; color: white; padding: 6px 16px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px; margin-bottom: 8px;">RADIOLOGY REPORT</div>
+                    <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Report Status:</strong> Final</p>
+                    <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Generated:</strong> ${date}</p>
+                  </div>
+                </div>
+      
+                <!-- Patient Demographics Block (Static Placeholder - Connect to real state if available) -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Patient Name</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">Doe, John A.</span></td>
+                      <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Medical Record Number</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">8492015</span></td>
+                    </tr>
+                    <tr>
+                      <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Date of Birth</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">01/15/1980 (45y M)</span></td>
+                      <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Exam Date</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">${date}</span></td>
+                    </tr>
+                  </table>
+                </div>
+      
+                <!-- Report Content Body -->
+                <div style="margin-bottom: 40px; font-size: 12pt; text-align: left; color: #374151;">
+                  <h2 style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a; margin-bottom: 20px; font-weight: 700;">Findings & Impression</h2>
+                  ${contentHTML}
+                </div>
+      
+                <!-- Signature Footer -->
+                <div style="margin-top: 60px; padding-top: 25px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div>
+                      <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">Electronically Signed by:</p>
+                      <div style="font-family: 'Courier New', Courier, monospace; font-size: 18px; color: #2563eb; margin-bottom: 4px;">/s/ </div>
+                      <p style="margin: 0; font-size: 13px; color: #4b5563; font-weight: 500;">Certified Radiologist</p>
+                    </div>
+                    <div style="text-align: right;">
+                       <!-- QR Code or Stamp placeholder -->
+                       <div style="width: 60px; height: 60px; background-color: #f0f0f0; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">STAMP</div>
+                    </div>
+                  </div>
+                  
+                  <p style="margin-top: 30px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 10px;">
+                    This report was generated using <strong>aiRAD</strong>.
+                  </p>
+                </div>
               </div>
-              <div style="text-align: right;">
-                 <!-- QR Code or Stamp placeholder -->
-                 <div style="width: 60px; height: 60px; background-color: #f0f0f0; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">STAMP</div>
-              </div>
-            </div>
-            
-            <p style="margin-top: 30px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 10px;">
-              This report was generated using <strong>aiRAD</strong>.
-            </p>
-          </div>
-        </div>
-      `;
+            `;
 
       const opt = {
         margin: [0.5, 0.5, 0.5, 0.5],
@@ -2624,6 +2649,11 @@ const MainApp = () => {
 
 
 
+
+  // --- HELPER: escapeRegex ---
+  function escapeRegex(string) {
+    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  }
 
   // --- NEW FUNCTION: findMissingMeasurements ---
   const findMissingMeasurements = () => {
@@ -4617,7 +4647,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
 
     // --- START: MODIFIED SECTION ---
-    console.log("Generating report content..."); // Debug log
+    console.log("Generating report content... Force:", force); // Debug log
     if (editor) {
       // 1. Add a hook to find and remove any attribute starting with '@'
       DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
@@ -4654,16 +4684,13 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       const date = new Date().toLocaleDateString();
 
       const patientHeader = `
-            <div style="font-family: sans-serif; color: #333;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px;">
-                    <div>
-                        <h1 style="color: #0056b3; margin: 0; font-size: 24px;">RADIOLOGY REPORT</h1>
-                        <p style="margin: 5px 0 0; font-size: 14px; color: #666;">${userProfile?.institution || 'Advanced Imaging Center'}</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="margin: 0; font-weight: bold;">${userProfile?.displayName || user.email}</p>
-                        <p style="margin: 0; font-size: 12px; color: #666;">${userProfile?.title || 'Radiologist'}</p>
-                    </div>
+    <div style="padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
+                <div style="flex: 1;">
+                    ${logoHtml}
+                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px;">${hName}</h1>
+                    <p style="margin: 10px 0 0; color: #4b5563;">${hDept}</p>
+                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 12px;">${hAddr}</p>
+                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
                 </div>
                 
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
@@ -6003,6 +6030,16 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
 
 
+
+  const handleInsertTemplate = (content) => {
+    if (!editor) return;
+    isProgrammaticUpdate.current = true;
+    editor.chain().focus().insertContent(content).run();
+    setEditorContent(editor.getHTML());
+    setShowTemplateModal(false);
+    toast.success("Template inserted");
+  };
+
   // --- NEW HELPER FUNCTION for DICOM Conversion ---
   const convertDicomToPngBase64 = async (dicomFile) => {
     const cornerstone = window.cornerstone;
@@ -6336,8 +6373,16 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                   <div><label className="text-[10px] uppercase font-bold text-slate-500">Patient ID</label><input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
                   <div className="grid grid-cols-2 gap-2">
                     <div><label className="text-[10px] uppercase font-bold text-slate-500">Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
-                    <div><label className="text-[10px] uppercase font-bold text-slate-500">Date</label><input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-500">Gender</label>
+                      <select value={patientGender} onChange={e => setPatientGender(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
                   </div>
+                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Date</label><input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
                 </div>
               </SidePanel>
 
@@ -6435,7 +6480,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                   onAcknowledge={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                   onInsertMacro={() => { if (editor && activeAlert?.type === 'critical') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                   onFix={handleFixInconsistency}
-                  onProceed={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); generateFinalReport(true); }}
+                  onProceed={() => { console.log("onProceed clicked"); setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); generateFinalReport(true); }}
                   onInsertGuideline={() => { if (editor && activeAlert?.type === 'guideline') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                 />
               </div>
@@ -6840,7 +6885,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {isModalOpen && (<ImageModal images={images} currentIndex={currentImageIndex} onClose={closeModal} onNext={showNextImage} onPrev={showPrevImage} />)}
 
         {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
-        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} />}
+        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} onInsert={handleInsertTemplate} />}
         {/* 👇 ADD THIS BLOCK AT THE BOTTOM OF YOUR JSX 👇 */}
 
         <BrandingModal
