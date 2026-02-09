@@ -140,7 +140,7 @@
 // export default TemplateManagerModal;
 
 import React, { useState, useEffect } from 'react';
-import { XCircle, Plus, Trash2, FileText, Bold, Table as TableIcon } from 'lucide-react';
+import { XCircle, Plus, Trash2, FileText, Bold, Table as TableIcon, Search, PlusCircle } from 'lucide-react';
 import { db } from '../../firebase'; // Assuming firebase.js is set up
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
@@ -155,11 +155,12 @@ import { TableRow as TableRowExtension } from '@tiptap/extension-table-row';
 import { TableHeader as TableHeaderExtension } from '@tiptap/extension-table-header';
 import { TableCell as TableCellExtension } from '@tiptap/extension-table-cell';
 
-const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
+const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) => {
   const [customTemplates, setCustomTemplates] = useState([]);
   const [newTemplateModality, setNewTemplateModality] = useState(existingModalities[0] || 'Ultrasound');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // <--- ADD THIS LINE
 
   // --- Tiptap Editor Instance ---
   const editor = useEditor({
@@ -345,30 +346,57 @@ const TemplateManagerModal = ({ user, existingModalities, onClose }) => {
           {/* Existing Templates List */}
           <div className="space-y-4">
             <h4 className="font-bold text-xl text-indigo-300 border-b border-indigo-500/30 pb-2">Your Templates</h4>
+
+            {/* --- SEARCH BAR --- */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-black/40 border border-slate-700 rounded-lg text-slate-200 outline-none focus:border-indigo-500 placeholder:text-slate-600"
+              />
+              <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+            </div>
+
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-              {customTemplates.length > 0 ? (
-                customTemplates.map(template => (
-                  <div
-                    key={template.id}
-                    className="flex justify-between items-start bg-white/5 p-3 rounded-lg border border-white/5 hover:border-indigo-500/30 transition-all"
-                  >
-                    <div className="flex-grow">
-                      <p className="font-bold text-slate-200">{template.name}</p>
-                      <p className="text-xs text-white bg-indigo-600 rounded-full px-2 py-0.5 inline-block mt-1">
-                        {template.modality}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteTemplate(template.id)}
-                      className="text-red-400 hover:text-red-300 ml-4 flex-shrink-0"
+              {customTemplates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
+                customTemplates
+                  .filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) // <--- FILTER HERE
+                  .map(template => (
+                    <div
+                      key={template.id}
+                      className="flex justify-between items-start bg-white/5 p-3 rounded-lg border border-white/5 hover:border-indigo-500/30 transition-all"
                     >
-                      <Trash2 />
-                    </button>
-                  </div>
-                ))
+                      <div className="flex-grow">
+                        <p className="font-bold text-slate-200">{template.name}</p>
+                        <p className="text-xs text-white bg-indigo-600 rounded-full px-2 py-0.5 inline-block mt-1">
+                          {template.modality}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                        {/* Insert Button */}
+                        {onInsert && (
+                          <button
+                            onClick={() => onInsert(template.content)}
+                            className="text-indigo-400 hover:text-white hover:bg-indigo-600/50 p-2 rounded-full transition-colors"
+                            title="Insert into editor"
+                          >
+                            <PlusCircle size={20} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteTemplate(template.id)}
+                          className="text-red-400 hover:text-red-300 p-2 rounded-full transition-colors"
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                    </div>
+                  ))
               ) : (
                 <p className="text-slate-500 mt-4 text-center">
-                  You haven't added any custom templates yet.
+                  {searchQuery ? "No templates match your search." : "You haven't added any custom templates yet."}
                 </p>
               )}
             </div>
