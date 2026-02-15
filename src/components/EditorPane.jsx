@@ -42,7 +42,7 @@ export default function EditorPane({ content = "", onUpdate }) {
       editorProps: {
         attributes: {
           class:
-            "tiptap min-h-[400px] outline-none prose prose-invert max-w-none focus-visible:ring-2 ring-indigo-500 rounded-b-lg bg-[#0c1221] p-6 text-slate-200 shadow-inner",
+            "tiptap min-h-[400px] outline-none prose prose-slate dark:prose-invert max-w-none focus-visible:ring-2 ring-primary rounded-b-lg bg-card p-6 text-foreground shadow-inner",
         },
       },
       onUpdate({ editor }) {
@@ -63,7 +63,7 @@ export default function EditorPane({ content = "", onUpdate }) {
   if (!editor) return null; // While lazy bundle loads
 
   return (
-    <div className="rounded-lg border border-white/10 overflow-hidden bg-[#0a0f1c] shadow-xl">
+    <div className="rounded-lg border border-border overflow-hidden bg-card shadow-sm">
       <MenuBar editor={editor} />
       <EditorContent editor={editor} aria-label="Findings editor" />
     </div>

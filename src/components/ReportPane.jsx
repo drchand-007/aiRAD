@@ -16,7 +16,7 @@ export default function EditorPane({ content, onUpdate }) {
       StarterKit,
       Placeholder.configure({
         placeholder: "Start dictating or paste findings here…",
-        emptyEditorClass: "text-neutral-400 italic",
+        emptyEditorClass: "text-muted-foreground italic",
       }),
     ],
     content,
@@ -33,7 +33,7 @@ export default function EditorPane({ content, onUpdate }) {
   }
 
   return (
-    <div className="rounded-lg bg-white border border-gray-300">
+    <div className="rounded-lg bg-card border border-border">
       <MenuBar editor={editor} />
       <EditorContent
         editor={editor}

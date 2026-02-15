@@ -90,13 +90,17 @@ const workflows = [
     desc: "70% of your day is routine. Why waste mental energy on it? Clear these cases in seconds with one click.",
     steps: ["Auto-Select Protocol", "Insert 'Perfect Normal'", "Instant Sign-Off"],
     visual: (
-      <div className="flex flex-col gap-3 h-full justify-center px-4 relative">
+      <div className="flex flex-col gap-3 h-full justify-center px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-amber-500/5 blur-xl"></div>
-        <div className="p-3 bg-slate-900 border border-slate-700/50 rounded-lg flex justify-between items-center opacity-70 relative z-10">
+
+        {/* Abstract Report with Scanning Effect */}
+        <div className="relative p-3 bg-slate-900 border border-slate-700/50 rounded-lg flex justify-between items-center opacity-90 z-10 overflow-hidden group-hover:border-amber-500/30 transition-colors">
+          <div className="absolute top-0 left-0 w-full h-1 bg-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-scan z-20"></div>
           <span className="text-xs text-slate-400">Study: Abdomen Complete</span>
           <CheckCircle2 size={14} className="text-green-500" />
         </div>
-        <div className="p-4 bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 cursor-pointer shadow-[0_0_25px_rgba(245,158,11,0.2)] animate-pulse relative z-10 hover:scale-105 transition-transform">
+
+        <div className="p-4 bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 cursor-pointer shadow-[0_0_25px_rgba(245,158,11,0.2)] animate-pulse-glow relative z-10 hover:scale-105 transition-transform">
           <Zap size={20} className="text-amber-400 fill-amber-400/20" />
           <div>
             <span className="text-sm font-bold text-amber-200 block">Insert Normal Findings</span>
@@ -117,20 +121,24 @@ const workflows = [
     steps: ["Dictate Freely", "AI Structures Logic", "Review & Sign"],
     visual: (
       <div className="flex flex-col gap-2 h-full justify-center px-4 relative">
-        <div className="p-2 bg-slate-800/80 rounded-lg border border-dashed border-slate-600 text-[10px] text-slate-500 italic relative z-10">
+        {/* Floating "Chaos" Bubble */}
+        <div className="p-3 bg-slate-800/80 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-sm border border-dashed border-slate-600 text-[10px] text-slate-400 italic relative z-10 animate-float shadow-lg max-w-[80%] self-start">
           "uh liver looks ok tiny cyst segment 8 gallbladder has sludge no stones"
         </div>
-        <div className="flex justify-center relative z-10">
-          <div className="w-[1px] h-6 bg-gradient-to-b from-slate-600 to-pink-500"></div>
+
+        <div className="flex justify-center relative z-0 my-1">
+          <div className="w-[1px] h-8 bg-gradient-to-b from-slate-600 to-pink-500 opacity-50"></div>
         </div>
-        <div className="p-3 bg-gradient-to-br from-pink-500/10 to-purple-600/10 border border-pink-500/30 rounded-xl shadow-lg relative z-10 backdrop-blur-sm">
+
+        {/* Structured Output appearing */}
+        <div className="p-3 bg-gradient-to-br from-pink-500/10 to-purple-600/10 border border-pink-500/30 rounded-xl shadow-[0_0_20px_rgba(236,72,153,0.15)] relative z-10 backdrop-blur-sm animate-fade-in-up">
           <div className="flex items-center gap-2 mb-2 border-b border-pink-500/20 pb-1">
             <Wand2 size={12} className="text-pink-400" />
             <span className="text-[10px] font-bold text-pink-300 uppercase tracking-wider">Restructured</span>
           </div>
-          <div className="text-[10px] text-slate-300 space-y-1">
-            <div className="flex justify-between"><span className="text-white font-bold">LIVER:</span> <span>Simple cyst, Seg 8.</span></div>
-            <div className="flex justify-between"><span className="text-white font-bold">GALLBLADDER:</span> <span>Sludge present. No cholelithiasis.</span></div>
+          <div className="text-[10px] text-slate-300 space-y-1.5">
+            <div className="flex justify-between items-center p-1 hover:bg-white/5 rounded"><span className="text-pink-100 font-bold">LIVER:</span> <span>Simple cyst, Seg 8.</span></div>
+            <div className="flex justify-between items-center p-1 hover:bg-white/5 rounded"><span className="text-pink-100 font-bold">GALLBLADDER:</span> <span>Sludge present.</span></div>
           </div>
         </div>
       </div>
@@ -147,22 +155,25 @@ const workflows = [
     steps: ["Spot Pathology", "Sidebar Lookup", "Insert Evidence"],
     visual: (
       <div className="flex gap-2 h-full items-center px-4 relative">
-        <div className="w-2/3 bg-slate-900 border border-slate-700/50 rounded-lg p-3 relative z-10 opacity-50 blur-[1px]">
+        <div className="w-2/3 bg-slate-900 border border-slate-700/50 rounded-lg p-3 relative z-10 opacity-40 blur-[1px]">
           <div className="h-2 w-full bg-slate-700 rounded mb-2"></div>
           <div className="h-2 w-3/4 bg-slate-700 rounded"></div>
+          <div className="h-2 w-5/6 bg-slate-700 rounded mt-2"></div>
         </div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-40 bg-gradient-to-b from-[#0a0f1c] to-[#02040a] border border-cyan-500/40 rounded-xl p-3 shadow-[0_0_30px_rgba(6,182,212,0.15)] z-20 transform scale-105">
-          <div className="text-[10px] font-bold text-cyan-400 uppercase mb-2 flex items-center justify-between">
+
+        {/* Floating Knowledge Card */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-44 bg-gradient-to-b from-[#0a0f1c] to-[#02040a] border border-cyan-500/40 rounded-xl p-3 shadow-[0_0_30px_rgba(6,182,212,0.2)] z-20 transform hover:scale-105 transition-all duration-300 animate-float" style={{ animationDelay: '1s' }}>
+          <div className="text-[10px] font-bold text-cyan-400 uppercase mb-2 flex items-center justify-between border-b border-cyan-500/20 pb-1">
             TI-RADS <Search size={10} />
           </div>
-          <div className="space-y-1">
-            <div className="p-1.5 bg-cyan-950/50 border border-cyan-500/20 rounded text-[9px] text-cyan-200">
+          <div className="space-y-1.5">
+            <div className="p-1.5 bg-cyan-950/30 border border-cyan-500/10 rounded text-[9px] text-cyan-200/50">
               TR3: Mild Suspicion
             </div>
-            <div className="p-1.5 bg-cyan-500/20 border border-cyan-400/50 rounded text-[9px] text-cyan-100 font-bold shadow-sm">
+            <div className="p-1.5 bg-cyan-500/20 border border-cyan-400/50 rounded text-[9px] text-cyan-100 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse-glow">
               TR4: Moderate Suspicion
             </div>
-            <div className="p-1.5 bg-cyan-950/50 border border-cyan-500/20 rounded text-[9px] text-cyan-200">
+            <div className="p-1.5 bg-cyan-950/30 border border-cyan-500/10 rounded text-[9px] text-cyan-200/50">
               TR5: High Suspicion
             </div>
           </div>
@@ -183,16 +194,34 @@ const LandingPage = () => {
 
   const toggleFaq = (index) => setOpenFaq(openFaq === index ? null : index);
 
+  // Create a ref for the scroll container
+  const scrollRef = useRef(null);
+
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const handleScroll = () => {
+      if (scrollRef.current) {
+        setScrolled(scrollRef.current.scrollTop > 20);
+      }
+    };
+
+    // window.scrollTo removed as we use ref now
+
+    const container = scrollRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
   }, []);
 
   const currentFlow = workflows[activeWorkflow];
 
   return (
-    <div className="min-h-screen bg-[#02040a] text-slate-300 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+    <div ref={scrollRef} className="h-screen bg-[#02040a] text-slate-300 font-sans selection:bg-indigo-500/30 overflow-y-auto overflow-x-hidden custom-scrollbar">
 
       {/* --- VIVID BACKGROUND --- */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -208,7 +237,7 @@ const LandingPage = () => {
       {/* --- NAVBAR --- */}
       <nav className={`fixed w-full z-100 top-0 transition-all duration-500 border-b ${scrolled ? 'bg-[#02040a]/80 backdrop-blur-xl border-white/5 py-3 shadow-lg shadow-indigo-500/5' : 'bg-transparent border-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo(0, 0)}>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className="relative">
               <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-500" />
               <div className="relative p-2 bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-xl border border-white/10 shadow-lg group-hover:border-indigo-500/50 transition-colors">
@@ -555,6 +584,72 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* --- PRICING SECTION --- */}
+      <section id="pricing" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Simple, Transparent Pricing</h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto">Start for free. Upgrade as you grow. No hidden fees.</p>
+            </div>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-2 gap-8 items-center max-w-6xl mx-auto">
+            <FadeIn delay={100} className="h-full">
+              <PricingCard
+                title="Starter"
+                price="$0"
+                period="/month"
+                description="Perfect for residents and fellows starting their journey."
+                features={[
+                  "10 AI Reports per month",
+                  "Basic Templates",
+                  "Web Access Only",
+                  "Community Support"
+                ]}
+                onButtonClick={() => navigate('/auth')}
+              />
+            </FadeIn>
+
+            <FadeIn delay={200} className="h-full">
+              <PricingCard
+                highlighted={true}
+                title="Professional"
+                price="$29"
+                period="/month"
+                description="For radiologists who want to maximize efficiency."
+                features={[
+                  "Unlimited AI Reports",
+                  "Advanced Custom Templates",
+                  "Knowledge Base Integration",
+                  "Priority Email Support",
+                  "Analytics Dashboard"
+                ]}
+                buttonText="Start 14-Day Free Trial"
+                onButtonClick={() => navigate('/auth')}
+              />
+            </FadeIn>
+
+            {/* <FadeIn delay={300} className="h-full">
+              <PricingCard
+                title="Enterprise"
+                price="Custom"
+                description="For hospitals and imaging centers requiring scale."
+                features={[
+                  "SSO / Active Directory",
+                  "Custom LLM Fine-tuning",
+                  "On-Premise Deployment Option",
+                  "Dedicated Success Manager",
+                  "SLA Guarantees"
+                ]}
+                buttonText="Contact Sales"
+                onButtonClick={() => window.location.href = 'mailto:sales@airad.com'}
+              />
+            </FadeIn> */}
+          </div>
+        </div>
+      </section>
+
       {/* --- FAQs (Accordion Style) --- */}
       <section className="py-24 relative z-10">
         <div className="max-w-3xl mx-auto px-6">
@@ -707,6 +802,47 @@ const FaqItem = ({ question, answer, isOpen, onClick }) => (
         {answer}
       </p>
     </div>
+  </div>
+);
+
+const PricingCard = ({ title, price, period, description, features, highlighted = false, buttonText = "Get Started", onButtonClick }) => (
+  <div className={`relative p-8 rounded-3xl border flex flex-col h-full transition-all duration-300 ${highlighted
+    ? 'bg-[#0f172a] border-indigo-500/50 shadow-[0_0_50px_-10px_rgba(99,102,241,0.3)] scale-105 z-10'
+    : 'bg-[#0a0f1c] border-white/5 hover:border-white/10 hover:bg-white/[0.02]'
+    }`}>
+    {highlighted && (
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-xs font-bold uppercase tracking-widest py-1 px-3 rounded-full shadow-lg">
+        Most Popular
+      </div>
+    )}
+
+    <div className="mb-8">
+      <h3 className={`text-lg font-bold mb-2 ${highlighted ? 'text-white' : 'text-slate-300'}`}>{title}</h3>
+      <div className="flex items-end gap-1 mb-4">
+        <span className="text-4xl font-black text-white">{price}</span>
+        {period && <span className="text-slate-500 font-medium mb-1">{period}</span>}
+      </div>
+      <p className="text-slate-400 text-sm leading-relaxed">{description}</p>
+    </div>
+
+    <div className="flex-grow space-y-4 mb-8">
+      {features.map((feature, i) => (
+        <div key={i} className="flex items-start gap-3 text-sm text-slate-300">
+          <CheckCircle2 size={16} className={`shrink-0 mt-0.5 ${highlighted ? 'text-indigo-400' : 'text-slate-600'}`} />
+          <span>{feature}</span>
+        </div>
+      ))}
+    </div>
+
+    <button
+      onClick={onButtonClick}
+      className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${highlighted
+        ? 'bg-white text-indigo-950 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:-translate-y-1'
+        : 'bg-white/5 text-white hover:bg-white/10 border border-white/5'
+        }`}
+    >
+      {buttonText}
+    </button>
   </div>
 );
 
