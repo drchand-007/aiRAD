@@ -4826,22 +4826,24 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       const userData = userDoc.data();
       let newCount = userData.reportCount || 0;
       const hName = hospitalSettings?.name || '';
-      const hDept = hospitalSettings?.department || '';
-      const hAddr = hospitalSettings?.address || '';
-      const hContact = hospitalSettings?.contact || '';
-      const logoHtml = hospitalSettings?.logo ? `<img src="${hospitalSettings.logo}" style="width : 100vw ..." />` : '';
+      const logoHtml = hospitalSettings?.logo ? `<img src="${hospitalSettings.logo}" style="width: 100%; height: auto; display: block;" alt="Logo" />` : '';
       const date = new Date().toLocaleDateString();
 
-      console.log('patientName ..' + patientName);
-      console.log('patientId ..' + patientId);
-      console.log('patientAge ..' + patientAge);
-      console.log('patientGender ..' + patientGender);
-      console.log('referringPhysician ..' + referringPhysician);
-      console.log('examDate ..' + examDate);
-      console.log('modality ..' + modality);
-      console.log('template ..' + template);
+      const hospitalDetailsHtml = !hospitalSettings?.logo ? `
+        <div style="text-align: right; width: 100%;">
+             <h2 style="margin: 0 0 5px 0; font-size: 22px; font-weight: bold; color: #000;">${hospitalSettings?.name || 'Medical Report'}</h2>
+             <p style="margin: 2px 0; font-size: 14px; color: #000;">${hospitalSettings?.department || ''}</p>
+             <p style="margin: 2px 0; font-size: 12px; color: #000;">${hospitalSettings?.address || ''}</p>
+             <p style="margin: 2px 0; font-size: 12px; color: #000;">${hospitalSettings?.contact || ''}</p>
+        </div>
+      ` : '';
+
       const patientHeader = `
-            <div style="font-family: sans-serif; color: #333;">
+            <div style="font-family: sans-serif; color: #000;">
+                <div style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                    ${logoHtml}
+                    ${hospitalDetailsHtml}
+                </div>
                 
                 
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;color : black;">
