@@ -5,8 +5,9 @@ import {
   FileType, FileJson, Search, PlusCircle, MessageSquare, CheckCircle, ChevronLeft, ChevronRight,
   Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, UnderlineIcon,
   ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, X, Save, Wifi, WifiOff, Shield, Loader2, FileIcon,
-  ChevronDown, History, Image as ImageIcon, Menu, Eye, Wand2, Table as TableIcon,  // Added Wand2 icon
-  Underline
+  ChevronDown, History, Redo2, Image as ImageIcon, Menu, Eye, Wand2, Table as TableIcon, ArrowRight, Sun, Moon,
+  Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Heading1, Heading2, Heading3, Quote, Code, Minus,
+  Subscript as SubscriptIcon, Superscript as SuperscriptIcon
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -17,6 +18,8 @@ import TextAlign from '@tiptap/extension-text-align';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import Link from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { FontSize } from '@tiptap/extension-font-size';
 // 👇 Tiptap table extensions, ALIASED to avoid clash with docx.Table
 import { Table as TableExtension } from '@tiptap/extension-table';
 import { TableRow as TableRowExtension } from '@tiptap/extension-table-row';
@@ -34,6 +37,8 @@ import DOMPurify from 'dompurify';
 
 import { geminiTools } from './api/geminiTools.js'; // Import the tools
 import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the new hook
+
+import { useTheme } from "./context/ThemeContext"; // Import hook
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
 // import Groq from groq;
@@ -135,14 +140,14 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-800/50 rounded-lg">
+    <div className="flex flex-col h-full bg-muted/50 rounded-lg">
       {/* FIX: Changed h-full to flex-1 and added min-h-0 for proper scrolling */}
       <div className="p-4 flex-1 min-h-0 overflow-y-auto flex flex-col space-y-4 custom-scrollbar">
         {history.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`rounded-2xl p-3.5 max-w-lg shadow-md backdrop-blur-sm text-sm leading-relaxed ${msg.sender === 'user'
               ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-900/20 rounded-tr-sm'
-              : 'bg-slate-800/80 border border-slate-700/50 text-gray-200 rounded-tl-sm ring-1 ring-white/5'
+              : 'bg-muted/80 border border-border/50 text-foreground rounded-tl-sm ring-1 ring-white/5'
               }`}>
               <p dangerouslySetInnerHTML={{ __html: (msg.text || '').replace(/\n/g, '<br />') }} />
             </div>
@@ -150,7 +155,7 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
         ))}
         {isReplying && (
           <div className="flex justify-start">
-            <div className="rounded-lg p-3 bg-slate-700 text-gray-200">
+            <div className="rounded-lg p-3 bg-muted text-foreground">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
@@ -161,21 +166,21 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
         )}
         <div ref={chatEndRef} />
       </div>
-      <div className="p-3 border-t border-slate-700 flex-shrink-0"> {/* Added flex-shrink-0 */}
+      <div className="p-3 border-t border-border flex-shrink-0"> {/* Added flex-shrink-0 */}
         <div className="flex items-center space-x-2">
           <textarea
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask a follow-up..."
-            className="w-full p-2 border border-slate-600 bg-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 transition resize-none text-gray-200 placeholder-gray-500"
+            className="w-full p-2 border border-border bg-background rounded-lg focus:ring-2 focus:ring-primary transition resize-none text-foreground placeholder:text-muted-foreground"
             rows="2"
             disabled={isReplying}
           />
           <button
             onClick={handleSend}
             disabled={isReplying || !userInput.trim()}
-            className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-500 transition disabled:bg-blue-800 disabled:cursor-not-allowed"
+            className="bg-primary text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>
@@ -192,10 +197,10 @@ const AiConversationPanel = ({ history, onSendMessage, isReplying, userInput, se
 
 // --- REDESIGNED COMPONENT: SidePanel ---
 const SidePanel = ({ title, icon: Icon, children }) => (
-  <div className="bg-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden mb-4 shadow-lg ring-1 ring-white/5 transition-all duration-300 hover:bg-[#0f172a]/80 hover:border-indigo-500/30 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)]">
-    <div className="bg-white/5 px-3 py-2 border-b border-slate-700/50 flex items-center backdrop-blur-md">
-      {Icon && <Icon size={14} className="mr-2 text-blue-400" />}
-      <h2 className="text-xs font-bold text-blue-300 uppercase tracking-wider">
+  <div className="bg-card/40 backdrop-blur-md border border-border/50 rounded-xl overflow-hidden mb-4 shadow-sm hover:shadow-md transition-all duration-300 group">
+    <div className="bg-muted/40 px-3 py-2 border-b border-border/50 flex items-center backdrop-blur-md">
+      {Icon && <Icon size={14} className="mr-2 text-primary opacity-80 group-hover:opacity-100 transition-opacity" />}
+      <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
         {title}
       </h2>
     </div>
@@ -209,13 +214,13 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
   if (!editor) return null;
 
-  const ToolbarGroup = ({ children }) => (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-black/20 rounded-lg border border-white/5">
+  const ToolbarGroup = ({ children, className = "" }) => (
+    <div className={`flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/50 shadow-inner ${className}`}>
       {children}
     </div>
   );
 
-  const ToolbarButton = ({ onClick, isActive, disabled, icon: Icon, title }) => (
+  const ToolbarButton = ({ onClick, isActive, disabled, icon: Icon, title, activeClass = "bg-primary text-white" }) => (
     <button
       type="button"
       onClick={(e) => {
@@ -225,55 +230,44 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
       disabled={disabled}
       title={title}
       className={`
-        p-2 rounded-md transition-all duration-200 flex items-center justify-center
+        p-2 rounded-lg transition-all duration-200 flex items-center justify-center
         ${isActive
-          ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-          : "text-slate-400 hover:text-white hover:bg-white/10"
+          ? `${activeClass} shadow-[0_0_12px_rgba(var(--primary),0.3)] scale-105 z-10`
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
         }
-        ${disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}
+        ${disabled ? "opacity-20 cursor-not-allowed" : "cursor-pointer hover:scale-105 active:scale-95"}
       `}
     >
       <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
     </button>
   );
 
-  const Separator = () => <div className="w-[1px] h-6 bg-white/10 mx-1" />;
-
   const handleInsertTable = () => {
-    editor
-      .chain()
-      .focus()
-      .insertTable({
-        rows: 2,
-        cols: 2,
-        withHeaderRow: true,
-      })
-      .run();
+    editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run();
   };
 
   return (
-    <div className="flex flex-col gap-2 p-3 bg-slate-900/60 backdrop-blur-md border-b border-slate-700/50 rounded-t-lg">
-      <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-indigo-900/50 pb-2">
+    <div className="flex flex-col gap-2 p-2 bg-card/40 backdrop-blur-xl border-b border-border rounded-t-xl sticky top-0 z-30">
+      {/* TOOLBAR ROW */}
+      <div className="flex flex-wrap items-center gap-2">
 
-        {/* HISTORY */}
+        {/* GROUP 1: HISTORY */}
         <ToolbarGroup>
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
-            icon={History} // Using History as Undo icon substitute if Undo not imported, else import Undo/Redo
+            icon={History}
             title="Undo"
           />
           <ToolbarButton
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
-            icon={ListPlus} // Using ListPlus as safe fallback or explicit Redo if available
+            icon={Redo2}
             title="Redo"
           />
         </ToolbarGroup>
 
-        <Separator />
-
-        {/* TEXT FORMATTING */}
+        {/* GROUP 2: BASIC FORMATTING */}
         <ToolbarGroup>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
@@ -293,35 +287,124 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
             icon={UnderlineIcon}
             title="Underline"
           />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            isActive={editor.isActive("strike")}
+            icon={Strikethrough}
+            title="Strike"
+          />
         </ToolbarGroup>
 
-        <Separator />
+        {/* GROUP 2.5: FONT SIZE (NEW) */}
+        <ToolbarGroup className="gap-0 px-1">
+          <ToolbarButton
+            onClick={() => {
+              const currentSize = editor.getAttributes('textStyle').fontSize || '16px';
+              const size = parseInt(currentSize);
+              editor.chain().focus().setFontSize(`${Math.max(8, size - 2)}px`).run();
+            }}
+            icon={Minus}
+            title="Decrease Font Size"
+            activeClass="text-foreground"
+          />
+          <div className="px-2 min-w-[32px] text-center text-[10px] font-black text-primary select-none cursor-default">
+            {parseInt(editor.getAttributes('textStyle').fontSize || '16')}
+          </div>
+          <ToolbarButton
+            onClick={() => {
+              const currentSize = editor.getAttributes('textStyle').fontSize || '16px';
+              const size = parseInt(currentSize);
+              editor.chain().focus().setFontSize(`${Math.min(72, size + 2)}px`).run();
+            }}
+            icon={Plus}
+            title="Increase Font Size"
+            activeClass="text-foreground"
+          />
+        </ToolbarGroup>
 
-        {/* ALIGNMENT */}
+        {/* GROUP 3: SCRIPTS */}
         <ToolbarGroup>
           <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("left").run()}
-            isActive={editor.isActive({ textAlign: "left" })}
-            icon={List} // Fallback for AlignLeft
-            title="Align Left"
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+            isActive={editor.isActive("subscript")}
+            icon={SubscriptIcon}
+            title="Subscript"
+            activeClass="bg-indigo-600 text-white"
           />
           <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("center").run()}
-            isActive={editor.isActive({ textAlign: "center" })}
-            icon={List} // Fallback for AlignCenter
-            title="Align Center"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("right").run()}
-            isActive={editor.isActive({ textAlign: "right" })}
-            icon={List} // Fallback for AlignRight
-            title="Align Right"
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            isActive={editor.isActive("superscript")}
+            icon={SuperscriptIcon}
+            title="Superscript"
+            activeClass="bg-indigo-600 text-white"
           />
         </ToolbarGroup>
 
-        <Separator />
+        {/* GROUP 4: ALIGNMENT */}
+        <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            isActive={editor.isActive({ textAlign: 'left' })}
+            icon={AlignLeft}
+            title="Align Left"
+            activeClass="bg-emerald-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            isActive={editor.isActive({ textAlign: 'center' })}
+            icon={AlignCenter}
+            title="Align Center"
+            activeClass="bg-emerald-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            isActive={editor.isActive({ textAlign: 'right' })}
+            icon={AlignRight}
+            title="Align Right"
+            activeClass="bg-emerald-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            isActive={editor.isActive({ textAlign: 'justify' })}
+            icon={AlignJustify}
+            title="Align Justify"
+            activeClass="bg-emerald-600 text-white"
+          />
+        </ToolbarGroup>
 
-        {/* LISTS & OTHERS */}
+        {/* GROUP 5: STRUCTURE */}
+        <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            isActive={editor.isActive("heading", { level: 1 })}
+            icon={Heading1}
+            title="Heading 1"
+            activeClass="bg-amber-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            isActive={editor.isActive("heading", { level: 2 })}
+            icon={Heading2}
+            title="Heading 2"
+            activeClass="bg-amber-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            isActive={editor.isActive("heading", { level: 3 })}
+            icon={Heading3}
+            title="Heading 3"
+            activeClass="bg-amber-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            isActive={editor.isActive("blockquote")}
+            icon={Quote}
+            title="Blockquote"
+            activeClass="bg-amber-600 text-white"
+          />
+        </ToolbarGroup>
+
+        {/* GROUP 6: LISTS */}
         <ToolbarGroup>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -335,62 +418,90 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
             icon={ListOrdered}
             title="Ordered List"
           />
+        </ToolbarGroup>
+
+        {/* GROUP 7: UTILS */}
+        <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            isActive={editor.isActive("codeBlock")}
+            icon={Code}
+            title="Code Block"
+            activeClass="bg-violet-600 text-white"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            icon={Minus}
+            title="Horizontal Rule"
+          />
+        </ToolbarGroup>
+
+        {/* GROUP 8: LINKS & TABLES */}
+        <ToolbarGroup>
           <ToolbarButton
             onClick={() => {
-              const previousUrl = editor.getAttributes('link').href
-              const url = window.prompt('URL', previousUrl)
-              if (url === null) return
+              const previousUrl = editor.getAttributes('link').href;
+              const url = window.prompt('URL', previousUrl);
+              if (url === null) return;
               if (url === '') {
-                editor.chain().focus().extendMarkRange('link').unsetLink().run()
-                return
+                editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return;
               }
-              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
             }}
             isActive={editor.isActive("link")}
             icon={LinkIcon}
-            title="Hyperlink"
+            title="Link"
           />
           <ToolbarButton
             onClick={handleInsertTable}
+            isActive={editor.isActive("table")}
             icon={TableIcon}
-            title="Insert Table"
-            isActive={false}
+            title="Table"
           />
         </ToolbarGroup>
-      </div>
 
-      {/* VOICE CONTROL ROW */}
-      <div className="flex items-center justify-between border-t border-white/5 pt-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Voice Dictation</span>
-          {(voiceStatus === 'listening' || voiceStatus === 'processing') && interimTranscript && (
-            <p className="text-xs text-blue-400 italic hidden md:block max-w-[300px] truncate border-l border-white/10 pl-2">
-              {interimTranscript}
-            </p>
-          )}
+        {/* VOICE CONTROLLER */}
+        <div className="flex-1 min-w-[240px] flex items-center h-10 bg-muted/50 backdrop-blur-md rounded-xl border border-border shadow-inner px-1 ml-auto">
+          <button
+            onClick={handleToggleListening}
+            disabled={!isDictationSupported}
+            title={!isDictationSupported ? "Speech recognition not supported in this browser" : "Toggle Voice Assistant"}
+            className={`
+              flex items-center justify-center gap-2 h-8 px-4 rounded-lg font-black uppercase tracking-tighter text-[10px] transition-all duration-500
+              ${!isDictationSupported
+                ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                : voiceStatus === 'listening'
+                  ? 'bg-destructive text-white animate-pulse-breathing shadow-[0_0_20px_rgba(var(--destructive),0.5)]'
+                  : 'bg-primary/20 text-primary hover:bg-primary hover:text-white border border-primary/30'
+              }
+            `}
+          >
+            <Mic size={14} className={voiceStatus === 'listening' ? 'animate-bounce' : ''} />
+            <span>{voiceStatus === 'listening' ? 'REC' : 'MIC'}</span>
+          </button>
+
+          <div className="flex-1 px-3 overflow-hidden">
+            <div className="flex items-center gap-2 h-full">
+              {voiceStatus === 'listening' && (
+                <div className="flex gap-0.5">
+                  <div className="w-1 h-3 bg-destructive rounded-full animate-pulse"></div>
+                  <div className="w-1 h-3 bg-destructive rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                  <div className="w-1 h-3 bg-destructive rounded-full animate-pulse [animation-delay:0.4s]"></div>
+                </div>
+              )}
+              <p className="text-[11px] font-bold text-foreground/80 tracking-tight italic truncate">
+                {!isDictationSupported
+                  ? 'Voice not supported...'
+                  : interimTranscript || (voiceStatus === 'listening' ? 'Radiologist listening...' : 'Ready for dictation...')}
+              </p>
+            </div>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={(e) => { e.preventDefault(); handleToggleListening(); }}
-          disabled={!isDictationSupported}
-          className={`px-3 py-1.5 rounded-full flex items-center justify-center gap-2 transition-all text-xs font-bold ${voiceStatus === 'listening'
-            ? 'bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-            }`}
-        >
-          {voiceStatus === 'processing' ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Mic size={14} />
-          )}
-          {voiceStatus === 'listening' ? 'Listening...' : 'Start Dictation'}
-        </button>
       </div>
     </div>
   );
 };
-
 
 // --- UNIFIED COMPONENT: AlertPanel (UNCHANGED) ---
 const AlertPanel = ({ alertData, onAcknowledge, onInsertMacro, onPrepareNotification, onFix, onProceed, onInsertGuideline }) => {
@@ -499,27 +610,27 @@ const AiSuggestedMeasurementsPanel = ({ measurements, onInsert, onClear }) => {
   }
 
   return (
-    <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-800">
+    <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 backdrop-blur-sm shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-md font-bold text-blue-300 flex items-center">
-          <Zap size={16} className="mr-2" />AI Suggestions
+        <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center">
+          <Zap size={14} className="mr-2" />AI Suggestions
         </h3>
-        <button onClick={onClear} className="text-gray-500 hover:text-gray-300">
-          <XCircle size={20} />
+        <button onClick={onClear} className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-white/10 rounded-full">
+          <XCircle size={16} />
         </button>
       </div>
-      <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+      <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
         {measurements.map((item, index) => (
-          <div key={index} className="bg-slate-800 p-2 rounded-md flex items-center justify-between shadow-sm">
-            <div>
-              <span className="font-semibold text-gray-200 text-sm">{item.finding}:</span>
-              <span className="ml-2 text-gray-400 text-sm">{item.value}</span>
+          <div key={index} className="bg-card/50 border border-border/50 p-2.5 rounded-lg flex items-center justify-between shadow-sm group hover:border-primary/30 transition-all">
+            <div className="flex flex-col">
+              <span className="font-bold text-foreground text-xs">{item.finding}</span>
+              <span className="text-muted-foreground text-[10px] italic">{item.value}</span>
             </div>
             <button
               onClick={() => onInsert(item.finding, item.value)}
-              className="bg-blue-600/50 text-blue-200 font-bold py-1 px-2 rounded-md hover:bg-blue-600 transition text-xs flex items-center"
+              className="bg-primary/20 text-primary font-black py-1.5 px-3 rounded-lg hover:bg-primary hover:text-white transition-all text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95"
             >
-              <Plus size={14} className="mr-1" /> Insert
+              <Plus size={12} strokeWidth={3} /> Insert
             </button>
           </div>
         ))}
@@ -553,30 +664,30 @@ const RecentReportsPanel = ({ onSelectReport, user, onViewHistory }) => { // Add
   return (
     <CollapsibleSidePanel title="Recent Reports" icon={History} defaultOpen={false}>
       {isLoading ? (
-        <p className="text-sm text-gray-400">Loading reports...</p>
+        <p className="text-xs text-muted-foreground italic animate-pulse">Loading reports...</p>
       ) : recentReports.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {recentReports.map(report => (
             <button
               key={report.id}
               onClick={() => onSelectReport(report)}
-              className="w-full text-left p-2 bg-slate-700/50 hover:bg-slate-700 rounded-md border border-transparent hover:border-slate-600 transition"
+              className="w-full text-left p-2.5 bg-card/50 hover:bg-muted rounded-xl border border-border/50 hover:border-primary/30 transition-all group"
             >
-              <p className="font-semibold text-sm text-gray-200">{report.patientName}</p>
-              <p className="text-xs text-gray-500">{report.examDate}</p>
+              <p className="font-bold text-xs text-foreground group-hover:text-primary transition-colors">{report.patientName}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{report.examDate}</p>
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-500">No recent reports found.</p>
+        <p className="text-xs text-muted-foreground italic">No recent reports found.</p>
       )}
 
       {/* --- NEW BUTTON: View All History --- */}
       <button
         onClick={onViewHistory}
-        className="w-full mt-4 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-bold uppercase tracking-wider rounded border border-slate-700 hover:border-blue-500/50 transition-all flex items-center justify-center gap-2 group"
+        className="w-full mt-4 py-2.5 px-3 bg-primary/10 hover:bg-primary text-primary hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-primary/20 hover:border-primary transition-all flex items-center justify-center gap-2 group active:scale-95 shadow-sm"
       >
-        <History size={14} className="group-hover:text-blue-300" />
+        <History size={12} className="group-hover:rotate-12 transition-transform" />
         View All History
       </button>
     </CollapsibleSidePanel>
@@ -625,59 +736,64 @@ const ReportHistoryModal = ({ isOpen, onClose, onSelectReport, user }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl shadow-indigo-500/10 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/5">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <History className="text-blue-400" size={20} />
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-xl font-black uppercase tracking-tighter text-foreground flex items-center gap-3">
+            <History className="text-primary" size={24} />
             Full Report History
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all">
             <XCircle size={24} />
           </button>
         </div>
 
         {/* Modal List Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
           {loading ? (
-            <div className="flex justify-center p-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            <div className="flex flex-col items-center justify-center p-20 gap-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Accessing records...</p>
             </div>
           ) : allReports.length === 0 ? (
-            <div className="text-center text-slate-500 py-10 italic">No reports found in history.</div>
+            <div className="text-center text-muted-foreground py-20 italic">No reports found in history.</div>
           ) : (
-            allReports.map((report) => (
-              <div key={report.id} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-indigo-500/50 hover:bg-white/10 transition-all flex justify-between items-center group">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-200 font-bold text-sm">{report.patientName}</span>
-                    <span className="text-xs text-slate-500 bg-black/30 px-2 py-0.5 rounded border border-white/5 font-mono">
-                      {report.examDate}
-                    </span>
+            <div className="grid gap-3">
+              {allReports.map((report) => (
+                <div key={report.id} className="bg-muted/30 p-4 rounded-2xl border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-all flex justify-between items-center group shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-foreground font-black text-sm tracking-tight">{report.patientName}</span>
+                      <span className="text-[10px] text-primary-foreground bg-primary/80 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">
+                        {report.examDate}
+                      </span>
+                    </div>
+                    <div className="text-[10px] font-bold text-muted-foreground flex gap-2 uppercase tracking-tight">
+                      <span>ID: {report.id}</span>
+                      <span>•</span>
+                      <span>Created: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1 flex gap-2">
-                    <span>ID: {report.id}</span>
-                    <span>•</span>
-                    <span>Created: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</span>
-                  </div>
+                  <button
+                    onClick={() => { onSelectReport(report); onClose(); }}
+                    className="px-4 py-2 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all border border-primary/20 hover:border-primary active:scale-95 shadow-sm"
+                  >
+                    Load Report
+                  </button>
                 </div>
-                <button
-                  onClick={() => { onSelectReport(report); onClose(); }}
-                  className="px-3 py-2 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded-lg hover:bg-indigo-500 hover:text-white transition-colors border border-indigo-500/30 hover:border-indigo-500"
-                >
-                  Load Report
-                </button>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-white/5 bg-black/20 text-right flex justify-between items-center rounded-b-2xl">
-          <span className="text-xs text-slate-500">Showing recent {allReports.length} reports</span>
-          <button onClick={onClose} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-lg transition-colors border border-white/5">Close</button>
+        <div className="p-6 border-t border-border bg-muted/40 text-right flex justify-between items-center rounded-b-2xl">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            Total {allReports.length} reports indexed
+          </span>
+          <button onClick={onClose} className="px-6 py-2.5 bg-card hover:bg-muted text-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-border hover:border-primary active:scale-95 shadow-sm">Close</button>
         </div>
       </div>
     </div>
@@ -693,16 +809,16 @@ const ShortcutsHelpModal = ({ shortcuts, onClose }) => {
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const modifierKey = isMac ? '⌘' : 'Ctrl';
   const altKey = isMac ? '⌥' : 'Alt';
-  const renderKey = (key) => <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-200 bg-slate-600 border border-slate-500 rounded-md">{key}</kbd>;
+  const renderKey = (key) => <kbd className="px-2 py-1.5 text-xs font-semibold text-foreground bg-muted border border-border rounded-md">{key}</kbd>;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
           <h3 className="text-lg font-bold text-slate-100 flex items-center"><Zap size={18} className="mr-3 text-indigo-400" />Keyboard Shortcuts</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><XCircle /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><XCircle /></button>
         </div>
-        <div className="p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+        <div className="p-6 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             {Object.entries(shortcuts).map(([action, config]) => (
               <div key={action} className="flex justify-between items-center">
@@ -725,7 +841,7 @@ const KnowledgeLookupPanel = ({ result, onClose, onInsert }) => {
   if (!result) return null;
 
   return (
-    <div className="p-4 bg-slate-800/50 rounded-lg h-full flex flex-col">
+    <div className="p-4 bg-muted/50 rounded-lg h-full flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-bold text-gray-200 flex items-center">
           <BrainCircuit className="mr-3 text-green-400" />
@@ -772,7 +888,7 @@ const KnowledgeLookupPanel = ({ result, onClose, onInsert }) => {
           </div>
         )}
       </div>
-      <div className="mt-4 pt-4 border-t border-slate-700">
+      <div className="mt-4 pt-4 border-t border-border">
         <button
           onClick={() => {
             const contentToInsert = `
@@ -798,12 +914,12 @@ const CollapsibleSidePanel = ({ title, icon: Icon, children, defaultOpen = false
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
+    <div className="bg-muted/50 rounded-lg border border-border/50 overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center p-3 text-left hover:bg-slate-700/50 transition-colors focus:outline-none"
+        className="w-full flex justify-between items-center p-3 bg-muted/50 hover:bg-muted rounded transition-colors focus:outline-none"
       >
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
           {Icon && <Icon size={14} className="mr-2" />}
           {title}
         </h2>
@@ -816,7 +932,7 @@ const CollapsibleSidePanel = ({ title, icon: Icon, children, defaultOpen = false
       <div
         className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[1000px]' : 'max-h-0'}`}
       >
-        <div className="p-4 border-t border-slate-700/50">
+        <div className="p-4 border-t border-border/50">
           {children}
         </div>
       </div>
@@ -1059,7 +1175,7 @@ const ImageViewer = ({ image, className, isDicomLoaded }) => {
   // --- JSX for the viewer component ---
   // (The JSX part of ImageViewer remains unchanged)
   return (
-    <div className={`relative w-full border border-slate-700 rounded-lg bg-black overflow-hidden ${className || 'h-[500px]'}`}>
+    <div className={`relative w-full border border-border rounded-lg bg-background overflow-hidden ${className || 'h-[500px]'}`}>
       {/* Loading Overlay */}
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white z-10">
@@ -1122,7 +1238,7 @@ const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev, isDicomLoad
         </div>
 
         {/* Image display area */}
-        <div className="flex-grow relative min-h-0 overflow-hidden rounded-lg bg-black border border-white/5">
+        <div className="flex-grow relative min-h-0 overflow-hidden rounded-lg bg-background border border-border/50">
           {isDicom(currentImage) ? (
             <div className="absolute inset-0">
               <ImageViewer image={currentImage} isDicomLoaded={isDicomLoaded} />
@@ -1259,29 +1375,29 @@ const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl shadow-indigo-500/10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
-          <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Settings className="w-6 h-6 text-indigo-400" />
             Hospital Profile
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
         </div>
 
-        <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+        <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Hospital / Center Name</label>
-            <input type="text" className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600" placeholder="e.g. City General Hospital" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Hospital / Center Name</label>
+            <input type="text" className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground" placeholder="e.g. City General Hospital" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Department</label>
-            <input type="text" className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600" placeholder="e.g. Department of Radiology" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} />
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Department</label>
+            <input type="text" className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground" placeholder="e.g. Department of Radiology" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Address</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Address</label>
             <textarea className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg h-20 resize-none outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600" placeholder="e.g. 123 Main St..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Contact Info</label>
-            <input type="text" className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600" placeholder="e.g. Phone: (555) 123-4567" value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} />
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Contact Info</label>
+            <input type="text" className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground" placeholder="e.g. Phone: (555) 123-4567" value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">Logo</label>
@@ -1309,6 +1425,7 @@ const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
 
 const MainApp = () => {
   const navigate = useNavigate(); // <--- ADD THIS LINE
+  const { theme, setTheme } = useTheme(); // <--- ADD THIS LINE
   // --- ALL STATE AND LOGIC  ---
   // --- NEW STATE for UI ---
   const [activeAiTab, setActiveAiTab] = useState('copilot'); // 'copilot', 'search', 'knowledge'
@@ -1329,18 +1446,18 @@ const MainApp = () => {
 
   // --- ALL OTHER APP STATE ---
   // --- REPORT DATA STATE (Initialized from LocalStorage) ---
-  const [patientName, setPatientName] = useState(() => localStorage.getItem('draft_patientName') || 'Patient Name');
-  const [patientId, setPatientId] = useState(() => localStorage.getItem('draft_patientId') || 'P00000000');
-  const [patientAge, setPatientAge] = useState(() => localStorage.getItem('draft_patientAge') || 'Age');
-  const [patientGender, setPatientGender] = useState(() => localStorage.getItem('draft_patientGender') || 'Male'); // <--- ADD THIS LINE
-  const [referringPhysician, setReferringPhysician] = useState(() => localStorage.getItem('draft_referringPhysician') || 'Dr. XYZ');
-  const [examDate, setExamDate] = useState(() => localStorage.getItem('draft_examDate') || new Date().toISOString().split('T')[0]);
-  const [modality, setModality] = useState(() => localStorage.getItem('draft_modality') || 'Ultrasound');
-  const [template, setTemplate] = useState(() => localStorage.getItem('draft_template') || 'Abdomen');
+  const [patientName, setPatientName] = useState('Patient Name');
+  const [patientId, setPatientId] = useState('P00000000');
+  const [patientAge, setPatientAge] = useState('Age');
+  const [patientGender, setPatientGender] = useState('Male');
+  const [referringPhysician, setReferringPhysician] = useState('Dr. XYZ');
+  const [examDate, setExamDate] = useState(new Date().toISOString().split('T')[0]);
+  const [modality, setModality] = useState('Ultrasound');
+  const [template, setTemplate] = useState('Abdomen');
 
   const [images, setImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [userFindings, setUserFindings] = useState(() => localStorage.getItem('draft_userFindings') || '');
+  const [userFindings, setUserFindings] = useState('');
   const [generatedReport, setGeneratedReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -1393,6 +1510,8 @@ const MainApp = () => {
   // --- ADD THESE NEW STATES ---
   const [dynamicMeasurements, setDynamicMeasurements] = useState([]);
   const [templateOrgans, setTemplateOrgans] = useState([]);
+
+  const [userTemplates, setUserTemplates] = useState({});
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const [editorContent, setEditorContent] = useState(templates.Ultrasound.Abdomen);
@@ -1424,32 +1543,6 @@ const MainApp = () => {
 
   const [showSettings, setShowSettings] = useState(false); // <--- Add this
 
-  // --- NEW: User Templates State ---
-  const [userTemplates, setUserTemplates] = useState({});
-
-  // --- Effect: Fetch User Templates ---
-  useEffect(() => {
-    if (!user) {
-      setUserTemplates({});
-      return;
-    }
-    const templatesRef = collection(db, "users", user.uid, "templates");
-    const unsubscribe = onSnapshot(templatesRef, (snapshot) => {
-      const newTemplates = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        // Organize by modality
-        const mod = data.modality || 'Other';
-        if (!newTemplates[mod]) newTemplates[mod] = {};
-        newTemplates[mod][data.name] = data.content;
-      });
-      setUserTemplates(newTemplates);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Hospital Settings State
-
 
   // Hospital Settings State
   const [hospitalSettings, setHospitalSettings] = useState({
@@ -1463,6 +1556,10 @@ const MainApp = () => {
 
   const [savedReports, setSavedReports] = useState([]);
   const [reportContent, setReportContent] = useState('');
+
+  const [templateSearchTerm, setTemplateSearchTerm] = useState(''); // <--- New State for Template Search
+
+
 
   const [systemAnnouncement, setSystemAnnouncement] = useState(null);
   const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(true); // Control visibility
@@ -1514,17 +1611,49 @@ const MainApp = () => {
     };
   }, []);
 
-  // --- AUTOSAVE FORM DATA ---
-  // Saves form fields whenever they change
+  // --- AUTOSAVE & LOAD FORM DATA (USER SCOPED) ---
+  // Load user-specific draft when user changes
   useEffect(() => {
-    localStorage.setItem('draft_patientName', patientName);
-    localStorage.setItem('draft_patientId', patientId);
-    localStorage.setItem('draft_patientAge', patientAge);
-    localStorage.setItem('draft_referringPhysician', referringPhysician);
-    localStorage.setItem('draft_examDate', examDate);
-    localStorage.setItem('draft_modality', modality);
-    localStorage.setItem('draft_template', template);
-  }, [patientName, patientId, patientAge, referringPhysician, examDate, modality, template]);
+    if (user?.uid) {
+      const prefix = `draft_${user.uid}_`;
+      setPatientName(localStorage.getItem(`${prefix}patientName`) || 'Patient Name');
+      setPatientId(localStorage.getItem(`${prefix}patientId`) || 'P00000000');
+      setPatientAge(localStorage.getItem(`${prefix}patientAge`) || 'Age');
+      setPatientGender(localStorage.getItem(`${prefix}patientGender`) || 'Male');
+      setReferringPhysician(localStorage.getItem(`${prefix}referringPhysician`) || 'Dr. XYZ');
+      setExamDate(localStorage.getItem(`${prefix}examDate`) || new Date().toISOString().split('T')[0]);
+      setModality(localStorage.getItem(`${prefix}modality`) || 'Ultrasound');
+      setTemplate(localStorage.getItem(`${prefix}template`) || 'Abdomen');
+      setUserFindings(localStorage.getItem(`${prefix}userFindings`) || '');
+    } else {
+      // Clear or reset to defaults if no user
+      setPatientName('Patient Name');
+      setPatientId('P00000000');
+      setPatientAge('Age');
+      setPatientGender('Male');
+      setReferringPhysician('Dr. XYZ');
+      setExamDate(new Date().toISOString().split('T')[0]);
+      setModality('Ultrasound');
+      setTemplate('Abdomen');
+      setUserFindings('');
+    }
+  }, [user?.uid]);
+
+  // Saves form fields whenever they change (User Scoped)
+  useEffect(() => {
+    if (user?.uid) {
+      const prefix = `draft_${user.uid}_`;
+      localStorage.setItem(`${prefix}patientName`, patientName);
+      localStorage.setItem(`${prefix}patientId`, patientId);
+      localStorage.setItem(`${prefix}patientAge`, patientAge);
+      localStorage.setItem(`${prefix}patientGender`, patientGender);
+      localStorage.setItem(`${prefix}referringPhysician`, referringPhysician);
+      localStorage.setItem(`${prefix}examDate`, examDate);
+      localStorage.setItem(`${prefix}modality`, modality);
+      localStorage.setItem(`${prefix}template`, template);
+      localStorage.setItem(`${prefix}userFindings`, userFindings);
+    }
+  }, [user?.uid, patientName, patientId, patientAge, patientGender, referringPhysician, examDate, modality, template, userFindings]);
 
   useEffect(() => {
     macrosRef.current = macros;
@@ -1698,64 +1827,64 @@ const MainApp = () => {
 
       // 4. Construct the PDF HTML (Letterhead + Content)
       element.innerHTML = `
-              <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.5; padding: 20px;">
-                
-                <!-- Hospital Letterhead Header -->
-                <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start;">
-                  <div style="flex: 1;">
-                    ${logoHtml}
-                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
-                    <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px; font-weight: 600;">${hDept}</p>
-                    <p style="margin: 2px 0 0; color: #6b7280; font-size: 12px; max-width: 300px;">${hAddr}</p>
-                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
-                  </div>
-                  <div style="text-align: right;">
-                    <div style="background-color: #2563eb; color: white; padding: 6px 16px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px; margin-bottom: 8px;">RADIOLOGY REPORT</div>
-                    <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Report Status:</strong> Final</p>
-                    <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Generated:</strong> ${date}</p>
-                  </div>
-                </div>
-      
-                <!-- Patient Demographics Block (Static Placeholder - Connect to real state if available) -->
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Patient Name</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">Doe, John A.</span></td>
-                      <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Medical Record Number</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">8492015</span></td>
-                    </tr>
-                    <tr>
-                      <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Date of Birth</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">01/15/1980 (45y M)</span></td>
-                      <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Exam Date</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">${date}</span></td>
-                    </tr>
-                  </table>
-                </div>
-      
-                <!-- Report Content Body -->
-                <div style="margin-bottom: 40px; font-size: 12pt; text-align: left; color: #374151;">
-                  <h2 style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a; margin-bottom: 20px; font-weight: 700;">Findings & Impression</h2>
-                  ${contentHTML}
-                </div>
-      
-                <!-- Signature Footer -->
-                <div style="margin-top: 60px; padding-top: 25px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
-                  <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div>
-                      <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">Electronically Signed by:</p>
-                      <div style="font-family: 'Courier New', Courier, monospace; font-size: 18px; color: #2563eb; margin-bottom: 4px;">/s/ </div>
-                      <p style="margin: 0; font-size: 13px; color: #4b5563; font-weight: 500;">Certified Radiologist</p>
-                    </div>
-                    <div style="text-align: right;">
-                       <!-- QR Code or Stamp placeholder -->
-                       <div style="width: 60px; height: 60px; background-color: #f0f0f0; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">STAMP</div>
-                    </div>
-                  </div>
-                  
-                  <p style="margin-top: 30px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 10px;">
-                    This report was generated using <strong>aiRAD</strong>.
-                  </p>
-                </div>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.5; padding: 20px;">
+          
+          <!-- Hospital Letterhead Header -->
+          <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1;">
+              ${logoHtml}
+              <h1 style="margin: 0; color: #1e3a8a; font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${hName}</h1>
+              <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px; font-weight: 600;">${hDept}</p>
+              <p style="margin: 2px 0 0; color: #6b7280; font-size: 12px; max-width: 300px;">${hAddr}</p>
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="background-color: #2563eb; color: white; padding: 6px 16px; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px; margin-bottom: 8px;">RADIOLOGY REPORT</div>
+              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Report Status:</strong> Final</p>
+              <p style="margin: 0; font-size: 12px; color: #6b7280;"><strong>Generated:</strong> ${date}</p>
+            </div>
+          </div>
+
+          <!-- Patient Demographics Block (Static Placeholder - Connect to real state if available) -->
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Patient Name</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">Doe, John A.</span></td>
+                <td style="padding-bottom: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Medical Record Number</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">8492015</span></td>
+              </tr>
+              <tr>
+                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Date of Birth</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">01/15/1980 (45y M)</span></td>
+                <td style="padding-top: 8px; width: 50%;"><strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Exam Date</strong> <span style="font-size: 15px; font-weight: 600; color: #1e293b;">${date}</span></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Report Content Body -->
+          <div style="margin-bottom: 40px; font-size: 12pt; text-align: left; color: #374151;">
+            <h2 style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; color: #1e3a8a; margin-bottom: 20px; font-weight: 700;">Findings & Impression</h2>
+            ${contentHTML}
+          </div>
+
+          <!-- Signature Footer -->
+          <div style="margin-top: 60px; padding-top: 25px; border-top: 2px solid #e2e8f0; page-break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">Electronically Signed by:</p>
+                <div style="font-family: 'Courier New', Courier, monospace; font-size: 18px; color: #2563eb; margin-bottom: 4px;">/s/ </div>
+                <p style="margin: 0; font-size: 13px; color: #4b5563; font-weight: 500;">Certified Radiologist</p>
               </div>
-            `;
+              <div style="text-align: right;">
+                 <!-- QR Code or Stamp placeholder -->
+                 <div style="width: 60px; height: 60px; background-color: #f0f0f0; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">STAMP</div>
+              </div>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 10px;">
+              This report was generated using <strong>aiRAD</strong>.
+            </p>
+          </div>
+        </div>
+      `;
 
       const opt = {
         margin: [0.5, 0.5, 0.5, 0.5],
@@ -2155,7 +2284,11 @@ const MainApp = () => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Disable any potential defaults to avoid duplicate warnings
+        // if using a version of StarterKit that might include them
+        codeBlock: false, // We use a customized version or separate extension
+      }),
       UnderlineExtension,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -2165,6 +2298,8 @@ const MainApp = () => {
       Link.configure({
         openOnClick: false,
       }),
+      TextStyle,
+      FontSize,
       Placeholder.configure({
         placeholder: 'Start dictating or paste findings here…',
         emptyEditorClass: 'is-editor-empty',
@@ -2190,6 +2325,15 @@ const MainApp = () => {
       localStorage.setItem('draft_userFindings', html);
     },
   });
+
+  const handleInsertTemplate = useCallback((content) => {
+    if (editor) {
+      editor.chain().focus().insertContent(content).run();
+      setEditorContent(editor.getHTML());
+      toast.success("Template inserted!");
+      setShowTemplateModal(false);
+    }
+  }, [editor]);
 
 
   useEffect(() => {
@@ -2649,11 +2793,6 @@ const MainApp = () => {
 
 
 
-
-  // --- HELPER: escapeRegex ---
-  function escapeRegex(string) {
-    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  }
 
   // --- NEW FUNCTION: findMissingMeasurements ---
   const findMissingMeasurements = () => {
@@ -4367,32 +4506,42 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
       // 3. Prepare Prompt
       const systemPrompt = `
-        You are an expert Radiology AI Assistant.
+        You are an expert Radiology AI Assistant (Co-pilot).
         
-        **CONTEXT:**
-        1. You have access to the patient's **Medical Images** (attached to this request).
+        **ROLE & CONTEXT:**
+        1. You have access to the patient's **Medical Images** (attached).
         2. You have the **Current Report Draft** (below).
-        3. You are in a chat conversation with the Radiologist.
+        3. Your goal is to assist the radiologist by answering questions or modifying the report directly.
 
-        **CURRENT REPORT DRAFT:**
+        **CURRENT REPORT DRAFT (HTML):**
+        ---
         ${reportText}
+        ---
 
         **CHAT HISTORY:**
+        ---
         ${historyString}
+        ---
 
         **USER REQUEST:** "${message}"
 
         **INSTRUCTIONS:**
-        - Answer the user's question based on the **IMAGES** and the **REPORT**.
-        - If the user asks about a specific feature (e.g., "Is that a cyst?"), look at the attached images.
-        - If the user wants to update the report, return a JSON object with "editorAction".
-        - If it's just a question, return a JSON object with "reply".
+        1. Analyze the Request. Use visual information from images if relevant.
+        2. Determine the best **Editor Action**:
+           - **"append"**: Use this to add new text to the end of the report. Generally safer for additive findings.
+           - **"replace"**: Use this for editing existing sections or surgical injections into the middle.
+           - **"none"**: For general questions or chat.
+
+        **CRITICAL RULES FOR "replace":**
+        - If you choose "replace", you MUST return the **COMPLETE AND FULL** report HTML in "contentToInsert".
+        - **DO NOT** truncate, summarize, or remove existing sections.
+        - You are an **EDITOR**, not a summarizer. Maintain all existing structure.
 
         **RESPONSE FORMAT (JSON):**
         {
-          "reply": "string (Your answer to the doctor)",
+          "reply": "string (Conversational response, e.g., 'I\\'ve added the cholecystitis findings to the report.')",
           "editorAction": "none" | "append" | "replace", 
-          "contentToInsert": "string (Only if editorAction is not none)"
+          "contentToInsert": "string (The HTML content. If 'replace', this MUST be the FULL report HTML. If 'append', just the new text to add.)"
         }
       `;
 
@@ -4647,7 +4796,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
 
     // --- START: MODIFIED SECTION ---
-    console.log("Generating report content... Force:", force); // Debug log
+    console.log("Generating report content..."); // Debug log
     if (editor) {
       // 1. Add a hook to find and remove any attribute starting with '@'
       DOMPurify.addHook('afterSanitizeAttributes', (currentNode) => {
@@ -4683,32 +4832,34 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       const logoHtml = hospitalSettings?.logo ? `<img src="${hospitalSettings.logo}" style="width : 100vw ..." />` : '';
       const date = new Date().toLocaleDateString();
 
+      console.log('patientName ..' + patientName);
+      console.log('patientId ..' + patientId);
+      console.log('patientAge ..' + patientAge);
+      console.log('patientGender ..' + patientGender);
+      console.log('referringPhysician ..' + referringPhysician);
+      console.log('examDate ..' + examDate);
+      console.log('modality ..' + modality);
+      console.log('template ..' + template);
       const patientHeader = `
-    <div style="padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 0.9rem;">
-                <div style="flex: 1;">
-                    ${logoHtml}
-                    <h1 style="margin: 0; color: #1e3a8a; font-size: 26px;">${hName}</h1>
-                    <p style="margin: 10px 0 0; color: #4b5563;">${hDept}</p>
-                    <p style="margin: 4px 0 0; color: #6b7280; font-size: 12px;">${hAddr}</p>
-                    <p style="margin: 0; color: #6b7280; font-size: 12px;">${hContact}</p>
-                </div>
+            <div style="font-family: sans-serif; color: #333;">
                 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                    <tr style="background-color: #f8f9fa;">
-                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%; font-weight: bold;">Patient Name</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;">${patientName}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%; font-weight: bold;">Patient ID</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;">${patientId}</td>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;color : black;">
+                    <tr style="background-color: #f8f9fa;color : black;">
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%;color : black; font-weight: bold;">Patient Name</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;color : black;">${patientName}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 15%;color : black; font-weight: bold;">Patient ID</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; width: 35%;color : black;">${patientId}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Age / Gender</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${patientAge} / ${patientGender}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Exam Date</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${examDate}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;color : black;">Age / Gender</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;color : black;">${patientAge} / ${patientGender}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;color : black;">Exam Date</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;color : black;color : black;">${examDate}</td>
                     </tr>
                     <tr style="background-color: #f8f9fa;">
-                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Ref. Physician</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;" colspan="3">${referringPhysician}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;color : black;">Ref. Physician</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;color : black;" colspan="3">${referringPhysician}</td>
                     </tr>
                 </table>
             </div>`;
@@ -4829,6 +4980,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       tempDiv.style.width = '170mm';
       tempDiv.style.fontFamily = 'helvetica';
       tempDiv.style.fontSize = '12px';
+      tempDiv.style.color = '#000000'; // Force black text globally for PDF
       tempDiv.innerHTML = reportContent;
 
       // 🔹 Normalize table styling + spacing for PDF
@@ -4842,6 +4994,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         table.querySelectorAll('th, td').forEach((cell) => {
           cell.style.border = '0.5px solid #000';
           cell.style.padding = '4px';
+          cell.style.color = '#000000'; // Force black text for table cells
         });
       });
 
@@ -5398,36 +5551,35 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       // );
 
       // --- A. PATIENT INFO TABLE ---
-      // const patientInfoTable = new Table({
-      //   width: { size: 100, type: WidthType.PERCENTAGE },
-      //   rows: [
-      //     new TableRow({
-      //       children: [
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient Name", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientName || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient ID", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientId || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
-      //       ],
-      //     }),
-      //     new TableRow({
-      //       children: [
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientAge || 'N/A', font: FONT_FACE })] })] }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Exam Date", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: examDate || date, font: FONT_FACE })] })] }),
-      //       ],
-      //     }),
-      //     new TableRow({
-      //       children: [
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Referring Physician", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
-      //         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: referringPhysician || 'N/A', font: FONT_FACE })] })], columnSpan: 3 }),
-      //       ],
-      //     }),
-      //   ],
-      // });
-      // docxChildren.push(patientInfoTable);
+      const patientInfoTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient Name", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientName || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Patient ID", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" }, width: { size: 25, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: patientId || 'N/A', font: FONT_FACE })] })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Age / Gender", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${patientAge || 'N/A'} / ${patientGender || 'N/A'}`, font: FONT_FACE })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Exam Date", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: examDate || date, font: FONT_FACE })] })] }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Referring Physician", bold: true, font: FONT_FACE })] })], shading: { fill: "F8FAFC" } }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: referringPhysician || 'N/A', font: FONT_FACE })] })], columnSpan: 3 }),
+            ],
+          }),
+        ],
+      });
+      docxChildren.push(patientInfoTable);
       docxChildren.push(new Paragraph(""));
-
       // --- B. CONTENT PROCESSOR (HELPER) ---
       const extractTextRuns = (node) => {
         const runs = [];
@@ -5961,31 +6113,31 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
     if (!isInTable) return null;
 
     return (
-      <div className="flex flex-wrap gap-1 p-2 bg-slate-800 border-b border-slate-700 text-white rounded-md mb-2">
+      <div className="flex flex-wrap gap-1 p-2 bg-muted border-b border-border text-foreground rounded-md mb-2">
         <button
           onClick={() => editor.chain().focus().addColumnBefore().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           + Col Left
         </button>
 
         <button
           onClick={() => editor.chain().focus().addColumnAfter().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           + Col Right
         </button>
 
         <button
           onClick={() => editor.chain().focus().addRowBefore().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           + Row Above
         </button>
 
         <button
           onClick={() => editor.chain().focus().addRowAfter().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           + Row Below
         </button>
@@ -6013,14 +6165,14 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
         <button
           onClick={() => editor.chain().focus().mergeCells().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           Merge Cells
         </button>
 
         <button
           onClick={() => editor.chain().focus().splitCell().run()}
-          className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+          className="px-2 py-1 bg-muted/80 hover:bg-muted text-foreground rounded transition-colors"
         >
           Split Cell
         </button>
@@ -6029,16 +6181,6 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
   };
 
 
-
-
-  const handleInsertTemplate = (content) => {
-    if (!editor) return;
-    isProgrammaticUpdate.current = true;
-    editor.chain().focus().insertContent(content).run();
-    setEditorContent(editor.getHTML());
-    setShowTemplateModal(false);
-    toast.success("Template inserted");
-  };
 
   // --- NEW HELPER FUNCTION for DICOM Conversion ---
   const convertDicomToPngBase64 = async (dicomFile) => {
@@ -6082,13 +6224,11 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
   // --- The new render method ---
   return (
 
-    <div className="fixed inset-0 bg-[#02040a] text-slate-300 font-sans flex flex-col overflow-hidden selection:bg-indigo-500/30">
+    <div className="fixed inset-0 bg-background text-foreground font-sans flex flex-col overflow-hidden selection:bg-primary/20 transition-colors duration-300">
       {/* --- AURORA BACKGROUND --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-indigo-600/20 rounded-full mix-blend-screen filter blur-[120px] animate-blob"></div>
-        <div className="absolute top-[30%] right-[-10%] w-[60vw] h-[60vw] bg-cyan-500/10 rounded-full mix-blend-screen filter blur-[120px] animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-[-20%] left-[20%] w-[70vw] h-[70vw] bg-fuchsia-600/10 rounded-full mix-blend-screen filter blur-[120px] animate-blob animation-delay-4000"></div>
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]"></div>
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-background">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-blob" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-blob animation-delay-2000" />
       </div>
 
       {/* Content wrapper relative z-10 to sit above background */}
@@ -6195,15 +6335,15 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
   .tiptap th,
   .tiptap td {
-    border: 1px solid #475569;
+    border: 1px solid hsl(var(--border));
     padding: 6px 8px;
     vertical-align: top;
-    color: #e2e8f0;
+    color: hsl(var(--foreground));
   }
 
   .tiptap th {
-    background-color: rgba(30, 41, 59, 0.7);
-    border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+    background-color: hsl(var(--muted));
+    border-bottom: 2px solid hsl(var(--primary) / 0.3);
     font-weight: 600;
   }
 
@@ -6248,14 +6388,14 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
   .prose th,
   .prose td {
-    border: 1px solid #cbd5e1;
+    border: 1px solid hsl(var(--border));
     padding: 6px 8px;
     vertical-align: top;
-    color: #0f172a;
+    color: hsl(var(--foreground));
   }
 
   .prose th {
-    background-color: #f8fafc;
+    background-color: hsl(var(--muted) / 0.5);
     font-weight: 600;
   }
 `}</style>
@@ -6265,76 +6405,69 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
 
         {/* HEADER */}
-        <header className="h-14 flex-shrink-0 bg-[#0a0f1c]/70 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-3 z-50 relative shadow-md">
+        <header className="h-14 flex-shrink-0 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-3 z-50 relative shadow-sm transition-colors duration-300">
           <div className="flex items-center space-x-3">
-            <img src={appLogo} alt="Logo" className="h-8 w-8 rounded shadow-sm" />
-            <h1 className="text-lg font-bold text-slate-100 hidden sm:block tracking-tight">aiRAD - Reporting, Redefined.</h1>
+            <div className="relative group cursor-pointer">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
+              <img src={appLogo} alt="Logo" className="relative h-8 w-8 rounded shadow-sm bg-black" />
+            </div>
+
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-500 tracking-tight leading-none">aiRAD</h1>
+              <p className="text-[10px] text-muted-foreground font-medium tracking-widest uppercase">Reporting, Redefined.</p>
+            </div>
           </div>
 
-          {/* === NEW: Connectivity Badge === */}
-          {/* <div className={`ml-4 px-2 py-0.5 rounded-full text-xs font-bold flex items-center space-x-1 ${isOnline ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {isOnline ? <Wifi size={14}/> : <WifiOff size={14}/>}
-                            <span>{isOnline ? 'Online' : 'Offline Mode'}</span>
-                        </div> */}
           <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
-            {/* <div className="flex items-center flex-shrink-0" title="AI Co-pilot">
-                <label htmlFor="proactive-toggle" className="flex items-center cursor-pointer">
-                    <div className="relative">
-                        <input type="checkbox" id="proactive-toggle" className="sr-only" checked={isProactiveHelpEnabled} onChange={() => setIsProactiveHelpEnabled(!isProactiveHelpEnabled)} />
-                        <div className={`block ${isProactiveHelpEnabled ? 'bg-blue-600' : 'bg-slate-700'} w-8 h-4 rounded-full transition-colors`}></div>
-                        <div className={`dot absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${isProactiveHelpEnabled ? 'translate-x-4' : ''}`}></div>
-                    </div>
-                    <Lightbulb size={16} className={`ml-1.5 ${isProactiveHelpEnabled ? 'text-yellow-400' : 'text-slate-600'}`} />
-                </label>
-            </div> */}
-            <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
-            {/* <button 
-                onClick={() => setIsWakeWordMode(!isWakeWordMode)} 
-                className={`px-2 py-1.5 rounded-full flex-shrink-0 transition-all font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border mr-2
-                  ${isWakeWordMode ? 'bg-indigo-900/50 text-indigo-200 border-indigo-500/50' : 'bg-slate-800 text-slate-400 border-transparent hover:text-white'}`}
-                title={isWakeWordMode ? "Wake Word Active: Say 'Hey Co-pilot' to open assistant" : "Click to enable 'Hey Co-pilot' detection"}
+
+            <div className="h-5 w-px bg-border mx-1 flex-shrink-0" />
+
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-accent-foreground transition flex-shrink-0"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
-                <div className={`w-1.5 h-1.5 rounded-full ${isWakeWordMode ? 'bg-green-400 animate-pulse' : 'bg-slate-600'}`}></div>
-                {isWakeWordMode ? "Wake Word On" : "Wake Word Off"}
-            </button> */}
-            <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full flex-shrink-0 transition-all ${voiceStatus === 'listening' ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full flex-shrink-0 transition-all ${voiceStatus === 'listening' ? 'bg-destructive/20 text-destructive ring-1 ring-destructive animate-pulse' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
               {voiceStatus === 'listening' ? <Mic size={18} /> : <Mic size={18} />}
             </button>
-            <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0"><Wand2 size={18} /></button>
-            <button onClick={() => setShowDataModal(true)} title="Extracted Data" className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0"><ListPlus size={18} /></button>
+            <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-primary transition flex-shrink-0"><Wand2 size={18} /></button>
+            <button onClick={() => setShowDataModal(true)} title="Extracted Data" className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-primary transition flex-shrink-0"><ListPlus size={18} /></button>
             <div className="flex items-center space-x-1 flex-shrink-0">
-              <button onClick={() => setShowShortcutsModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><Zap size={18} /></button>
-              <button onClick={() => setShowMacroModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><MessageSquare size={18} /></button>
-              <button onClick={() => setShowTemplateModal(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white"><FileText size={18} /></button>
+              <button onClick={() => setShowShortcutsModal(true)} className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"><Zap size={18} /></button>
+              <button onClick={() => setShowMacroModal(true)} className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"><MessageSquare size={18} /></button>
+              <button onClick={() => setShowTemplateModal(true)} className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"><FileText size={18} /></button>
             </div>
-            <div className="h-5 w-px bg-slate-800 mx-1 flex-shrink-0" />
+            <div className="h-5 w-px bg-border mx-1 flex-shrink-0" />
             {/* 🛡️ ADMIN PANEL BUTTON (Only visible to Admins) */}
             {userRole === 'admin' && (
               <button
                 onClick={() => navigate('/admin')}
                 title="Open Admin Panel"
-                className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-purple-400 transition flex-shrink-0"
+                className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-purple-500 transition flex-shrink-0"
               >
                 <Shield size={18} />
               </button>
             )}
             {/* NEW SETTINGS BUTTON */}
-            {/* <button 
-  onClick={() => setShowBrandingModal(true)} 
-  title="Report Branding Settings" 
-  className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition flex-shrink-0"
->
-  <Settings size={18} />
-</button> */}
-            <button onClick={() => setShowProfile(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition flex-shrink-0" title="Profile"><User size={18} /></button>
-            <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition flex-shrink-0"><LogOut size={18} /></button>
+            {/* <button
+              onClick={() => setShowBrandingModal(true)}
+              title="Report Branding Settings"
+              className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition flex-shrink-0"
+            >
+              <Settings size={18} />
+            </button> */}
+            <button onClick={() => setShowProfile(true)} className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-blue-500 transition flex-shrink-0" title="Profile"><User size={18} /></button>
+            <button onClick={handleSignOut} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition flex-shrink-0"><LogOut size={18} /></button>
           </div>
         </header>
         {/* SYSTEM ANNOUNCEMENT BANNER */}
         {systemAnnouncement && isAnnouncementVisible && (
-          <div className={`w-full px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${systemAnnouncement.type === 'critical' ? 'bg-red-600 text-white' :
+          <div className={`w-full px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${systemAnnouncement.type === 'critical' ? 'bg-destructive text-destructive-foreground' :
             systemAnnouncement.type === 'warning' ? 'bg-amber-500 text-black' :
-              'bg-blue-600 text-white'
+              'bg-primary text-primary-foreground'
             }`}>
             {/* Icon */}
             <AlertTriangle size={16} className="shrink-0" />
@@ -6365,34 +6498,49 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         <main className="flex-1 flex overflow-hidden min-h-0 relative">
 
           {/* LEFT SIDEBAR */}
-          <aside className={`w-full lg:w-80 bg-[#0a0f1c]/60 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 transition-all duration-300 ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+          <aside className={`w-full lg:w-80 bg-background/60 backdrop-blur-xl border-r border-border flex flex-col z-20 transition-all duration-300 ${mobileView === 'case' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
               <SidePanel title="Patient & Exam" icon={User}>
-                <div className="space-y-2.5">
-                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Patient Name</label><input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
-                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Patient ID</label><input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[10px] uppercase font-bold text-slate-500">Age</label><input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Patient Name</label>
+                    <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} className="sidebar-input" placeholder="Name" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Patient ID</label>
+                    <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} className="sidebar-input" placeholder="ID" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-500">Gender</label>
-                      <select value={patientGender} onChange={e => setPatientGender(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none">
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
+                      <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Age</label>
+                      <input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="sidebar-input" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Gender</label>
+                      <select value={patientGender} onChange={e => setPatientGender(e.target.value)} className="sidebar-input">
+                        <option value="Male" className="bg-card text-foreground">Male</option>
+                        <option value="Female" className="bg-card text-foreground">Female</option>
+                        <option value="Other" className="bg-card text-foreground">Other</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Date</label>
+                      <input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="sidebar-input" />
+                    </div>
                   </div>
-                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Date</label><input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 focus:border-blue-500 outline-none" /></div>
                 </div>
               </SidePanel>
 
               <SidePanel title="Report Template" icon={FileText}>
-                <div className="space-y-2.5">
-                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Modality</label>
-                    <select value={modality} onChange={e => { const m = e.target.value; const t = Object.keys(allTemplates[m])[0]; setModality(m); setTemplate(t); isProgrammaticUpdate.current = true; if (editor) editor.commands.setContent(allTemplates[m][t] || ''); setEditorContent(allTemplates[m][t] || ''); }} className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500">
-                      {Object.keys(allTemplates).map(m => <option key={m} value={m}>{m}</option>)}
-                    </select></div>
-                  <div><label className="text-[10px] uppercase font-bold text-slate-500">Template</label>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Modality</label>
+                    <select value={modality} onChange={e => { const m = e.target.value; const t = Object.keys(allTemplates[m])[0]; setModality(m); setTemplate(t); isProgrammaticUpdate.current = true; if (editor) editor.commands.setContent(allTemplates[m][t] || ''); setEditorContent(allTemplates[m][t] || ''); }} className="sidebar-input">
+                      {Object.keys(allTemplates).map(m => <option key={m} value={m} className="bg-card text-foreground">{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1 block">Template</label>
                     <select
                       value={template}
                       onChange={e => {
@@ -6406,17 +6554,18 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                         if (editor) editor.commands.setContent(content);
                         setEditorContent(content);
                       }}
-                      className="w-full mt-1 bg-slate-900 border border-slate-700 p-1.5 rounded text-xs text-slate-200 outline-none focus:border-blue-500"
+                      className="sidebar-input"
                     >
-                      <optgroup label="Standard Templates">
-                        {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={`std-${t}`} value={t}>{t}</option>)}
+                      <optgroup label="Standard Templates" className="bg-card text-foreground font-bold text-xs uppercase tracking-wider">
+                        {modality && Object.keys(allTemplates[modality] || {}).map(t => <option key={`std-${t}`} value={t} className="bg-muted text-foreground font-normal pl-4">{t}</option>)}
                       </optgroup>
                       {userTemplates[modality] && Object.keys(userTemplates[modality]).length > 0 && (
-                        <optgroup label="My Templates">
-                          {Object.keys(userTemplates[modality]).map(t => <option key={`usr-${t}`} value={t}>{t}</option>)}
+                        <optgroup label="My Templates" className="bg-card text-foreground font-bold text-xs uppercase tracking-wider">
+                          {Object.keys(userTemplates[modality]).map(t => <option key={`usr-${t}`} value={t} className="bg-muted text-foreground font-normal pl-4">{t}</option>)}
                         </optgroup>
                       )}
-                    </select></div>
+                    </select>
+                  </div>
                 </div>
               </SidePanel>
 
@@ -6426,19 +6575,20 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
               {userRole === 'admin' &&
                 <SidePanel title="AI Analysis" icon={Upload}>
-                  <div {...getRootProps()} className={`p-3 border border-dashed rounded text-center cursor-pointer transition-colors ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
+                  <div {...getRootProps()} className={`p-4 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2 ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'}`}>
                     <input {...getInputProps()} />
-                    <p className="text-slate-500 text-[10px] uppercase font-bold">Drop Images / PDFs (or Paste)</p>
+                    <Upload className={`w-8 h-8 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <p className="text-muted-foreground text-xs font-bold uppercase">Drop Images / PDFs (or Paste)</p>
                   </div>
                   {images.length > 0 && (
-                    <div className="grid grid-cols-3 gap-1 mt-2">
+                    <div className="grid grid-cols-3 gap-2 mt-3">
                       {images.map((img, index) => (
-                        <div key={index} className="relative group aspect-square cursor-pointer border border-slate-800 rounded overflow-hidden" onClick={() => openModal(index)}>
+                        <div key={index} className="relative group aspect-square cursor-pointer border border-border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => openModal(index)}>
                           {/* Handle PDF Visualization vs Image */}
                           {img.type === 'application/pdf' ? (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-900">
-                              <FileIcon size={24} className="text-red-400" />
-                              <span className="text-[8px] absolute bottom-1 text-red-400 font-bold">PDF</span>
+                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                              <FileIcon size={24} className="text-destructive" />
+                              <span className="text-[8px] absolute bottom-1 text-destructive font-bold">PDF</span>
                             </div>
                           ) : (
                             <img src={img.src} className="w-full h-full object-cover" alt="preview" />
@@ -6447,26 +6597,30 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                           {/* Remove Button - Always visible (removed opacity-0) */}
                           <button
                             onClick={(e) => { e.stopPropagation(); removeImage(index); }}
-                            className="absolute top-0 right-0 bg-red-600 text-white hover:bg-red-700 p-1 rounded-bl transition-colors z-10 shadow-sm"
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 p-1 rounded-md transition-colors z-10 shadow-sm"
                             title="Remove"
                           >
-                            <XCircle size={12} />
+                            <XCircle size={14} />
                           </button>
                         </div>
                       ))}
                     </div>
                   )}
-                  <textarea value={clinicalContext} onChange={e => setClinicalContext(e.target.value)} rows="2" className="w-full mt-2 p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 outline-none placeholder-slate-600" placeholder="Clinical context..." />
-                  <button onClick={analyzeImages} disabled={userRole !== 'admin' && isAiLoading || images.length === 0} className="w-full mt-2 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-500 transition disabled:bg-slate-800 disabled:text-slate-600">
-                    {isAiLoading ? "Scanning..." : "Analyze"}
+                  <textarea value={clinicalContext} onChange={e => setClinicalContext(e.target.value)} rows="3" className="sidebar-input resize-none" placeholder="Clinical context..." />
+                  <button onClick={analyzeImages} disabled={userRole !== 'admin' && isAiLoading || images.length === 0} className="w-full mt-2 py-2 btn-premium text-white text-xs font-black uppercase tracking-widest rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isAiLoading ? <span className="animate-pulse">Scanning...</span> : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Upload size={14} /> Analyze Findings
+                      </span>
+                    )}
                   </button>
                 </SidePanel>}
               <button
                 onClick={() => setShowSettings(true)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-gray-00 hover:bg-black"
+                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-muted-foreground hover:bg-muted hover:text-foreground mt-2"
               >
                 <Settings className="w-5 h-5" />
-                {isSidebarOpen && <span className="font-medium">Settings</span>}
+                {isSidebarOpen && <span className="font-medium text-sm">Settings</span>}
               </button>
               <RecentReportsPanel onSelectReport={handleSelectRecentReport} user={user} onViewHistory={() => setShowHistoryModal(true)} />
             </div>
@@ -6474,13 +6628,13 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
           {/* CENTER WORKSPACE */}
           <section className={`flex-1 flex flex-col min-w-0 bg-transparent relative ${mobileView === 'workspace' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
-            <div className="flex-1 flex flex-col m-2 lg:m-0 lg:border-r lg:border-white/5 bg-[#0a0f1c]/80 lg:bg-[#0a0f1c]/50 backdrop-blur-xl rounded-lg lg:rounded-none overflow-hidden shadow-2xl shadow-indigo-500/5">
+            <div className="flex-1 flex flex-col m-2 lg:m-0 lg:border-r lg:border-border bg-card/50 backdrop-blur-xl rounded-lg lg:rounded-none overflow-hidden shadow-sm">
               <div className="px-2 pt-2">
                 <AlertPanel alertData={activeAlert}
                   onAcknowledge={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                   onInsertMacro={() => { if (editor && activeAlert?.type === 'critical') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>${activeAlert.data.reportMacro}</strong></p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                   onFix={handleFixInconsistency}
-                  onProceed={() => { console.log("onProceed clicked"); setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); generateFinalReport(true); }}
+                  onProceed={() => { setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); generateFinalReport(true); }}
                   onInsertGuideline={() => { if (editor && activeAlert?.type === 'guideline') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                 />
               </div>
@@ -6496,73 +6650,80 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
                 {/* <EditorContent editor={editor} className="tiptap min-h-full" /> */}
               </div>
-              <div className="p-3 bg-slate-900 border-t border-slate-800">
+              <div className="p-3 bg-card border-t border-border">
                 <button onClick={() => generateFinalReport()} disabled={isLoading || !editorContent}
-                  className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:-translate-y-0.5 border border-blue-400/20 text-white text-sm font-bold rounded shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200">
-                  {isLoading ? <span className="animate-pulse">Processing...</span> : <><Eye size={16} className="mr-2" /> Generate Final Report</>}
+                  className="w-full py-3 btn-action-primary rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group text-sm shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                  {isLoading ? <span className="animate-pulse">Finalizing...</span> : (
+                    <span className="flex items-center justify-center gap-2">
+                      <Eye size={18} className="group-hover:scale-110 transition-transform" /> Generate Final Report
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
           </section>
 
           {/* RIGHT SIDEBAR */}
-          <aside className={`w-full lg:w-80 bg-[#0a0f1c]/60 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 transition-all duration-300 ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
-            <div className="p-2 bg-slate-900 border-b border-slate-800 flex">
-              <button onClick={() => setActiveAiTab('copilot')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'copilot' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Co-pilot</button>
-              <button onClick={() => setActiveAiTab('search')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'search' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Search</button>
-              <button onClick={() => setActiveAiTab('knowledge')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${activeAiTab === 'knowledge' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Knowledge</button>
+          <aside className={`w-full lg:w-80 bg-muted/30 backdrop-blur-xl border-l border-border flex flex-col z-20 transition-all duration-300 ${mobileView === 'ai' ? 'absolute inset-0 z-20 lg:static' : 'hidden lg:flex'}`}>
+            <div className="p-3 bg-card/50 border-b border-border">
+              <div className="relative grid grid-cols-3 p-1 bg-muted rounded-xl border border-border">
+                {/* Gliding Pill */}
+                <div className={`absolute top-1 bottom-1 w-[calc(33.33%-0.33rem)] bg-primary rounded-lg shadow-lg shadow-primary/20 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${activeAiTab === 'copilot' ? 'left-1' :
+                  activeAiTab === 'search' ? 'left-1/2 -translate-x-1/2' :
+                    'right-1'
+                  }`}></div>
+
+                <button onClick={() => setActiveAiTab('copilot')} className={`relative z-10 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors duration-300 ${activeAiTab === 'copilot' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Co-pilot</button>
+                <button onClick={() => setActiveAiTab('search')} className={`relative z-10 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors duration-300 ${activeAiTab === 'search' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Search</button>
+                <button onClick={() => setActiveAiTab('knowledge')} className={`relative z-10 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors duration-300 ${activeAiTab === 'knowledge' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Knowledge</button>
+              </div>
             </div>
             <div className="flex-1 overflow-hidden relative flex flex-col">
               {activeAiTab === 'copilot' && (
-                <div className="flex-1 flex flex-col h-full">
+                <div className="flex-1 flex flex-col h-full animate-fade-in-up">
                   <AiConversationPanel history={conversationHistory} onSendMessage={handleSendMessage} isReplying={isAiReplying} userInput={userInput} setUserInput={setUserInput} />
                 </div>
               )}
               {activeAiTab === 'search' && (
-                <div className="flex-1 flex flex-col p-3 overflow-hidden h-full"> {/* Added h-full */}
+                <div className="flex-1 flex flex-col p-3 overflow-hidden h-full animate-fade-in-up"> {/* Added h-full */}
                   {/* Search Input */}
-                  <div className="flex items-center space-x-2 mb-3 flex-shrink-0">
-
+                  {/* Search Input */}
+                  <div className={`flex items-center gap-2 mb-4 p-1.5 rounded-xl border transition-all duration-300 group flex-shrink-0 ${isSearching || searchQuery ? 'bg-background border-primary/50 shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-1 ring-primary/20' : 'bg-muted border-input hover:border-ring'}`}>
+                    <Search size={16} className={`ml-1.5 transition-colors duration-300 ${isSearching || searchQuery ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
                     <input
                       ref={localSearchInputRef}
                       type="text"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      // --- FIX 1: Pass the 'searchQuery' state ---
                       onKeyDown={e => e.key === 'Enter' && handleLocalSearch(searchQuery)}
-                      placeholder="Search local or AI..."
-                      className="flex-1 bg-slate-950 border border-slate-700 p-1.5 rounded text-xs text-white focus:border-blue-500 outline-none"
+                      placeholder="Search findings (Local or AI)..."
+                      className="flex-1 bg-transparent border-none text-xs text-foreground placeholder-muted-foreground focus:ring-0 outline-none h-8"
                     />
                     <button
-                      // --- FIX 2: Pass the 'searchQuery' state ---
                       onClick={() => handleLocalSearch(searchQuery)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white"
-                      title="Search Local Findings"
+                      className="p-1.5 bg-secondary hover:bg-primary text-secondary-foreground hover:text-primary-foreground rounded-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                      title="Search"
                     >
-                      <Search size={18} />
+                      <ArrowRight size={14} />
                     </button>
                   </div>
 
                   {/* AI Search Buttons */}
                   <div className="flex-shrink-0 grid grid-cols-2 gap-2">
                     <button
-                      // --- FIX 3: Pass the 'searchQuery' state ---
                       onClick={() => handleAiFindingsSearch(searchQuery)}
-                      // --- FIX 4: Disable based on 'searchQuery', not 'baseSearchQuery' ---
                       disabled={isSearching || !searchQuery}
-                      className="w-full text-xs py-2 bg-gray-950 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                      className="w-full text-[10px] font-black uppercase tracking-wider py-2.5 btn-premium text-white rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {isSearching && !aiKnowledgeLookupResult && !allAiFullReports.length ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Search size={14} />}
+                      {isSearching && !aiKnowledgeLookupResult && !allAiFullReports.length ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div> : <Search size={14} />}
                       <span>AI Findings</span>
                     </button>
                     <button
-                      // --- FIX 5: Pass 'false' and the 'searchQuery' state ---
                       onClick={() => handleAiKnowledgeSearch(false, searchQuery)}
-                      // --- FIX 6: Disable based on 'searchQuery' ---
                       disabled={isSearching || !searchQuery}
-                      className="w-full text-xs py-2 bg-gray-950 hover:bg-slate-600 rounded-md disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                      className="w-full text-[10px] font-black uppercase tracking-wider py-2.5 btn-glass text-foreground hover:text-white hover:bg-primary rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                     >
-                      {isSearching && aiKnowledgeLookupResult ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BookOpen size={14} />}
+                      {isSearching && aiKnowledgeLookupResult ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary"></div> : <BookOpen size={14} />}
                       <span>AI Knowledge</span>
                     </button>
                   </div>
@@ -6576,7 +6737,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                       <div className="space-y-3"> {/* Increased spacing */}
                         <h3 className="text-xs font-semibold text-gray-400 uppercase">Local Findings</h3>
                         {localSearchResults.map((result, index) => (
-                          <div key={`local-${index}`} className="p-3 bg-slate-800 rounded-md border border-slate-700/50 relative space-y-1.5"> {/* Added space-y */}
+                          <div key={`local-${index}`} className="p-3 bg-card border border-border/50 relative space-y-1.5"> {/* Added space-y */}
                             <span className="absolute top-1 right-1 bg-slate-600 text-slate-200 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{index + 1}</span>
                             <h4 className="font-semibold text-sm text-gray-100 pr-6">{result.findingName}</h4>
                             {/* Display Organ, Findings, Impression */}
@@ -6621,9 +6782,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                           )}
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <button onClick={handlePreviousReport} disabled={currentReportPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5" /> Prev</button>
+                          <button onClick={handlePreviousReport} disabled={currentReportPage === 0} className="px-2 py-1 bg-muted hover:bg-muted/80 rounded transition-colors disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5" /> Prev</button>
                           <span className="text-slate-400">Ver {currentReportPage + 1} / {allAiFullReports.length}</span>
-                          <button onClick={handleNextReport} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">Next <ChevronRight size={14} className="ml-0.5" /></button>
+                          <button onClick={handleNextReport} disabled={isSearching} className="px-2 py-1 bg-muted hover:bg-muted/80 rounded transition-colors disabled:opacity-50 flex items-center">Next <ChevronRight size={14} className="ml-0.5" /></button>
                         </div>
                       </div>
                     )}
@@ -6649,9 +6810,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                           </div>
                         ))}
                         <div className="flex justify-between items-center text-xs mt-2">
-                          <button onClick={handlePreviousPage} disabled={currentAiPage === 0} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5" /> Prev</button>
+                          <button onClick={handlePreviousPage} disabled={currentAiPage === 0} className="px-2 py-1 bg-muted hover:bg-muted/80 rounded transition-colors disabled:opacity-50 flex items-center"><ChevronLeft size={14} className="mr-0.5" /> Prev</button>
                           <span className="text-slate-400">Page {currentAiPage + 1} / {allAiSearchResults.length}</span>
-                          <button onClick={handleNextPage} disabled={isSearching} className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50 flex items-center">More <ChevronRight size={14} className="ml-0.5" /></button>
+                          <button onClick={handleNextPage} disabled={isSearching} className="px-2 py-1 bg-muted hover:bg-muted/80 rounded transition-colors disabled:opacity-50 flex items-center">More <ChevronRight size={14} className="ml-0.5" /></button>
                         </div>
                       </div>
                     )}
@@ -6725,7 +6886,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                     value={assistantQuery}
                     onChange={(e) => setAssistantQuery(e.target.value)}
                     rows="10"
-                    className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none transition-all placeholder-slate-600 font-mono"
+                    className="w-full p-4 bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none transition-all placeholder:text-muted-foreground font-mono"
                     placeholder={
                       assistantMode === 'correction' ? "Paste findings here..." :
                         assistantMode === 'template' ? "e.g., CT Abdomen for 45M with pain..." :
@@ -6742,7 +6903,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
               </div>
 
               {/* Footer / Actions */}
-              <div className="p-4 bg-slate-800/50 border-t border-slate-700 flex justify-end gap-3 rounded-b-xl">
+              <div className="p-4 bg-muted/50 border-t border-border flex justify-end gap-3 rounded-b-xl">
                 {error && <span className="text-red-400 text-xs flex items-center mr-auto"><AlertTriangle size={12} className="mr-1" /> {error}</span>}
 
                 {assistantMode === 'correction' && (
@@ -6884,8 +7045,16 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* ============== MODALS & FLOATING BUTTONS ============== */}
         {isModalOpen && (<ImageModal images={images} currentIndex={currentImageIndex} onClose={closeModal} onNext={showNextImage} onPrev={showPrevImage} />)}
 
+        {showTemplateModal && (
+          <TemplateManagerModal
+            user={user}
+            existingModalities={Object.keys(templates)}
+            onClose={() => setShowTemplateModal(false)}
+            onInsert={handleInsertTemplate} // <--- Pass the handler
+          />
+        )}
         {showShortcutsModal && <ShortcutsHelpModal shortcuts={shortcuts} onClose={() => setShowShortcutsModal(false)} />}
-        {showTemplateModal && <TemplateManagerModal user={user} existingModalities={Object.keys(templates)} onClose={() => setShowTemplateModal(false)} onInsert={handleInsertTemplate} />}
+
         {/* 👇 ADD THIS BLOCK AT THE BOTTOM OF YOUR JSX 👇 */}
 
         <BrandingModal
@@ -6917,7 +7086,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                   <button onClick={() => setShowPreviewModal(false)} className="text-slate-400 hover:text-white transition-colors"><XCircle /></button>
                 </div>
               </div>
-              <div className="p-6 overflow-y-auto bg-white text-black prose max-w-none rounded-b-xl mx-1 mb-1">
+              <div className="p-6 overflow-y-auto bg-white text-black prose prose-headings:text-black prose-p:text-black prose-strong:text-black prose-td:text-black prose-th:text-black hover:prose-a:text-blue-600 prose-a:text-blue-600 max-w-none rounded-b-xl mx-1 mb-1">
                 <div dangerouslySetInnerHTML={{ __html: generatedReport }} />
               </div>
             </div>
@@ -6940,7 +7109,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                       placeholder="Voice Command (e.g., 'normal abdomen')"
                       value={newMacroCommand}
                       onChange={(e) => setNewMacroCommand(e.target.value)}
-                      className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                      className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
                     />
                     <textarea
                       placeholder="Text to insert"
@@ -7011,7 +7180,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* =============================================================================== */}
         {/* ============ UPDATED MOBILE NAVIGATION TABS =================================== */}
         {/* =============================================================================== */}
-        <nav className="flex-shrink-0 bg-slate-950 border-t border-slate-700 flex lg:hidden h-16"> {/* Added h-16 */}
+        <nav className="flex-shrink-0 bg-background border-t border-border flex lg:hidden h-16"> {/* Added h-16 */}
           {/* Case Info Button */}
           <button
             onClick={() => setMobileView('case')}
@@ -7058,7 +7227,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
           onSave={setHospitalSettings}
         />
       </div>
-    </div>
+    </div >
   );
 };
 // 2. CREATE the new App component to handle routing
