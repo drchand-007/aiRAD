@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.10",
+    "@tiptap/extension-font-size": "^3.0.0-next.3",
     "@tiptap/extension-link": "^3.19.0",
     "@tiptap/extension-placeholder": "^3.0.7",
     "@tiptap/extension-subscript": "^3.19.0",
@@ -20,6 +21,7 @@
     "@tiptap/extension-table-header": "^3.11.1",
     "@tiptap/extension-table-row": "^3.11.1",
     "@tiptap/extension-text-align": "^3.19.0",
+    "@tiptap/extension-text-style": "^3.19.0",
     "@tiptap/extension-underline": "^3.19.0",
     "@tiptap/react": "^3.0.7",
     "@tiptap/starter-kit": "^3.0.7",
