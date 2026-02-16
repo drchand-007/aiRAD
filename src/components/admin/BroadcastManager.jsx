@@ -45,32 +45,32 @@ const BroadcastManager = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Megaphone className="text-blue-500" /> Broadcast Center
             </h2>
 
             {/* Creation Form */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="bg-white/5 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-white/10">
                 <form onSubmit={handlePost} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Message</label>
-                        <input 
-                            type="text" 
-                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="e.g. Maintenance scheduled for tonight..." 
+                        <label className="block text-sm font-medium text-slate-300 mb-1">Message</label>
+                        <input
+                            type="text"
+                            className="w-full p-2 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-black/40 text-white placeholder-slate-500"
+                            placeholder="e.g. Maintenance scheduled for tonight..."
                             value={newMessage}
                             onChange={e => setNewMessage(e.target.value)}
                         />
                     </div>
                     <div className="flex gap-4 items-center">
-                        <select 
-                            value={type} 
+                        <select
+                            value={type}
                             onChange={e => setType(e.target.value)}
-                            className="p-2 border rounded-lg bg-slate-50"
+                            className="p-2 border border-white/10 rounded-lg bg-black/40 text-white outline-none"
                         >
-                            <option value="info">Information (Blue)</option>
-                            <option value="warning">Warning (Yellow)</option>
-                            <option value="critical">Critical (Red)</option>
+                            <option value="info" className="bg-slate-900">Information (Blue)</option>
+                            <option value="warning" className="bg-slate-900">Warning (Yellow)</option>
+                            <option value="critical" className="bg-slate-900">Critical (Red)</option>
                         </select>
                         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition">
                             <Send size={16} /> Broadcast Now
@@ -81,27 +81,26 @@ const BroadcastManager = () => {
 
             {/* Active Announcements List */}
             <div className="space-y-3">
-                <h3 className="font-semibold text-slate-600">Active Announcements</h3>
-                {announcements.length === 0 && <p className="text-slate-400 italic">No active announcements.</p>}
+                <h3 className="font-semibold text-slate-400">Active Announcements</h3>
+                {announcements.length === 0 && <p className="text-slate-500 italic">No active announcements.</p>}
                 {announcements.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    <div key={item.id} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg shadow-sm hover:bg-white/10 transition">
                         <div className="flex items-center gap-3">
-                            {item.type === 'critical' ? <AlertCircle className="text-red-500" /> : <Info className="text-blue-500" />}
+                            {item.type === 'critical' ? <AlertCircle className="text-red-400" /> : <Info className="text-blue-400" />}
                             <div>
-                                <p className="font-medium text-slate-800">{item.message}</p>
-                                <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                                    item.type === 'critical' ? 'bg-red-100 text-red-700' :
-                                    item.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-blue-100 text-blue-700'
-                                }`}>
+                                <p className="font-medium text-slate-200">{item.message}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${item.type === 'critical' ? 'bg-red-500/20 text-red-300' :
+                                        item.type === 'warning' ? 'bg-yellow-500/20 text-yellow-300' :
+                                            'bg-blue-500/20 text-blue-300'
+                                    }`}>
                                     {item.type}
                                 </span>
-                                <span className="text-xs text-slate-400 ml-2">
+                                <span className="text-xs text-slate-500 ml-2">
                                     {item.createdAt?.toDate().toLocaleString()}
                                 </span>
                             </div>
                         </div>
-                        <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 p-2">
+                        <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-300 p-2 hover:bg-red-500/10 rounded-full transition">
                             <Trash2 size={18} />
                         </button>
                     </div>
