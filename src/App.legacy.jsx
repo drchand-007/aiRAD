@@ -6467,20 +6467,20 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         </header>
         {/* SYSTEM ANNOUNCEMENT BANNER */}
         {systemAnnouncement && isAnnouncementVisible && (
-          <div className={`w-full px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${systemAnnouncement.type === 'critical' ? 'bg-destructive text-destructive-foreground' :
+          <div className={`w-full px-4 py-2.5 flex items-start justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${systemAnnouncement.type === 'critical' ? 'bg-destructive text-destructive-foreground' :
             systemAnnouncement.type === 'warning' ? 'bg-amber-500 text-black' :
               'bg-primary text-primary-foreground'
             }`}>
             {/* Icon */}
-            <AlertTriangle size={16} className="shrink-0" />
+            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
 
             {/* Message */}
-            <span>{systemAnnouncement.message}</span>
+            <span className="flex-1 text-left whitespace-pre-wrap break-words">{systemAnnouncement.message}</span>
 
             {/* Close Button */}
             <button
               onClick={() => setIsAnnouncementVisible(false)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-black/10 transition-colors"
+              className="absolute right-2 top-2 p-1.5 rounded-full hover:bg-black/10 transition-colors"
               title="Dismiss"
             >
               <X size={14} />
@@ -7260,6 +7260,7 @@ const App = () => {
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="broadcasts" element={<BroadcastManager />} />
         </Route>
 
         {/* Fallback */}
