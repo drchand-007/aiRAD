@@ -78,8 +78,8 @@ const UserProfile = ({ user, onClose }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg rounded-none md:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col">
                 {/* Header */}
                 <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -100,7 +100,7 @@ const UserProfile = ({ user, onClose }) => {
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-grow">
                     <div className="space-y-4">
                         {/* Display Name */}
                         <div>
