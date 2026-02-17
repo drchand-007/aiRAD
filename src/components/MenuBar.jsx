@@ -22,7 +22,7 @@ export default function MenuBar({ editor }) {
   if (!editor) return null;
 
   const ToolbarGroup = ({ children }) => (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-background/50 rounded-lg border border-border hover:border-primary/20 transition-colors">
+    <div className="flex items-center gap-0.5 md:gap-1 px-1 py-1 md:px-2 md:py-1.5 bg-background/50 rounded-lg border border-border hover:border-primary/20 transition-colors flex-shrink-0">
       {children}
     </div>
   );
@@ -33,7 +33,7 @@ export default function MenuBar({ editor }) {
       disabled={disabled}
       title={title}
       className={`
-        p-2 rounded-md transition-all duration-200 flex items-center justify-center
+        p-1.5 md:p-2 rounded-md transition-all duration-200 flex items-center justify-center
         ${isActive
           ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/50"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -48,7 +48,7 @@ export default function MenuBar({ editor }) {
   const Separator = () => <div className="w-[1px] h-6 bg-border mx-1" />;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 bg-secondary/50 border-b border-border overflow-x-auto scrollbar-thin scrollbar-thumb-primary/10">
+    <div className="flex flex-nowrap items-center gap-1 md:gap-2 p-1 md:p-3 bg-secondary/50 border-b border-border overflow-x-auto scrollbar-thin scrollbar-thumb-primary/10 shrink-0">
 
       {/* HISTORY */}
       <ToolbarGroup>
