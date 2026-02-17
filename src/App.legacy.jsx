@@ -215,7 +215,7 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
   if (!editor) return null;
 
   const ToolbarGroup = ({ children, className = "" }) => (
-    <div className={`flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/50 shadow-inner ${className}`}>
+    <div className={`flex items-center gap-0.5 md:gap-1 p-0.5 md:p-1 bg-muted/30 rounded-xl border border-border/50 shadow-inner flex-shrink-0 ${className}`}>
       {children}
     </div>
   );
@@ -230,7 +230,7 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
       disabled={disabled}
       title={title}
       className={`
-        p-2 rounded-lg transition-all duration-200 flex items-center justify-center
+        p-1.5 md:p-2 rounded-lg transition-all duration-200 flex items-center justify-center flex-shrink-0
         ${isActive
           ? `${activeClass} shadow-[0_0_12px_rgba(var(--primary),0.3)] scale-105 z-10`
           : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -249,7 +249,7 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
   return (
     <div className="flex flex-col gap-2 p-2 bg-card/40 backdrop-blur-xl border-b border-border rounded-t-xl sticky top-0 z-30">
       {/* TOOLBAR ROW */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-nowrap items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide md:scrollbar-default pb-1 mask-linear-fade">
 
         {/* GROUP 1: HISTORY */}
         <ToolbarGroup>
@@ -736,8 +736,8 @@ const ReportHistoryModal = ({ isOpen, onClose, onSelectReport, user }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-4xl md:h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
 
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
@@ -1220,9 +1220,9 @@ const ImageModal = ({ images, currentIndex, onClose, onNext, onPrev, isDicomLoad
   }, [handleKeyDown]);
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-0 sm:p-4">
       {/* Main modal container */}
-      <div className="relative bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-4xl max-h-[90vh] flex flex-col p-3 sm:p-4">
+      <div className="relative bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col p-3 sm:p-4">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-2 text-slate-100 gap-3 flex-shrink-0">
@@ -1372,9 +1372,9 @@ const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl shadow-indigo-500/10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl w-full h-full md:h-auto md:max-w-lg shadow-2xl shadow-indigo-500/10 flex flex-col md:max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
           <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Settings className="w-6 h-6 text-indigo-400" />
             Hospital Profile
@@ -6467,12 +6467,12 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         </header>
         {/* SYSTEM ANNOUNCEMENT BANNER */}
         {systemAnnouncement && isAnnouncementVisible && (
-          <div className={`w-full px-4 py-2.5 flex items-start justify-center gap-3 text-sm font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 ${systemAnnouncement.type === 'critical' ? 'bg-destructive text-destructive-foreground' :
+          <div className={`w-full px-3 py-1.5 flex items-start justify-center gap-2 text-xs font-medium animate-in slide-in-from-top-5 relative shadow-md z-40 max-h-[20vh] overflow-y-auto ${systemAnnouncement.type === 'critical' ? 'bg-destructive text-destructive-foreground' :
             systemAnnouncement.type === 'warning' ? 'bg-amber-500 text-black' :
               'bg-primary text-primary-foreground'
             }`}>
             {/* Icon */}
-            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
 
             {/* Message */}
             <span className="flex-1 text-left whitespace-pre-wrap break-words">{systemAnnouncement.message}</span>
@@ -6480,10 +6480,10 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
             {/* Close Button */}
             <button
               onClick={() => setIsAnnouncementVisible(false)}
-              className="absolute right-2 top-2 p-1.5 rounded-full hover:bg-black/10 transition-colors"
+              className="absolute right-1 top-1 p-1 rounded-full hover:bg-black/10 transition-colors"
               title="Dismiss"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           </div>
         )}
@@ -6846,10 +6846,10 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* ========= ADD THE AI ASSISTANT MODAL HERE ========= */}
         {/* ================================================= */}
         {showAssistantModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-3xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-3xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
               {/* Header */}
-              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
                 <h3 className="text-lg font-bold flex items-center text-slate-100">
                   <Wand2 size={20} className="mr-2 text-indigo-400" /> AI Assistant
                 </h3>
@@ -6949,9 +6949,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* ========= ADD THE SUGGESTIONS MODAL HERE ========= */}
         {/* ================================================= */}
         {showSuggestionsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-2xl max-h-[90vh] flex flex-col">
-              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
                 <h3 className="text-lg font-bold capitalize text-slate-100">
                   {suggestionType === 'differentials' ? 'Suggested Differentials' : 'Suggested Recommendations'}
                 </h3>
@@ -6993,11 +6993,11 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* // In App.jsx, replace the existing showDataModal block */}
 
         {showDataModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
             {/* Adjusted max-w-2xl for a bit more space than xl but less than 4xl */}
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
               {/* Header remains structurally similar */}
-              <div className="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0 bg-white/5 rounded-t-2xl">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0 bg-white/5 rounded-none md:rounded-t-2xl">
                 <h3 className="text-lg font-bold flex items-center text-slate-100">
                   <ListPlus size={18} className="mr-2 text-indigo-400" /> Extracted Data Summary
                 </h3>
@@ -7069,9 +7069,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {showProfile && <UserProfile user={user} onClose={() => setShowProfile(false)} />}
         {/* FIX #6: New Report Preview Modal */}
         {showPreviewModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
                 <h3 className="text-lg font-bold text-slate-100">Report Preview</h3>
                 <div className="flex items-center space-x-2">
                   {/* Download and copy buttons go here */}
@@ -7096,9 +7096,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         )}
 
         {showMacroModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-3xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-3xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
                 <h3 className="text-2xl font-bold text-slate-100">Manage Voice Macros</h3>
                 <button className="text-slate-400 hover:text-white transition rounded-full p-1" onClick={() => setShowMacroModal(false)}><XCircle size={28} /></button>
               </div>
