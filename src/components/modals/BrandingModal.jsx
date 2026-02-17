@@ -65,13 +65,13 @@ const BrandingModal = ({ isOpen, onClose, user, currentLetterhead, currentWaterm
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl w-full h-full md:h-auto md:max-w-md p-6 shadow-2xl shadow-indigo-500/10 animate-in fade-in zoom-in duration-200 overflow-y-auto">
+        <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
           <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <ImageIcon className="text-blue-500" /> Branding Settings
+            <ImageIcon className="text-indigo-400" /> Branding Settings
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <XCircle size={24} />
           </button>
         </div>
@@ -81,11 +81,11 @@ const BrandingModal = ({ isOpen, onClose, user, currentLetterhead, currentWaterm
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Letterhead / Header Image</label>
             <p className="text-xs text-slate-500 mb-2">Appears at the top of every report.</p>
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
               onChange={(e) => handleFileChange(e, setLetterheadFile)}
-              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
             />
             {currentLetterhead && !letterheadFile && (
               <p className="text-xs text-green-400 mt-2">✓ Current image active</p>
@@ -96,21 +96,21 @@ const BrandingModal = ({ isOpen, onClose, user, currentLetterhead, currentWaterm
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Watermark Image</label>
             <p className="text-xs text-slate-500 mb-2">Appears in the center/background.</p>
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
               onChange={(e) => handleFileChange(e, setWatermarkFile)}
-              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
             />
-             {currentWatermark && !watermarkFile && (
+            {currentWatermark && !watermarkFile && (
               <p className="text-xs text-green-400 mt-2">✓ Current image active</p>
             )}
           </div>
 
-          <button 
+          <button
             onClick={handleSave}
             disabled={isUploading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-indigo-900/20"
           >
             {isUploading ? <span className="animate-pulse">Uploading...</span> : <><Save size={18} /> Save Branding</>}
           </button>

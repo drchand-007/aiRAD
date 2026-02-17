@@ -14,8 +14,8 @@ export default function ShortcutsHelpModal({ shortcuts = {}, onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-slate-700">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-slate-900 rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col border border-slate-700">
         <div className="p-6 border-b border-slate-700 flex justify-between items-center">
           <h3 className="text-xl font-bold flex items-center gap-2">
             <Zap size={20} /> Keyboard Shortcuts

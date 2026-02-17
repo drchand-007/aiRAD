@@ -261,9 +261,9 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-indigo-500/10 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
           <h3 className="text-2xl font-bold text-slate-100 flex items-center">
             <FileText size={24} className="mr-3 text-indigo-400" />
             Manage Custom Templates
