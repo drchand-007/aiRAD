@@ -371,7 +371,8 @@
   @apply bg-transparent;
 }
 
-@apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
 }
 
 @media screen and (max-width: 768px) {
