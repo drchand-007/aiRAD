@@ -737,21 +737,21 @@ const ReportHistoryModal = ({ isOpen, onClose, onSelectReport, user }) => {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-4xl md:h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="bg-card/95 backdrop-blur-xl border border-border rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-4xl max-h-[100dvh] md:max-h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-black uppercase tracking-tighter text-foreground flex items-center gap-3">
-            <History className="text-primary" size={24} />
-            Full Report History
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-border shrink-0">
+          <h2 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground flex items-center gap-2 md:gap-3 min-w-0">
+            <History className="text-primary shrink-0" size={24} />
+            <span className="truncate">Full Report History</span>
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all">
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all shrink-0">
             <XCircle size={24} />
           </button>
         </div>
 
         {/* Modal List Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar min-h-0">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-20 gap-4">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
