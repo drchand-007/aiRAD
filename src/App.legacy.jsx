@@ -6,7 +6,7 @@ import {
   Lightbulb, ListPlus, AlertTriangle, FileScan, Mic, Plus, Trash2, Bold, Italic, List, UnderlineIcon,
   ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, X, Save, Wifi, WifiOff, Shield, Loader2, FileIcon,
   ChevronDown, History, Redo2, Image as ImageIcon, Menu, Eye, Wand2, Table as TableIcon, ArrowRight, Sun, Moon,
-  Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Heading1, Heading2, Heading3, Quote, Code, Minus,
+  Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Heading1, Heading2, Heading3, Quote, Code, Minus, Sparkles,
   Subscript as SubscriptIcon, Superscript as SuperscriptIcon
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
@@ -41,12 +41,16 @@ import { useVoiceAssistant } from './hooks/useVoiceAssistant.jsx'; // Import the
 import { useTheme } from "./context/ThemeContext"; // Import hook
 import { LogoIcon } from './components/common/LogoIcon.jsx'; // <-- ADD THIS
 import appLogo from './assets/aiRAD_logo.jpg'; // <-- ADD THIS LINE (and fix the path)
+import NumericKeypadModal from './components/NumericKeypadModal.jsx'; // <-- NEW IMPORT
+import VoiceCommandsModal from './components/modals/VoiceCommandsModal.jsx'; // <-- NEW IMPORT
+import AudioEqualizer from './components/common/AudioEqualizer.jsx'; // <-- NEW IMPORT
 // import Groq from groq;
 import BrandingModal from './components/modals/BrandingModal.jsx'; // Import new modal
 import { runHuggingFacePrompt } from './api/huggingFaceTools.js';
 import { handleAiKnowledgeSearchHF } from './api/huggingFaceTools.js';
 import Fuse from 'fuse.js';
 import LandingPage from './components/LandingPage';
+import { GhostMacroExtension } from './extensions/GhostMacroExtension.js';
 
 // ... existing imports ...
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom'; // Add this line
@@ -211,7 +215,7 @@ const SidePanel = ({ title, icon: Icon, children }) => (
 );
 
 
-const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript }) => {
+const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListening, interimTranscript, onShowVoiceCommands }) => {
   if (!editor) return null;
 
   const ToolbarGroup = ({ children, className = "" }) => (
@@ -464,6 +468,13 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
         {/* VOICE CONTROLLER */}
         <div className="flex-1 min-w-[240px] flex items-center h-10 bg-muted/50 backdrop-blur-md rounded-xl border border-border shadow-inner px-1 ml-auto">
           <button
+            onClick={onShowVoiceCommands}
+            title="Voice Commands Guide"
+            className="flex items-center justify-center p-1.5 mr-1 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+          >
+            <Lightbulb size={16} />
+          </button>
+          <button
             onClick={handleToggleListening}
             disabled={!isDictationSupported}
             title={!isDictationSupported ? "Speech recognition not supported in this browser" : "Toggle Voice Assistant"}
@@ -477,7 +488,7 @@ const MenuBar = ({ editor, voiceStatus, isDictationSupported, handleToggleListen
               }
             `}
           >
-            <Mic size={14} className={voiceStatus === 'listening' ? 'animate-bounce' : ''} />
+            {voiceStatus === 'listening' ? <AudioEqualizer isListening={true} /> : <Mic size={14} />}
             <span>{voiceStatus === 'listening' ? 'REC' : 'MIC'}</span>
           </button>
 
@@ -1373,13 +1384,13 @@ const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-0 md:p-4 backdrop-blur-sm">
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl w-full h-full md:h-auto md:max-w-lg shadow-2xl shadow-indigo-500/10 flex flex-col md:max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
+      <div className="bg-background backdrop-blur-xl border border-border rounded-none md:rounded-2xl w-full h-full md:h-auto md:max-w-lg shadow-2xl flex flex-col md:max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30 rounded-none md:rounded-t-2xl">
           <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Settings className="w-6 h-6 text-indigo-400" />
+            <Settings className="w-6 h-6 text-primary" />
             Hospital Profile
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-6 h-6" /></button>
         </div>
 
         <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
@@ -1400,12 +1411,12 @@ const SettingsModal = ({ isOpen, onClose, user, onSave }) => {
             <input type="text" className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground" placeholder="e.g. Phone: (555) 123-4567" value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Logo</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Logo</label>
             <div className="flex items-center gap-4">
-              <div onClick={() => fileInputRef.current?.click()} className="w-20 h-20 border-2 border-dashed border-slate-600 bg-black/20 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-white/5 transition-colors">
-                {formData.logo ? <img src={formData.logo} alt="Logo" className="w-full h-full object-contain" /> : <Upload className="w-6 h-6 text-slate-500" />}
+              <div onClick={() => fileInputRef.current?.click()} className="w-20 h-20 border-2 border-dashed border-border bg-muted/50 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-muted transition-colors">
+                {formData.logo ? <img src={formData.logo} alt="Logo" className="w-full h-full object-contain" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
               </div>
-              <button onClick={() => fileInputRef.current?.click()} className="text-sm text-indigo-400 font-medium hover:text-indigo-300">Upload New Logo</button>
+              <button onClick={() => fileInputRef.current?.click()} className="text-sm text-primary font-medium hover:text-primary/80">Upload New Logo</button>
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
             </div>
           </div>
@@ -1488,6 +1499,14 @@ const MainApp = () => {
   const [newMacroCommand, setNewMacroCommand] = useState('');
   const [newMacroText, setNewMacroText] = useState('');
   const [aiKnowledgeLookupResult, setAiKnowledgeLookupResult] = useState(null);
+
+  // --- Interactive Placeholders State ---
+  const [showKeypad, setShowKeypad] = useState(false);
+  const [keypadPos, setKeypadPos] = useState(null);
+  const handlePlaceholderClickRef = useRef();
+
+  const [showVoiceCommandsModal, setShowVoiceCommandsModal] = useState(false);
+
   const [isProactiveHelpEnabled, setIsProactiveHelpEnabled] = useState(true);
   const [structuredData, setStructuredData] = useState({});
   const [isExtracting, setIsExtracting] = useState(false);
@@ -1575,6 +1594,9 @@ const MainApp = () => {
   const searchResultsRef = useRef();
   const isProgrammaticUpdate = useRef(false);
   const macrosRef = useRef(macros);
+  useEffect(() => {
+    macrosRef.current = macros;
+  }, [macros]);
 
 
   //Broadcasting App News to Users
@@ -1927,6 +1949,13 @@ const MainApp = () => {
   useEffect(() => {
     searchResultsRef.current = { localSearchResults, allAiSearchResults, currentAiPage };
   });
+
+  useEffect(() => {
+    handlePlaceholderClickRef.current = (start, end) => {
+      setKeypadPos({ from: start, to: end });
+      setShowKeypad(true);
+    };
+  }, []);
 
   const runInconsistencyCheck = useCallback(async (plainText) => {
     if (isAwaitingAlertAcknowledge) return;
@@ -2311,7 +2340,44 @@ const MainApp = () => {
       TableRowExtension,
       TableHeaderExtension,
       TableCellExtension,
+      GhostMacroExtension.configure({
+        getMacros: () => macrosRef.current || []
+      }),
     ],
+    editorProps: {
+      handleClick: (view, pos, event) => {
+        // ONLY intercept clicks on mobile devices (e.g. phones/tablets <= 768px width)
+        if (typeof window !== 'undefined' && window.innerWidth > 768) {
+          return false;
+        }
+
+        const { doc } = view.state;
+        const $pos = doc.resolve(pos);
+        if (!$pos.parent.isTextblock) return false;
+
+        const textOffset = $pos.parentOffset;
+        const text = $pos.parent.textContent;
+        const regex = /__/g;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const start = match.index;
+          const end = start + match[0].length;
+          // generous click target (+/- 4 chars) for mobile fat fingers
+          if (textOffset >= start - 4 && textOffset <= end + 4) {
+            const absoluteStart = $pos.start() + start;
+            const absoluteEnd = $pos.start() + end;
+
+            setTimeout(() => {
+              if (handlePlaceholderClickRef.current) {
+                handlePlaceholderClickRef.current(absoluteStart, absoluteEnd);
+              }
+            }, 10);
+            return true;
+          }
+        }
+        return false;
+      }
+    },
     content: userFindings, // Loads from localStorage initial state
     onUpdate: ({ editor }) => {
       if (isProgrammaticUpdate.current) {
@@ -2335,6 +2401,13 @@ const MainApp = () => {
     }
   }, [editor]);
 
+  // Handle the insert from NumericKeypadModal
+  const handleKeypadInsert = useCallback((value) => {
+    if (editor && keypadPos) {
+      editor.chain().focus().setTextSelection(keypadPos).insertContent(`<strong>${value}</strong>`).run();
+      setEditorContent(editor.getHTML());
+    }
+  }, [editor, keypadPos]);
 
   useEffect(() => {
     if (editor && editorContent && editor.getHTML() !== editorContent) {
@@ -4880,9 +4953,12 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       try {
         await addDoc(collection(db, "users", user.uid, "reports"), {
           userId: user.uid,
+          userEmail: user.email, // Store email for Admin Dashboard
           reportHTML: fullReport,
           patientName: patientName,
           examDate: examDate,
+          modality: modality,    // Ensure Modality is explicitly tracked
+          aiTimeSaved: (isAiLoading || suggestions.length > 0) ? 5 : 0, // Estimate 5 mins saved if AI features were used (basic logic - could be expanded)
           createdAt: serverTimestamp()
         });
         toast.success('Report saved to cloud!');
@@ -5714,17 +5790,32 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
   };
 
 
+  // Helper to log macro usage
+  const logMacroUsageActivity = async (macroId) => {
+    if (!user || !macroId) return;
+    try {
+      const macroRef = doc(db, "users", user.uid, "macros", macroId);
+      await updateDoc(macroRef, {
+        useCount: increment(1),
+        lastUsedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error logging macro usage:", error);
+    }
+  };
+
   // --- NEW FUNCTION: Insert Macro Directly ---
-  const handleInsertMacro = (text) => {
-    if (!editor) return;
+  const handleInsertMacro = (macro) => {
+    if (!editor || !macro) return;
     isProgrammaticUpdate.current = true;
     // Insert content and add a space after
-    editor.chain().focus().insertContent(text + ' ').run();
+    editor.chain().focus().insertContent(macro.text + ' ').run();
     // Sync state
     setEditorContent(editor.getHTML());
     // Close modal and notify
     setShowMacroModal(false);
     toast.success("Macro inserted into editor");
+    if (macro.id) logMacroUsageActivity(macro.id);
   };
 
   // --- NEW FUNCTION: handleInsertMeasurement ---
@@ -5735,11 +5826,12 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
     // Escape special regex characters from the finding string
     const findingCleaned = finding.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 
-    // Create a regex that finds the finding's bolded header and the first placeholder after it.
+    // Create a regex that finds the finding's header (which may or may not be bolded) 
+    // and the first placeholder after it.
     // It handles variations in whitespace and is case-insensitive.
     // It looks for placeholders like "__ x __ cm", "__ cm", "__ mm", etc.
     const findingRegex = new RegExp(
-      `(<strong>${findingCleaned.replace(/\s+/g, '\\s*')}:?</strong>.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`,
+      `((?:<strong>)?${findingCleaned.replace(/\s+/g, '\\s*')}:?(?:<\\/strong>)?.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`,
       "i"
     );
 
@@ -5774,6 +5866,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       await addDoc(collection(db, "users", user.uid, "macros"), {
         command: newMacroCommand,
         text: newMacroText,
+        useCount: 0, // Initialize usage tracking
         createdAt: serverTimestamp()
       });
       setNewMacroCommand('');
@@ -5858,23 +5951,31 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         break;
 
       case "insertMacro":
+        // Fallback Path (if triggered by Cloud API which only sends macroName)
+        const macroPhrase = args.macroName.toLowerCase().trim().replace(/[.,?]/g, '');
+        const macroMatch = macrosRef.current.find(m => m.command.toLowerCase().trim().replace(/[.,?]/g, '') === macroPhrase);
+
         // 🟢 OPTIMIZED PATH: The local parser already found the text!
         if (args._directContent) {
           isProgrammaticUpdate.current = true;
           editor.chain().focus().insertContent(args._directContent + ' ').run();
           setEditorContent(editor.getHTML());
           toast.success(`Inserted macro: ${args.macroName}`);
+
+          if (macroMatch && macroMatch.id) {
+            logMacroUsageActivity(macroMatch.id);
+          }
           return;
         }
 
-        // Fallback Path (if triggered by Cloud API which only sends macroName)
-        const macroPhrase = args.macroName.toLowerCase().trim().replace(/[.,?]/g, '');
-        const macro = macrosRef.current.find(m => m.command.toLowerCase().trim().replace(/[.,?]/g, '') === macroPhrase);
-
-        if (macro) {
+        if (macroMatch) {
           isProgrammaticUpdate.current = true;
-          editor.chain().focus().insertContent(macro.text).run();
-          toast.success(`Inserted macro: ${macro.command}`);
+          editor.chain().focus().insertContent(macroMatch.text).run();
+          setEditorContent(editor.getHTML());
+          toast.success(`Inserted macro: ${macroMatch.command}`);
+          if (macroMatch.id) {
+            logMacroUsageActivity(macroMatch.id);
+          }
         } else {
           toast.error(`Macro "${args.macroName}" not found.`);
         }
@@ -5904,10 +6005,261 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         }
         break;
 
+      case "clearEditor":
+        if (editor) {
+          isProgrammaticUpdate.current = true;
+          editor.commands.clearContent();
+          setEditorContent('');
+          toast.success("Editor cleared");
+        }
+        break;
+
+      case "formatText":
+        if (editor && args.targetText && args.format) {
+          let currentHtml = editor.getHTML();
+          // Escape string for regex
+          const target = args.targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          // Simple regex to match outside of tags (basic approach for simple cases)
+          const regex = new RegExp(`(?<!<[^>]*)${target}(?![^<]*>)`, 'gi');
+
+          let formattedHtml = currentHtml;
+          if (args.format.toLowerCase() === 'bold') {
+            formattedHtml = currentHtml.replace(regex, `<strong>$&</strong>`);
+          } else if (args.format.toLowerCase() === 'italic') {
+            formattedHtml = currentHtml.replace(regex, `<em>$&</em>`);
+          } else if (args.format.toLowerCase() === 'underline') {
+            formattedHtml = currentHtml.replace(regex, `<u>$&</u>`);
+          }
+
+          if (formattedHtml !== currentHtml) {
+            isProgrammaticUpdate.current = true;
+            editor.commands.setContent(formattedHtml);
+            setEditorContent(formattedHtml);
+            toast.success(`Formatted text as ${args.format}`);
+          } else {
+            toast.error(`Text "${args.targetText}" not found in editor`);
+          }
+        }
+        break;
+
+      case "replaceText":
+        if (editor && args.targetText && args.replacementText) {
+          let currentHtml = editor.getHTML();
+          const target = args.targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(?<!<[^>]*)${target}(?![^<]*>)`, 'gi');
+
+          let replacedHtml = currentHtml.replace(regex, args.replacementText);
+
+          if (replacedHtml !== currentHtml) {
+            isProgrammaticUpdate.current = true;
+            editor.commands.setContent(replacedHtml);
+            setEditorContent(replacedHtml);
+            toast.success(`Replaced "${args.targetText}"`);
+          } else {
+            toast.error(`Text "${args.targetText}" not found in editor`);
+          }
+        }
+        break;
+
+      case "updatePatientInfo":
+        const { field, value } = args;
+        switch (field) {
+          case 'PatientName': setPatientName(value); break;
+          case 'PatientAge': setPatientAge(value); break;
+          case 'PatientGender': setPatientGender(value); break;
+          case 'ReferringPhysician': setReferringPhysician(value); break;
+          case 'ExamDate': setExamDate(value); break;
+          default:
+            console.warn(`Unknown patient field: ${field}`);
+        }
+        if (['PatientName', 'PatientAge', 'PatientGender', 'ReferringPhysician', 'ExamDate'].includes(field)) {
+          toast.success(`Updated ${field} to ${value}`);
+        }
+        break;
+
+      case "insertMeasurements":
+        if (args.measurements && Array.isArray(args.measurements)) {
+          if (!editor) break;
+          let currentHtml = editor.getHTML();
+          let changed = false;
+          let successCount = 0;
+          let failCount = 0;
+
+          args.measurements.forEach(m => {
+            if (!m.finding || !m.value) return;
+            const findingCleaned = m.finding.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const findingRegex = new RegExp(
+              `((?:<strong>)?${findingCleaned.replace(/\s+/g, '\\s*')}:?(?:<\\/strong>)?.*?)(__\\s*x\\s*__\\s*cm|__\\s*cm|__\\s*mm|__\\s*x\\s*__\\s*x\\s*__\\s*cm|__\\s*ml)`,
+              "i"
+            );
+            const match = currentHtml.match(findingRegex);
+
+            if (match) {
+              const updatedSection = match[0].replace(match[2], `<strong>${m.value}</strong>`);
+              currentHtml = currentHtml.replace(match[0], updatedSection);
+              changed = true;
+              successCount++;
+            } else {
+              failCount++;
+            }
+          });
+
+          if (changed) {
+            isProgrammaticUpdate.current = true;
+            editor.commands.setContent(currentHtml);
+            setEditorContent(currentHtml);
+          }
+          if (successCount > 0) toast.success(`Inserted ${successCount} measurement(s)`);
+          if (failCount > 0) toast.error(`Could not find placeholders for ${failCount} measurement(s)`);
+        }
+        break;
+
+      case "clearMeasurements":
+        setAiMeasurements([]);
+        toast.success("AI suggested measurements cleared.");
+        break;
+
+      case "changeReportTemplate": {
+        const { modality: newModality, template: newTemplate } = args;
+        let targetModality = modality;
+
+        if (newModality) {
+          const matchedModality = Object.keys(allTemplates).find(
+            key => key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === newModality.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+          );
+          if (matchedModality) {
+            targetModality = matchedModality;
+            setModality(matchedModality);
+          } else {
+            toast.error(`Modality "${newModality}" not found`);
+            break; // Stop execution if modality invalid
+          }
+        }
+
+        if (newTemplate) {
+          const availableTemplates = [
+            ...Object.keys(allTemplates[targetModality] || {}),
+            ...Object.keys(userTemplates[targetModality] || {})
+          ];
+          const matchedTemplate = availableTemplates.find(
+            key => key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === newTemplate.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+          );
+          if (matchedTemplate) {
+            setTemplate(matchedTemplate);
+            const content = allTemplates[targetModality]?.[matchedTemplate] || userTemplates[targetModality]?.[matchedTemplate] || '';
+            isProgrammaticUpdate.current = true;
+            if (editor) editor.commands.setContent(content);
+            setEditorContent(content);
+            toast.success(`Loaded ${targetModality} - ${matchedTemplate}`);
+          } else {
+            toast.error(`Template "${newTemplate}" not found in ${targetModality}`);
+          }
+        } else if (newModality) {
+          // Modality changed, but no specific template was requested. Load the first default template.
+          if (allTemplates[targetModality]) {
+            const firstT = Object.keys(allTemplates[targetModality])[0];
+            if (firstT) {
+              setTemplate(firstT);
+              const content = allTemplates[targetModality][firstT] || '';
+              isProgrammaticUpdate.current = true;
+              if (editor) editor.commands.setContent(content);
+              setEditorContent(content);
+              toast.success(`Switched to ${targetModality}`);
+            }
+          }
+        }
+        break;
+      }
+
+      case "changeTab":
+        if (['copilot', 'search', 'knowledge', 'measurements'].includes(args.tabName)) {
+          setActiveAiTab(args.tabName);
+          setIsRightSidebarOpen(true); // Open sidebar so they can see the tab
+          toast.success(`Switched to ${args.tabName} tab`);
+        } else {
+          toast.error(`Unknown tab: ${args.tabName}`);
+        }
+        break;
+
+      case "toggleSidebar":
+        const { side, action } = args;
+        const setSidebar = side === 'left' ? setIsLeftSidebarOpen : setIsRightSidebarOpen;
+        if (action === 'open') setSidebar(true);
+        else if (action === 'close') setSidebar(false);
+        else if (action === 'toggle') setSidebar(prev => !prev);
+        break;
+
+      case "createMacro":
+        if (!user) {
+          toast.error("You must be logged in to create a macro.");
+          break;
+        }
+        if (args.macroName && args.macroText) {
+          try {
+            await addDoc(collection(db, "users", user.uid, "macros"), {
+              command: args.macroName,
+              text: args.macroText,
+              useCount: 0,
+              createdAt: serverTimestamp()
+            });
+            toast.success(`Macro "${args.macroName}" created successfully!`);
+          } catch (error) {
+            console.error("Error adding macro via voice: ", error);
+            toast.error("Failed to create macro.");
+          }
+        } else {
+          toast.error("Macro name and text are required.");
+        }
+        break;
+
+      case "insertSearchResult":
+        if (!editor) {
+          toast.error("Editor not found.");
+          break;
+        }
+
+        isProgrammaticUpdate.current = true;
+        let inserted = false;
+
+        // Default to index 1 if not provided, subtract 1 for 0-based array index
+        const indexToUse = (args.resultIndex && args.resultIndex > 0) ? args.resultIndex - 1 : 0;
+
+        if (activeAiTab === 'knowledge' && aiKnowledgeLookupResult) {
+          editor.chain().focus().insertContent(`<p>${aiKnowledgeLookupResult}</p>`).run();
+          inserted = true;
+        } else if (activeAiTab === 'search') {
+          // If in search tab, grab the requested result from the current page of search results
+          const currentPageResults = allAiSearchResults[currentAiPage];
+          if (currentPageResults && currentPageResults.length > indexToUse) {
+            const selectedResult = currentPageResults[indexToUse];
+            // Use the exact same function that the UI button uses
+            insertFindings(selectedResult);
+            inserted = true;
+          } else {
+            toast.error(`Search result number ${indexToUse + 1} not found.`);
+            break; // Exit case early if out of bounds
+          }
+        }
+
+        if (inserted) {
+          setEditorContent(editor.getHTML());
+          toast.success("Inserted search result");
+        } else {
+          toast.error("No active search result to insert.");
+        }
+        break;
+
       default:
         console.warn(`Unknown function call: ${name}`);
     }
-  }, [editor, images, macrosRef, analyzeImages, handleAiKnowledgeSearch, generateFinalReport, handleLocalSearch, handleAiFindingsSearch, setActiveAiTab]);
+  }, [
+    editor, images, macrosRef, analyzeImages, handleAiKnowledgeSearch,
+    generateFinalReport, handleLocalSearch, handleAiFindingsSearch, setActiveAiTab,
+    setPatientName, setPatientAge, setPatientGender, setReferringPhysician, setExamDate, setModality,
+    setIsLeftSidebarOpen, setIsRightSidebarOpen,
+    activeAiTab, aiKnowledgeLookupResult, allAiSearchResults, currentAiPage, insertFindings,
+    allTemplates, userTemplates, modality, template, handleInsertMeasurement, setAiMeasurements, user
+  ]);
 
   const insertPlainText = useCallback((text) => {
     if (editor) { // Added a check for editor
@@ -6640,7 +6992,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                   onInsertGuideline={() => { if (editor && activeAlert?.type === 'guideline') { isProgrammaticUpdate.current = true; editor.chain().focus().insertContent(`<p><strong>RECOMMENDATION:</strong> ${activeAlert.data.recommendationText}</p>`).run(); setEditorContent(editor.getHTML()); } setActiveAlert(null); setIsAwaitingAlertAcknowledge(false); }}
                 />
               </div>
-              <MenuBar editor={editor} voiceStatus={voiceStatus} isDictationSupported={isDictationSupported} handleToggleListening={handleToggleListening} interimTranscript={interimTranscript} />
+              <MenuBar editor={editor} voiceStatus={voiceStatus} isDictationSupported={isDictationSupported} handleToggleListening={handleToggleListening} interimTranscript={interimTranscript} onShowVoiceCommands={() => setShowVoiceCommandsModal(true)} />
               <div className="flex items-center justify-end space-x-3 px-4 py-1.5 border-b border-white/5 bg-black/20 backdrop-blur-sm">
                 <button onClick={() => handleGetSuggestions('differentials')} disabled={!editorContent} className="text-[10px] font-bold uppercase tracking-wider text-yellow-500 hover:text-yellow-400 disabled:opacity-30 flex items-center transition-colors"><Lightbulb size={12} className="mr-1.5" />Differentials</button>
                 <div className="h-3 w-px bg-white/10"></div>
@@ -6846,27 +7198,30 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* ========= ADD THE AI ASSISTANT MODAL HERE ========= */}
         {/* ================================================= */}
         {showAssistantModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-3xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-0 md:p-4 backdrop-blur-sm">
+            <div className="bg-background backdrop-blur-xl border border-border w-full h-full md:h-auto md:max-w-4xl rounded-none md:rounded-2xl shadow-2xl flex flex-col md:max-h-[90vh] animate-in zoom-in duration-200">
               {/* Header */}
-              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
-                <h3 className="text-lg font-bold flex items-center text-slate-100">
-                  <Wand2 size={20} className="mr-2 text-indigo-400" /> AI Assistant
+              <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0 bg-muted/30 rounded-none md:rounded-t-2xl">
+                <h3 className="text-xl font-bold flex items-center text-foreground gap-2">
+                  <Sparkles size={22} className="text-primary" /> AI Assistant
                 </h3>
-                <button onClick={() => setShowAssistantModal(false)} className="text-slate-400 hover:text-white transition-colors">
-                  <XCircle size={24} />
+                <button
+                  onClick={() => setShowAssistantModal(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                >
+                  <XCircle size={26} />
                 </button>
               </div>
 
-              {/* Mode Tabs */}
-              <div className="flex p-2 bg-slate-900 border-b border-slate-800 gap-2 overflow-x-auto">
+              {/* Header Tabs */}
+              <div className="flex p-4 gap-2 border-b border-border flex-wrap bg-muted/10 overflow-x-auto">
                 {['correction', 'template', 'simplify'].map(mode => (
                   <button
                     key={mode}
-                    onClick={() => setAssistantMode(mode)}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${assistantMode === mode
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                    onClick={() => { setAssistantMode(mode); setError(""); }}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${assistantMode === mode
+                      ? 'bg-primary text-primary-foreground shadow-md transform scale-105'
+                      : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border'
                       }`}
                   >
                     {mode === 'correction' && 'Correction & QA'}
@@ -6879,7 +7234,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
               {/* Content Area */}
               <div className="p-6 flex-grow overflow-y-auto">
                 <div className="mb-4">
-                  <label className="text-sm font-medium text-blue-400 mb-2 block flex items-center gap-2">
+                  <label className="text-sm font-medium text-primary mb-2 block flex items-center gap-2">
                     {assistantMode === 'correction' && <><CheckCircle size={16} /> Paste Report to Correct:</>}
                     {assistantMode === 'template' && <><FileText size={16} /> Enter Topic (e.g. 'MRI Knee'):</>}
                     {assistantMode === 'simplify' && <><UserCheck size={16} /> Report to Simplify (leave empty to use Editor):</>}
@@ -6898,9 +7253,9 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                 </div>
 
                 {/* Context Indicator */}
-                <div className="text-xs text-slate-500 bg-slate-900/50 p-2 rounded border border-slate-800 flex items-center gap-2">
+                <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded border border-border flex items-center gap-2 mt-4">
                   <BrainCircuit size={12} />
-                  <span>Active Context: <strong>{patientAge}y {patientName}</strong> ({modality})</span>
+                  <span>Active Context: <strong className="text-foreground">{patientAge}y {patientName}</strong> ({modality})</span>
                 </div>
               </div>
 
@@ -6949,36 +7304,36 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* ========= ADD THE SUGGESTIONS MODAL HERE ========= */}
         {/* ================================================= */}
         {showSuggestionsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-0 md:p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col">
-              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
-                <h3 className="text-lg font-bold capitalize text-slate-100">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 md:p-4 backdrop-blur-sm">
+            <div className="bg-background backdrop-blur-xl border border-border rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col">
+              <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30 rounded-none md:rounded-t-2xl">
+                <h3 className="text-lg font-bold capitalize text-foreground">
                   {suggestionType === 'differentials' ? 'Suggested Differentials' : 'Suggested Recommendations'}
                 </h3>
-                <button onClick={() => setShowSuggestionsModal(false)} className="text-gray-400 hover:text-white">
+                <button onClick={() => setShowSuggestionsModal(false)} className="text-muted-foreground hover:text-foreground">
                   <XCircle />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto flex-grow min-h-[200px] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              <div className="p-6 overflow-y-auto flex-grow min-h-[200px] scrollbar-thin scrollbar-thumb-muted-foreground scrollbar-track-transparent">
                 {isSuggestionLoading ? (
                   <div className="flex justify-center items-center h-full">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-400"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                   </div>
                 ) : (
-                  <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{aiSuggestions}</p>
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">{aiSuggestions}</p>
                 )}
               </div>
-              <div className="p-4 border-t border-white/5 flex justify-end space-x-2 bg-black/20 rounded-b-2xl">
+              <div className="p-4 border-t border-border flex justify-end space-x-2 bg-muted/20 rounded-b-2xl">
                 <button
                   onClick={() => setShowSuggestionsModal(false)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg transition text-sm border border-white/5"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-lg transition text-sm border border-border"
                 >
                   Close
                 </button>
                 <button
                   onClick={appendSuggestionsToReport}
                   disabled={isSuggestionLoading || !aiSuggestions}
-                  className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition disabled:opacity-50 text-sm shadow-lg shadow-indigo-900/20"
+                  className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition disabled:opacity-50 text-sm shadow-sm"
                 >
                   Append to Report
                 </button>
@@ -6995,46 +7350,46 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {showDataModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
             {/* Adjusted max-w-2xl for a bit more space than xl but less than 4xl */}
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="bg-background backdrop-blur-xl border border-border rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
               {/* Header remains structurally similar */}
-              <div className="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0 bg-white/5 rounded-none md:rounded-t-2xl">
-                <h3 className="text-lg font-bold flex items-center text-slate-100">
-                  <ListPlus size={18} className="mr-2 text-indigo-400" /> Extracted Data Summary
+              <div className="p-4 border-b border-border flex justify-between items-center flex-shrink-0 bg-muted/30 rounded-none md:rounded-t-2xl">
+                <h3 className="text-lg font-bold flex items-center text-foreground">
+                  <ListPlus size={18} className="mr-2 text-primary" /> Extracted Data Summary
                 </h3>
-                <button onClick={() => setShowDataModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setShowDataModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                   <XCircle />
                 </button>
               </div>
 
-              {/* Content Area: Changed background, text color, and using prose */}
-              <div className="p-6 overflow-y-auto bg-transparent text-slate-300 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              {/* Content Area */}
+              <div className="p-6 overflow-y-auto bg-transparent text-foreground scrollbar-thin scrollbar-thumb-muted-foreground scrollbar-track-transparent">
                 {isExtracting && (
-                  <div className="flex items-center text-sm text-indigo-400">
+                  <div className="flex items-center text-sm text-primary">
                     {/* Spinner for loading state */}
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-400 mr-2"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
                     Extracting...
                   </div>
                 )}
                 {!isExtracting && Object.keys(structuredData).length === 0 && (
-                  <p className="text-sm text-slate-500 italic">No data extracted yet. Type in the editor.</p>
+                  <p className="text-sm text-muted-foreground italic">No data extracted yet. Type in the editor.</p>
                 )}
                 {!isExtracting && Object.keys(structuredData).length > 0 && (
                   <dl className="space-y-2">
                     {Object.entries(structuredData).map(([key, value]) => (
-                      <div key={key} className="border-b border-white/5 pb-1">
-                        <dt className="font-semibold capitalize text-indigo-300">{key.replace(/([A-Z])/g, ' $1')}:</dt>
-                        <dd className="ml-4 text-slate-300 break-words">{value.toString()}</dd>
+                      <div key={key} className="border-b border-border pb-1">
+                        <dt className="font-semibold capitalize text-primary">{key.replace(/([A-Z])/g, ' $1')}:</dt>
+                        <dd className="ml-4 text-foreground break-words">{value.toString()}</dd>
                       </div>
                     ))}
                   </dl>
                 )}
               </div>
 
-              {/* Footer remains structurally similar */}
-              <div className="p-3 bg-black/20 border-t border-white/5 flex justify-end flex-shrink-0 rounded-b-2xl">
+              {/* Footer */}
+              <div className="p-3 bg-muted/20 border-t border-border flex justify-end flex-shrink-0 rounded-b-2xl">
                 <button
                   onClick={() => setShowDataModal(false)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg transition text-sm border border-white/5"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-lg transition text-sm border border-border"
                 >
                   Close
                 </button>
@@ -7097,53 +7452,53 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
 
         {showMacroModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
-            <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-3xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
-                <h3 className="text-2xl font-bold text-slate-100">Manage Voice Macros</h3>
-                <button className="text-slate-400 hover:text-white transition rounded-full p-1" onClick={() => setShowMacroModal(false)}><XCircle size={28} /></button>
+            <div className="bg-background backdrop-blur-xl border border-border rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-3xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+              <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30 rounded-none md:rounded-t-2xl">
+                <h3 className="text-2xl font-bold text-foreground">Manage Voice Macros</h3>
+                <button className="text-muted-foreground hover:text-foreground transition rounded-full p-1" onClick={() => setShowMacroModal(false)}><XCircle size={28} /></button>
               </div>
-              <div className="p-6 overflow-y-auto flex-grow space-y-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                  <h4 className="font-bold text-indigo-400 mb-3 block">Add New Macro</h4>
+              <div className="p-6 overflow-y-auto flex-grow space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground scrollbar-track-transparent">
+                <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                  <h4 className="font-bold text-primary mb-3 block">Add New Macro</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input
                       type="text"
                       placeholder="Voice Command (e.g., 'normal abdomen')"
                       value={newMacroCommand}
                       onChange={(e) => setNewMacroCommand(e.target.value)}
-                      className="w-full p-2 border border-slate-700 bg-muted/40 text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
+                      className="w-full p-2 border border-input bg-background text-foreground rounded-lg outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
                     />
                     <textarea
                       placeholder="Text to insert"
                       value={newMacroText}
                       onChange={(e) => setNewMacroText(e.target.value)}
-                      className="w-full p-2 border border-slate-700 bg-black/40 text-slate-200 rounded-lg md:col-span-2 outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                      className="w-full p-2 border border-input bg-background text-foreground rounded-lg md:col-span-2 outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
                       rows="3"
                     ></textarea>
                   </div>
                   <button
                     onClick={handleAddMacro}
-                    className="mt-3 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition shadow-lg shadow-indigo-900/20"
+                    className="mt-3 px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition shadow-sm"
                   >
                     Add Macro
                   </button>
                 </div>
 
                 <div>
-                  <h4 className="font-bold text-slate-300 mb-3">Existing Macros</h4>
+                  <h4 className="font-bold text-foreground mb-3">Existing Macros</h4>
                   <div className="space-y-2">
                     {macros.map((macro) => (
-                      <div key={macro.id} className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5 hover:border-indigo-500/30 transition-all">
+                      <div key={macro.id} className="flex justify-between items-center bg-card p-3 rounded-lg border border-border hover:border-primary/50 transition-all shadow-sm">
                         <div className="flex-grow mr-4 overflow-hidden">
-                          <p className="font-semibold text-sm text-indigo-300 truncate">{macro.command}</p>
-                          <p className="text-sm text-slate-400 truncate">{macro.text}</p>
+                          <p className="font-semibold text-sm text-primary truncate">{macro.command}</p>
+                          <p className="text-sm text-muted-foreground truncate">{macro.text}</p>
                         </div>
 
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           {/* --- NEW BUTTON: Insert Macro --- */}
                           <button
-                            onClick={() => handleInsertMacro(macro.text)}
-                            className="text-indigo-400 hover:text-white hover:bg-indigo-600/50 p-2 rounded-full transition-colors"
+                            onClick={() => handleInsertMacro(macro)}
+                            className="text-primary hover:text-primary-foreground hover:bg-primary/80 p-2 rounded-full transition-colors"
                             title="Insert into editor"
                           >
                             <PlusCircle size={20} />
@@ -7152,7 +7507,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                           {/* Existing Delete Button */}
                           <button
                             onClick={() => handleDeleteMacro(macro.id)}
-                            className="text-red-400 hover:text-white hover:bg-red-600/50 p-2 rounded-full transition-colors"
+                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive/90 p-2 rounded-full transition-colors"
                             title="Delete macro"
                           >
                             <Trash2 size={20} />
@@ -7161,7 +7516,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
                       </div>
                     ))}
                     {macros.length === 0 && (
-                      <p className="text-slate-500 italic text-center py-4">No macros added yet.</p>
+                      <p className="text-muted-foreground italic text-center py-4">No macros added yet.</p>
                     )}
                   </div>
                 </div>
@@ -7182,7 +7537,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         {/* =============================================================================== */}
         {/* ============ UPDATED MOBILE NAVIGATION TABS =================================== */}
         {/* =============================================================================== */}
-        <nav className="flex-shrink-0 bg-background border-t border-border flex lg:hidden h-16"> {/* Added h-16 */}
+        <nav className="flex-shrink-0 bg-background border-t border-border flex lg:hidden h-16 relative z-50">
           {/* Case Info Button */}
           <button
             onClick={() => setMobileView('case')}
@@ -7197,6 +7552,32 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
           >
             <FileText size={18} /> Workspace
           </button>
+          {/* Voice Dictation Tab */}
+          <div className="flex-1 relative flex">
+            {voiceStatus === 'listening' && (
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2 py-1.5 rounded-lg shadow-xl w-48 text-center animate-in slide-in-from-bottom-2 pointer-events-none z-50">
+                <span className="font-semibold text-red-400 animate-pulse mr-1">●</span>
+                <span className="italic">{interimTranscript || "Listening..."}</span>
+              </div>
+            )}
+            <button
+              onClick={handleToggleListening}
+              disabled={!isDictationSupported}
+              className={`flex-1 py-3 text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-colors ${voiceStatus === 'listening' ? 'text-red-400 bg-slate-800 animate-pulse' : 'text-primary hover:bg-slate-800/50'}`}
+            >
+              <div className="h-[18px] flex items-center justify-center">
+                {voiceStatus === 'listening' ? <AudioEqualizer isListening={true} /> : <Mic size={18} />}
+              </div>
+              Dictate
+            </button>
+            <button
+              onClick={() => setShowVoiceCommandsModal(true)}
+              title="Voice Commands Guide"
+              className="absolute top-1 right-1 p-1.5 text-slate-400 hover:text-white rounded-full bg-slate-800/80 shadow-md backdrop-blur-sm transition-all"
+            >
+              <Lightbulb size={12} />
+            </button>
+          </div>
           {/* AI Tools Button */}
           <button
             onClick={() => setMobileView('ai')}
@@ -7207,20 +7588,21 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
         </nav>
         {/* Other modals (Suggestions, Macros) go here, styling adjusted for dark theme */}
 
-        <div className="fixed bottom-6 right-6 z-50">
-          {/* <button
-              onClick={handleToggleListening}
-              disabled={!isDictationSupported}
-              title="Toggle Voice Dictation"
-              className={`w-16 h-16 rounded-full text-white flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110
-                  ${voiceStatus === 'listening' ? 'bg-red-500 animate-pulse' : 'bg-blue-600 hover:bg-blue-500'}
-              `}
-          >
-              <Mic size={28} />
-          </button> */}
-        </div>
-
         <Toaster position="bottom-right" toastOptions={{ style: { background: '#1f2937', color: '#e5e7eb' } }} />
+
+        {/* Interactive Numeric Keypad Modal */}
+        <NumericKeypadModal
+          isOpen={showKeypad}
+          onClose={() => setShowKeypad(false)}
+          onInsert={handleKeypadInsert}
+        />
+
+        {/* Voice Commands Cheat Sheet Modal */}
+        <VoiceCommandsModal
+          isOpen={showVoiceCommandsModal}
+          onClose={() => setShowVoiceCommandsModal(false)}
+        />
+
         {/* Settings Modal */}
         <SettingsModal
           isOpen={showSettings}
