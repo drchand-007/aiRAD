@@ -143,14 +143,22 @@ export const useVoiceAssistant = ({ geminiTools, onFunctionCall, onPlainText, us
       }
       // 2. CLOUD FALLBACK
       else {
-        const isCommand = /^(ask|hey|perform|run|do)/i.test(fullText);
+        // Expand command triggers to include Copilot interactions (tell, translate, summarize)
+        const isCommand = /^(ask|hey|perform|run|do|set|change|switch|open|close|update|insert|put|make|clear|italicize|bold|underline|replace|delete|remove|format|create|add|tell|translate|summarize)/i.test(fullText);
         if (isCommand) {
           const result = await callGeminiWithFunctions(fullText, geminiTools);
-          const functionCall = result?.candidates?.[0]?.content?.parts?.find(p => p.functionCall)?.functionCall;
-          if (functionCall) {
-            onFunctionCallRef.current(functionCall);
-          } else {
-            const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parts = result?.candidates?.[0]?.content?.parts || [];
+
+          let hasExecutedFunction = false;
+          for (const p of parts) {
+            if (p.functionCall) {
+              onFunctionCallRef.current(p.functionCall);
+              hasExecutedFunction = true;
+            }
+          }
+
+          if (!hasExecutedFunction) {
+            const text = parts.find(p => p.text)?.text;
             if (text) onPlainTextRef.current(text);
           }
         } else {
