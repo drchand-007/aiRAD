@@ -140,7 +140,7 @@
 // export default TemplateManagerModal;
 
 import React, { useState, useEffect } from 'react';
-import { XCircle, Plus, Trash2, FileText, Bold, Table as TableIcon } from 'lucide-react';
+import { XCircle, Plus, Trash2, FileText, Bold, Table as TableIcon, Sparkles } from 'lucide-react';
 import { db } from '../../firebase'; // Assuming firebase.js is set up
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { toast } from 'react-hot-toast';
@@ -162,6 +162,11 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState(''); // <--- Generic Search State
 
+  // --- AI Gen State ---
+  const [showAiInput, setShowAiInput] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+
   // --- Tiptap Editor Instance ---
   const editor = useEditor({
     extensions: [
@@ -180,7 +185,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
       attributes: {
         // include `tiptap` so your global table CSS applies here as well
         class:
-          'tiptap prose prose-sm focus:outline-none w-full p-2 border border-slate-700 rounded-b-lg min-h-[250px] text-slate-300 bg-black/40',
+          'tiptap prose prose-sm focus:outline-none w-full p-2 border border-input rounded-b-lg min-h-[250px] text-foreground bg-background',
       },
     },
   });
@@ -238,6 +243,56 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
     }
   };
 
+  const handleGenerateSmartTemplate = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Please enter a description for the template.");
+      return;
+    }
+
+    setIsGeneratingAi(true);
+
+    const prompt = `
+      Act as an expert Radiologist and Medical Informaticist. Generate a structured, highly professional HTML report template based on this request: "${aiPrompt}".
+      
+      **Requirements:**
+      1.  **Comprehensive Sections:** Include standard sections like CLINICAL INDICATION, FINDINGS, and IMPRESSION.
+      2.  **Organized Details:** Break down findings systematically by organ/region relevant to the request.
+      3.  **Standard Normals:** Pre-fill the template with normal findings for efficiency, using placeholders like "___ cm" or "___" for measurements or variable descriptions.
+      4.  **Formatting Strictness:**
+          - Use <h3> for primary headers (e.g., <h3>FINDINGS</h3>, <h3>IMPRESSION</h3>).
+          - Use <p><strong>ORGAN/REGION:</strong> ...</p> for body subdivisions.
+          - If a table makes sense for measurements, use a simple HTML <table> with <thead> and <tbody>.
+      5.  **Output:** Return ONLY the raw HTML string, absolutely no markdown formatting blocks framing it. Do not include \`\`\`html or \`\`\`.
+    `;
+
+    try {
+      const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+      const model = 'gemini-2.5-flash';
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+      const result = await response.json();
+      const textResult = result.candidates?.[0]?.content.parts?.[0]?.text;
+
+      if (textResult) {
+        // Strip out any markdown code blocks the AI might have accidentally added
+        const cleanHtml = textResult.replace(/```(html)?\n?/i, '').replace(/\n?```$/i, '').trim();
+        editor.commands.setContent(cleanHtml);
+        toast.success("AI Template generated successfully! You can refine it below.");
+        // We do not close the modal, the user still needs to click Add Template to save it.
+      } else {
+        throw new Error("No response from AI assistant.");
+      }
+    } catch (err) {
+      toast.error("Template generation failed: " + err.message);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
   if (!editor) {
     return null; // Don't render the modal until the editor is ready
   }
@@ -262,14 +317,14 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-xl border border-white/10 rounded-none md:rounded-2xl shadow-2xl shadow-indigo-500/10 w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-none md:rounded-t-2xl">
-          <h3 className="text-2xl font-bold text-slate-100 flex items-center">
-            <FileText size={24} className="mr-3 text-indigo-400" />
+      <div className="bg-background backdrop-blur-xl border border-border rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/50 rounded-none md:rounded-t-2xl">
+          <h3 className="text-2xl font-bold text-foreground flex items-center">
+            <FileText size={24} className="mr-3 text-primary" />
             Manage Custom Templates
           </h3>
           <button
-            className="text-slate-400 hover:text-white transition rounded-full p-1"
+            className="text-muted-foreground hover:text-foreground transition rounded-full p-1"
             onClick={onClose}
           >
             <XCircle size={28} />
@@ -278,13 +333,13 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
         <div className="p-6 overflow-y-auto flex-grow grid grid-cols-1 md:grid-cols-2 gap-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
           {/* Add New Template Form (Left Side) */}
           <div className="space-y-4">
-            <h4 className="font-bold text-xl text-indigo-300 border-b border-indigo-500/30 pb-2">Add New Template</h4>
+            <h4 className="font-bold text-xl text-primary border-b border-primary/30 pb-2">Add New Template</h4>
             <div>
-              <label className="font-semibold text-slate-400 mb-1 block">Modality</label>
+              <label className="font-semibold text-foreground mb-1 block">Modality</label>
               <select
                 value={newTemplateModality}
                 onChange={e => setNewTemplateModality(e.target.value)}
-                className="w-full p-2 border border-slate-700 rounded-lg bg-black/40 text-slate-200 focus:border-indigo-500 outline-none"
+                className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:border-primary outline-none"
               >
                 {existingModalities.map(mod => (
                   <option key={mod} value={mod}>
@@ -294,24 +349,67 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
               </select>
             </div>
             <div>
-              <label className="font-semibold text-slate-400 mb-1 block">Template Name</label>
+              <label className="font-semibold text-foreground mb-1 block">Template Name</label>
               <input
                 type="text"
                 placeholder="e.g., Pediatric Hip Ultrasound"
                 value={newTemplateName}
                 onChange={e => setNewTemplateName(e.target.value)}
-                className="w-full p-2 border border-slate-700 rounded-lg bg-black/40 text-slate-200 focus:border-indigo-500 outline-none placeholder:text-slate-600"
+                className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:border-primary outline-none placeholder:text-muted-foreground"
               />
+            </div>
+
+            {/* --- AI GENERATE MAGIC BUTTON --- */}
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+              <button
+                onClick={() => setShowAiInput(!showAiInput)}
+                className="flex items-center text-sm font-semibold text-primary/80 hover:text-primary transition-colors focus:outline-none"
+              >
+                <Sparkles size={16} className="mr-1.5" />
+                {showAiInput ? "Hide AI Generator" : "Draft Template with AI"}
+              </button>
+
+              {showAiInput && (
+                <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Describe the template you need:</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Normal bilateral renal ultrasound with bladder..."
+                      value={aiPrompt}
+                      onChange={e => setAiPrompt(e.target.value)}
+                      className="flex-grow p-2 border border-input rounded-lg bg-background text-foreground text-sm focus:border-primary outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleGenerateSmartTemplate();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleGenerateSmartTemplate}
+                      disabled={isGeneratingAi || !aiPrompt.trim()}
+                      className="px-4 py-2 bg-indigo-500/10 text-indigo-500 border border-indigo-500/30 hover:bg-indigo-500 hover:text-white font-semibold rounded-lg text-sm transition disabled:opacity-50 flex items-center justify-center whitespace-nowrap"
+                    >
+                      {isGeneratingAi ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
+                      ) : (
+                        "Generate"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* --- RICH TEXT EDITOR --- */}
             <div>
-              <label className="font-semibold text-slate-400 mb-1 block">Template Content</label>
-              <div className="border border-slate-700 rounded-lg">
-                <div className="flex items-center gap-1 p-2 bg-black/60 rounded-t-lg border-b border-slate-700 text-slate-200">
+              <label className="font-semibold text-foreground mb-1 block">Template Content</label>
+              <div className="border border-input rounded-lg">
+                <div className="flex items-center gap-1 p-2 bg-muted/50 rounded-t-lg border-b border-input text-foreground">
                   <button
                     onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`p-2 rounded transition-colors ${editor.isActive('bold') ? 'bg-indigo-600 text-white' : 'hover:bg-white/10 text-slate-400'
+                    className={`p-2 rounded transition-colors ${editor.isActive('bold') ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
                       }`}
                     title="Bold"
                   >
@@ -321,7 +419,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
                   {/* Insert 3×3 table button */}
                   <button
                     onClick={handleInsertTable}
-                    className="p-2 rounded hover:bg-white/10 text-slate-400 transition-colors"
+                    className="p-2 rounded hover:bg-muted text-muted-foreground transition-colors"
                     title="Insert 3×3 table"
                   >
                     <TableIcon size={16} />
@@ -336,7 +434,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
             <button
               onClick={handleAddTemplate}
               disabled={isSaving}
-              className="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 transition disabled:bg-indigo-800 disabled:opacity-50 flex items-center justify-center shadow-lg shadow-indigo-900/20"
+              className="w-full px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition disabled:opacity-50 flex items-center justify-center shadow-lg"
             >
               {isSaving ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -351,7 +449,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
 
           {/* Existing Templates List (Right Side) */}
           <div className="space-y-4">
-            <h4 className="font-bold text-xl text-indigo-300 border-b border-indigo-500/30 pb-2">Your Templates</h4>
+            <h4 className="font-bold text-xl text-primary border-b border-primary/30 pb-2">Your Templates</h4>
 
             {/* SEARCH BAR */}
             <input
@@ -359,7 +457,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
               placeholder="Search your templates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 border border-slate-700 rounded-lg bg-black/40 text-slate-200 focus:border-indigo-500 outline-none placeholder:text-slate-600 mb-2"
+              className="w-full p-2 border border-input rounded-lg bg-background text-foreground focus:border-primary outline-none placeholder:text-muted-foreground mb-2"
             />
 
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
@@ -367,11 +465,11 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
                 filteredTemplates.map(template => (
                   <div
                     key={template.id}
-                    className="flex justify-between items-start bg-white/5 p-3 rounded-lg border border-white/5 hover:border-indigo-500/30 transition-all"
+                    className="flex justify-between items-start bg-card p-3 rounded-lg border border-border hover:border-primary/50 transition-all"
                   >
                     <div className="flex-grow">
-                      <p className="font-bold text-slate-200">{template.name}</p>
-                      <p className="text-xs text-white bg-indigo-600 rounded-full px-2 py-0.5 inline-block mt-1">
+                      <p className="font-bold text-foreground">{template.name}</p>
+                      <p className="text-xs text-primary-foreground bg-primary rounded-full px-2 py-0.5 inline-block mt-1">
                         {template.modality}
                       </p>
                     </div>
@@ -394,7 +492,7 @@ const TemplateManagerModal = ({ user, existingModalities, onClose, onInsert }) =
                   </div>
                 ))
               ) : (
-                <p className="text-slate-500 mt-4 text-center">
+                <p className="text-muted-foreground mt-4 text-center">
                   You haven't added any custom templates yet.
                 </p>
               )}

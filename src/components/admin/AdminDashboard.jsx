@@ -13,7 +13,7 @@ import {
 import { db } from '../../firebase';
 import {
     Users, FileCheck, DollarSign, Activity, TrendingUp,
-    Calendar, Search, User, Clock, Shield
+    Calendar, Search, User, Clock, Shield, Zap
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -82,10 +82,11 @@ const ReportRow = ({ report }) => {
 
 const AdminDashboard = () => {
     // State
-    const [stats, setStats] = useState({ users: 0, proUsers: 0, totalReports: 0, weeklyReports: 0 });
+    const [stats, setStats] = useState({ users: 0, proUsers: 0, totalReports: 0, weeklyReports: 0, aiTimeSaved: 0 });
     const [chartData, setChartData] = useState([]);
     const [modalityData, setModalityData] = useState([]);
     const [recentReports, setRecentReports] = useState([]);
+    const [topMacros, setTopMacros] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterUser, setFilterUser] = useState('');
 
@@ -158,9 +159,11 @@ const AdminDashboard = () => {
 
             // Modality Aggregation
             const modalityCounts = {};
+            let totalTimeSaved = 0;
             snap.forEach(doc => {
                 const m = doc.data().modality || 'Other';
                 modalityCounts[m] = (modalityCounts[m] || 0) + 1;
+                totalTimeSaved += (doc.data().aiTimeSaved || 0);
             });
             const modChartData = Object.entries(modalityCounts)
                 .map(([name, value]) => ({ name, value }))
@@ -169,12 +172,23 @@ const AdminDashboard = () => {
             setModalityData(modChartData);
             const chartArr = Object.keys(dataMap).map(k => ({ name: k, reports: dataMap[k] })).reverse();
             setChartData(chartArr);
-            setStats(prev => ({ ...prev, totalReports: snap.size })); // Update total accurate count
+            setStats(prev => ({ ...prev, totalReports: snap.size, aiTimeSaved: totalTimeSaved })); // Update total accurate count
         };
 
         fetchChartData();
 
-        return () => { unsubUsers(); unsubReports(); };
+        // 4. Fetch Top Macros
+        const macrosQuery = query(
+            collectionGroup(db, 'macros'),
+            orderBy('useCount', 'desc'),
+            limit(5)
+        );
+        const unsubMacros = onSnapshot(macrosQuery, (snap) => {
+            const macros = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTopMacros(macros);
+        });
+
+        return () => { unsubUsers(); unsubReports(); unsubMacros(); };
     }, []);
 
     // Client-side filtering for the table
@@ -201,10 +215,11 @@ const AdminDashboard = () => {
             </div>
 
             {/* STAT CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 <StatCard title="Total Users" value={stats.users} subtext="+12% this month" icon={Users} color="bg-blue-500" gradient="bg-gradient-to-br from-blue-500 to-blue-700" />
                 <StatCard title="Pro Subscribers" value={stats.proUsers} subtext="High Retention" icon={Shield} color="bg-emerald-500" gradient="bg-gradient-to-br from-emerald-500 to-emerald-700" />
                 <StatCard title="Total Reports" value={stats.totalReports} subtext="Lifetime Generated" icon={FileCheck} color="bg-purple-500" gradient="bg-gradient-to-br from-purple-500 to-purple-700" />
+                <StatCard title="Time Saved" value={`${Math.floor(stats.aiTimeSaved / 60)}h ${stats.aiTimeSaved % 60}m`} subtext="Using AI" icon={Clock} color="bg-indigo-500" gradient="bg-gradient-to-br from-indigo-500 to-indigo-700" />
                 <StatCard title="Active Today" value={recentReports.filter(r => isSameDay(new Date(), r.createdAt?.toDate())).length} subtext="Reports Generated" icon={Activity} color="bg-orange-500" gradient="bg-gradient-to-br from-orange-500 to-orange-700" />
             </div>
 
@@ -270,7 +285,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* BOTTOM SECTION: ANALYTICS WIDGETS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* MODALITY DISTRIBUTION */}
                 <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl">
@@ -300,6 +315,29 @@ const AdminDashboard = () => {
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                             </PieChart>
                         </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* TOP MACROS */}
+                <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col">
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <Zap className="text-yellow-400" size={18} /> Top Voice Macros
+                    </h3>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
+                        {topMacros.length > 0 ? topMacros.map((macro, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:border-yellow-500/30 transition-all">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <span className="text-xs font-bold text-slate-500 w-4">#{idx + 1}</span>
+                                    <div className="truncate">
+                                        <p className="text-sm font-medium text-slate-200 capitalize truncate">{macro.command}</p>
+                                        <p className="text-xs text-slate-500 truncate">{macro.text}</p>
+                                    </div>
+                                </div>
+                                <span className="text-sm font-bold text-yellow-500 ml-2 whitespace-nowrap">{macro.useCount || 0} uses</span>
+                            </div>
+                        )) : (
+                            <p className="text-slate-500 text-sm text-center mt-10">No macros tracked yet.</p>
+                        )}
                     </div>
                 </div>
 
