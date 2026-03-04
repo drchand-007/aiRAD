@@ -15,6 +15,18 @@ export const geminiTools = [
         }
       },
       {
+        "name": "createMacro",
+        "description": "Creates and saves a new voice macro to the user's database.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "macroName": { "type": "STRING", "description": "The short command or name for the macro (e.g., 'Normal Appendix', 'Clear Lungs')." },
+            "macroText": { "type": "STRING", "description": "The full text content that should be inserted when the macro is triggered." }
+          },
+          "required": ["macroName", "macroText"]
+        }
+      },
+      {
         "name": "analyzeImages",
         "description": "Analyzes the currently uploaded radiology images to generate an AI report.",
         "parameters": { "type": "OBJECT", "properties": {} }
@@ -69,8 +81,138 @@ export const geminiTools = [
         "parameters": { "type": "OBJECT", "properties": {} }
       },
       {
+        "name": "insertTemplate",
+        "description": "Finds a report template by its name and inserts its text into the editor.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "templateName": { "type": "STRING", "description": "The name or command phrase of the template (e.g., 'normal abdomen', 'clear lungs')." }
+          },
+          "required": ["templateName"]
+        }
+      },
+      {
         "name": "deleteLastSentence",
         "description": "Deletes the last sentence from the report editor.",
+        "parameters": { "type": "OBJECT", "properties": {} }
+      },
+      {
+        "name": "clearEditor",
+        "description": "Clears all text from the report editor, leaving it completely blank.",
+        "parameters": { "type": "OBJECT", "properties": {} }
+      },
+      {
+        "name": "formatText",
+        "description": "Applies formatting (bold, italic, underline) to specific text in the editor.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "targetText": { "type": "STRING", "description": "The exact word or phrase in the editor to format." },
+            "format": { "type": "STRING", "description": "The type of formatting: 'bold', 'italic', or 'underline'." }
+          },
+          "required": ["targetText", "format"]
+        }
+      },
+      {
+        "name": "replaceText",
+        "description": "Replaces a specific word or phrase in the editor with new text.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "targetText": { "type": "STRING", "description": "The exact word or phrase currently in the editor to replace." },
+            "replacementText": { "type": "STRING", "description": "The new text to insert in its place." }
+          },
+          "required": ["targetText", "replacementText"]
+        }
+      },
+      {
+        "name": "updatePatientInfo",
+        "description": "Updates patient demograpics or exam details in the sidebar form.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "field": {
+              "type": "STRING",
+              "description": "The exact field to update: 'PatientName', 'PatientAge', 'PatientGender', 'ReferringPhysician', 'ExamDate'"
+            },
+            "value": { "type": "STRING", "description": "The new value for the field." }
+          },
+          "required": ["field", "value"]
+        }
+      },
+      {
+        "name": "changeReportTemplate",
+        "description": "Changes the radiology modality and/or the specific report template to load into the editor.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "modality": { "type": "STRING", "description": "Optional. The clinical modality (e.g., 'Ultrasound', 'X-Ray', 'CT', 'MRI')." },
+            "template": { "type": "STRING", "description": "Optional. The body part or exam template (e.g., 'Chest', 'Abdomen', 'Pelvis')." }
+          }
+        }
+      },
+      {
+        "name": "changeTab",
+        "description": "Switches the active tab in the AI Tools sidebar.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "tabName": {
+              "type": "STRING",
+              "description": "The name of the tab to switch to: 'copilot', 'search', 'knowledge', 'measurements'"
+            }
+          },
+          "required": ["tabName"]
+        }
+      },
+      {
+        "name": "toggleSidebar",
+        "description": "Opens or closes the left (Patient Info) or right (AI Tools) sidebars.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "side": { "type": "STRING", "description": "Which side: 'left' or 'right'" },
+            "action": { "type": "STRING", "description": "Action: 'open', 'close', 'toggle'" }
+          },
+          "required": ["side", "action"]
+        }
+      },
+      {
+        "name": "insertSearchResult",
+        "description": "Inserts a specific search result or knowledge lookup into the editor based on its number.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "resultIndex": { "type": "INTEGER", "description": "The number of the result to insert (e.g., 1 for the first result, 2 for the second)." }
+          },
+          "required": ["resultIndex"]
+        }
+      },
+      {
+        "name": "insertMeasurements",
+        "description": "Inserts one or more measurements for specific organs or findings into the report editor.",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "measurements": {
+              "type": "ARRAY",
+              "description": "A list of measurements to insert.",
+              "items": {
+                "type": "OBJECT",
+                "properties": {
+                  "finding": { "type": "STRING", "description": "The organ or finding name (e.g., 'Liver', 'Gallbladder', 'Right Kidney')." },
+                  "value": { "type": "STRING", "description": "The measurement value with units (e.g., '10.5 cm', '5 x 4 mm')." }
+                },
+                "required": ["finding", "value"]
+              }
+            }
+          },
+          "required": ["measurements"]
+        }
+      },
+      {
+        "name": "clearMeasurements",
+        "description": "Clears all AI suggested measurements from the measurements panel.",
         "parameters": { "type": "OBJECT", "properties": {} }
       }
     ]
