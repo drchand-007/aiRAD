@@ -7,7 +7,7 @@ import {
   ListOrdered, Pilcrow, BookOpen, Link as LinkIcon, Zap, Copy, UserCheck, LogOut, X, Save, Wifi, WifiOff, Shield, Loader2, FileIcon,
   ChevronDown, History, Redo2, Image as ImageIcon, Menu, Eye, Wand2, Table as TableIcon, ArrowRight, Sun, Moon,
   Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, Heading1, Heading2, Heading3, Quote, Code, Minus, Sparkles,
-  Subscript as SubscriptIcon, Superscript as SuperscriptIcon
+  Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Keyboard
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -1495,6 +1495,7 @@ const MainApp = () => {
   const [suggestionType, setSuggestionType] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [macros, setMacros] = useState([]); // Macros will now be loaded from Firestore
+  const logMacroUsageActivityRef = useRef(null);
   const [showMacroModal, setShowMacroModal] = useState(false);
   const [newMacroCommand, setNewMacroCommand] = useState('');
   const [newMacroText, setNewMacroText] = useState('');
@@ -2341,7 +2342,8 @@ const MainApp = () => {
       TableHeaderExtension,
       TableCellExtension,
       GhostMacroExtension.configure({
-        getMacros: () => macrosRef.current || []
+        getMacros: () => macrosRef.current || [],
+        onMacroUsed: (macro) => logMacroUsageActivityRef.current?.(macro.id)
       }),
     ],
     editorProps: {
@@ -4958,7 +4960,7 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
           patientName: patientName,
           examDate: examDate,
           modality: modality,    // Ensure Modality is explicitly tracked
-          aiTimeSaved: (isAiLoading || suggestions.length > 0) ? 5 : 0, // Estimate 5 mins saved if AI features were used (basic logic - could be expanded)
+          aiTimeSaved: (isAiLoading || aiSuggestions?.length > 0) ? 5 : 0, // Estimate 5 mins saved if AI features were used
           createdAt: serverTimestamp()
         });
         toast.success('Report saved to cloud!');
@@ -5803,6 +5805,10 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
       console.error("Error logging macro usage:", error);
     }
   };
+
+  useEffect(() => {
+    logMacroUsageActivityRef.current = logMacroUsageActivity;
+  }, [user]);
 
   // --- NEW FUNCTION: Insert Macro Directly ---
   const handleInsertMacro = (macro) => {
@@ -6784,9 +6790,19 @@ Regardless of the workflow used, your final output **MUST** be a single, valid J
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full flex-shrink-0 transition-all ${voiceStatus === 'listening' ? 'bg-destructive/20 text-destructive ring-1 ring-destructive animate-pulse' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
-              {voiceStatus === 'listening' ? <Mic size={18} /> : <Mic size={18} />}
-            </button>
+            <div className="flex items-center bg-accent/30 rounded-full border border-border/50 p-0.5 flex-shrink-0">
+              <button
+                onClick={() => setShowVoiceCommandsModal(true)}
+                title="Voice Commands Guide"
+                className="p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+              >
+                <Keyboard size={16} />
+              </button>
+              <button onClick={handleToggleListening} disabled={!isDictationSupported} className={`p-1.5 rounded-full transition-all ${voiceStatus === 'listening' ? 'bg-destructive/20 text-destructive ring-1 ring-destructive animate-pulse' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
+                {voiceStatus === 'listening' ? <Mic size={18} /> : <Mic size={18} />}
+              </button>
+            </div>
+
             <button onClick={() => setShowAssistantModal(true)} title="AI Assistant" className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-primary transition flex-shrink-0"><Wand2 size={18} /></button>
             <button onClick={() => setShowDataModal(true)} title="Extracted Data" className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-primary transition flex-shrink-0"><ListPlus size={18} /></button>
             <div className="flex items-center space-x-1 flex-shrink-0">
